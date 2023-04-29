@@ -184,7 +184,7 @@ Previous work has demonstrated the power of transfer learning for improving pred
 
 
 
-\section{Results}
+\section{Results and Discussion}
 
 \begin{table*}[t]
 \centering
@@ -218,7 +218,7 @@ Results of training on the COSMO-RS activity coefficient dataset are shown in Ta
 \end{figure}
 
 
-\section{Challenges with DeepGamma}
+\section{Conclusion}
 
 While \textit{DeepGamma}, can offer 1900x speed-up compared to the original quantum simulations, it has several limitiations. First, it relies solely on quantum simulation data, which are themselves not fully predictive of experimental results. Second, the results are not necessarily thermodynamically consistent. This is due to the feedforward network used in the readout phase not being permutation invariant; the activity coefficient predictions are not independent of the order of the molecules. Finally, the model does not scale past binary mixtures. Therefore, I looked to develop a more comprehensive approach to thermodynamic predictions using deep learning.
 

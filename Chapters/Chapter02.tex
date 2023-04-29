@@ -422,7 +422,7 @@ Chimera is a hierarchical ASF developed by Hase et al. \cite{Hase2018b, Hase2020
  All tests run for the original Summit paper were completed on the University of Cambridge Service for Data-Driven Discovery (CSD3), with the exception of the NelderMead strategies. Each test was run on a single CPU with 32 threads. Example scripts for running the tests on a similar cluster or single servers are available on \textbf{\href{https://github.com/sustainable-processes/summit/tree/master/experiments}{Github}}. All tests run for the multi-task Bayesian optimization paper were completed on Lightning.ai, a cloud service for machine learning. This code is also available on \textbf{\href{https://github.com/sustainable-processes/multitask}{Github}}.
 
 
-\section{Summit: Benchmarking Machine Learning for Reaction Optimization}
+\section{Results and Discussion}
 
 \subsection{S\textsubscript{N}Ar optimization highlights Bayesian strategies}
 For the S\textsubscript{N}Ar benchmark, there is a negative correlation between STY and E-factor, so it is possible to optimize both simultaneously. As shown in Figure \ref{fig:S$_N$Ar_tsemo}a, as STY decreases, E-factor increases because increasing product throughput does not result in significantly greater environmental waste. Most of the waste comes from the flow of the solvent ethanol, which does not change significantly between reaction conditions \cite{Jeraal2020}.
@@ -483,10 +483,10 @@ The C-N benchmark presents trade-offs in the objectives. Increasing yield often 
     \label{tab:cn_benchmark_results}
 \end{table}
 
-\subsection{Discussion}
+\section{Conclusion}
 
 Summit is a framework for optimization of chemical reactions. I present two benchmarks for reaction optimization and compare the performance of seven strategies with various combinations of multi-objective transforms on these benchmarks. Our results show that Bayesian optimization performs most consistently with TSEMO showing best-in-class performance on both benchmarks.
 
 Our framework enables researchers to test new optimization strategies without expensive experiments. I envision that new benchmarks could address outstanding challenges in reaction optimization such as multi-step optimization \cite{Coley2019, Clayton2020} and mixed objective domains (i.e., categorical and continuous objectives). Additionally, I foresee that new strategies can be tested against current and future benchmarks for performance assessment. Summit provides a simple method for implementing new benchmarks either as mechanistic models or by training data-driven models based on past experiments.
 
-In the optimization community, the idea of "No-free lunch" is often cited \cite{Wolpert1997}. The principle is that an optimization strategy that works well for one problem will inherently be bad for another.  This implies that understanding the strengths and weaknesses of each optimization strategy are important. Here, I have identified that Bayesian optimization is an efficient way to overcome the challenges of reaction optimization. In the following section, I build on this insight to improve Bayesian optimization using multi-task learning.
+In the optimization community, the idea of "No-free lunch" is often cited \cite{Wolpert1997}. The principle is that an optimization strategy that works well for one problem will inherently be bad for another.  This implies that understanding the strengths and weaknesses of each optimization strategy are important. Here, I have identified that Bayesian optimization is an efficient way to overcome the challenges of reaction optimization. In the following chapter, I build on this insight to improve Bayesian optimization using multi-task learning.

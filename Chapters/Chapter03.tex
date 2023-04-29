@@ -21,12 +21,56 @@ Recent work has shown that Bayesian optimization is a particularly powerful tool
 This work shows the first real-world examples of leveraging previous reaction optimization data for unseen chemical transformations using multi-task Bayesian optimization (MTBO). The framework of MTBO, first introduced by Swerksy \textit{et al.},\cite{Swersky2013} replaces the standard probabilistic model in Bayesian optimization with a multi-task model. As these multi-task models can be trained on data from related tasks, we can therefore utilize data from previously conducted similar reactions - both from the laboratory and from the literature. In this work, we first explore and benchmark the use of MTBO in simulated studies, then exploit the methodology to optimize several pharmaceutically relevant C-H activation reactions using an autonomous flow reactor platform. These experimental case studies were chosen to highlight the effectiveness of MTBO in a medicinal chemistry context through efficient material usage. There are many reports of similar automated workflows in the recent literature where a self-optimization protocol is utilized.\cite{Sans2015, Mateos2019} Our reactor platform is equipped with a liquid handling robot and can optimize both continuous variables (residence time, temperature etc.) \textit{and} categorical variables (solvent, ligand etc.). This ability is seldom reported in the literature (with some notable examples from several research groups),\cite{Reizman2016a, Kershaw2023} likely due to engineering and equipment challenges, but is very important in determining all relevant parameters that influence reaction outcomes. The MTBO algorithm utilized is integrated into the Summit, which was introduced in Chapter \ref{ch:summit}, and represents a powerful data-driven optimization technique that can utilize known reaction data and ultimately lead to savings in material, time and overall cost.
 
 
+\section{Methods}
+
+
+\subsection{Multitask Bayesian Optimization}
+
+Bayesian optimization (BO) is detailed in Chapter \ref{ch:summit}. Multi-task BO (MTBO) replaces the GP in Bayesian optimization with a multi-task GP. I use the intrinsic model of coregionalization originally proposed by Bonilla et al.,\cite{Bonilla2007} which defines a multi-task kernel $k^{ICM}_{\theta}$ as the Kronecker product of standard GP kernel (the Matérn kernel in our case) and a task kernel $k^t_{\theta}$:
+\begin{equation}
+    k^{ICM}_{\theta}(x,x') = k^t_{\theta} \otimes  k_{\theta}(x,x')
+\end{equation}
+The task kernel $k^t_{\theta}$ is a $T \times T$ matrix of trainable parameters where $T$ is the number of tasks. These parameters represent the inter-task correlation.
+
+\subsection{Benchmarks}
+% Prior to real experimentation, we wanted to understand the performance of MTBO in simulated studies. We examined two literature reports that contain experimental results from Suzuki-Miyaura coupling reactions,\cite{Baumgartner2018, Reizman2016b} and one report with results from a Buchwald-Hartwig cross-coupling[51] (demonstrated in the Supporting Information), building a predictive model for the reaction yield to behave as the ground-truth for simulated optimization studies. Buchwald-Hartwig and Suzuki-Miyaura couplings are ubiquitous in the pharmaceutical and fine chemicals industries as they allow rapid construction of aromatic scaffolds through reactions with few impurities.[52] We therefore chose these reaction classes because of their high value and applicability to real-world scenarios. More details on benchmark training can be found in the Appendix.
+
+We used literature data to benchmark our strategies \textit{in silico}. The challenge is that chemical data is often recorded in unstructured text documents such as journal publications and patents. While there are some conventions, each author is free to express the details of a chemical reaction as they wish. Such unstructured information is not amenable to most machine learning algorithms. Therefore, we designed a custom data extraction workflow that we think is a model for how to apply transfer learning in chemistry.
+
+As shown in Figure \ref{fig:ord_pipeline}, our workflow that converts unstructured data into benchmarks that can be used for comparing various strategies.  We leveraged the Open Reaction Database (ORD) format as a common representation of reactions \cite{Kearnes2021}. We wrote converters from spreadsheet formats to ORD. Once the data was transformed into ORD, the data was loaded into local storage on disk. Subsequently, the featurization step turned the ORD schema into a set of features that can be used for training a benchmark or a GP for Bayesian Optimization.  We used one-hot encodings to represent the categorical variables. 
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\textwidth]{gfx/Chapter03/etl_pipeline.png}
+    \caption{Diagram of a pipeline for turning raw data from the literature into a standard intermediate schema, which can be used to generate features for downstream machine learning tasks.}
+    \label{fig:ord_pipeline}
+\end{figure}
+
+We examined two literature reports that contain experimental results from Suzuki-Miyaura coupling reactions \cite{Baumgartner2018, Reizman2016b} ,and one report with results from a Buchwald-Hartwig cross-coupling \cite{Baumgartner2019}, building a predictive model for the reaction yield to behave as the ground-truth for simulated optimization studies. Buchwald-Hartwig and Suzuki-Miyaura couplings are ubiquitous in the pharmaceutical and fine chemicals industries as they allow rapid construction of aromatic scaffolds through reactions with few impurities \cite{Brown2016}. We therefore chose these reaction classes because of their high value and applicability to real-world scenarios. The specific reactions used are detailed in Figures \ref{fig:benchmarks_cn} and \ref{fig:benchmarks_suzuki}.
+
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.9\textwidth]{gfx/Chapter03/c_n_benchmarks_thesis.png}
+    \caption{Benchmark examples of C-N cross coupling (C-N B1-B4) of nitrogen functionalized aromatics (1, 4, 6, 8) with p-tolyl triflate. Data is based on experiments by Baumgartner et al. 
+ \cite{Baumgartner2019}. The base equivalents, temperature and reaction time, base and catalyst are varied to maximize yield.}
+    \label{fig:benchmarks_cn}
+\end{figure}
+
+
+
+We leveraged Summit to build the predictive models from the literature reports. We utilized the ExperimentalEmulator feature in Summit, which creates a benchmark based on experimental data. The regressor used was a neural network with one hidden layer of 512 units with a ReLu activation function. A one-hot encoding was used for the pre-catalyst and ligand combinations. The neural networks were trained by five-fold cross validation over 1000 epochs using stochastic gradient descent. See Appendix 1 for the parity plots for the benchmarks. 
+
+\subsection{Flow Reactor Platform}
+
+The reactor platform consists of two Vapourtec R2 modules for controlling flow rates, a Vapourtec R4 reactor module for controlling reactor temperature, a Gilson GX-271 liquid handler for dispensing and collecting reaction material and LC-MS analytical equipment (Shimadzu/Waters) for reaction outcome determination. The Vapourtec R2 modules are connected using 30 cm sections of 1 mm ID stainless steel tubing and T-pieces, entering a Vapourtec stainless steel reactor (10 mL volume) and exiting via a 50-bar back pressure regulator and a 80 cm section of 1 mm ID stainless steel tubing to a switching valve. For each reaction, with the experimental conditions determined through LHS or algorithmically, the liquid handler dispenses 2 mL slugs of the starting material (in this case, the chloroacetanilide) pre-dissolved in the selected solvent into the sample loop for pump A - this solution also contains biphenyl as an internal standard. The selected catalyst/ligand combination in the same solvent is then loaded into the sample loop for pump B, and the solvent of interest is loaded into pump C for dilution. The reaction is conducted with a constant 0.09 M reactor concentration, yielding the corresponding product (in this case, the oxindole), which is thereby analyzed utilizing a 4-way switching valve for on-line LC-MS. Using this methodology, experiments can be run using only minimal amounts of reaction material for each experiment as we are utilizing reaction slugs. This experimental workflow is illustrated in Figure \ref{fig:self_opt_setup}.
 
 \section{Results and Discussion}
 
 \subsection{Bayesian Optimization to Multi-Task Bayesian Optimization}
 
-As shown in Figure \ref{fig:multitask_overview}, Bayesian optimization (BO) relies on three key components: a probabilistic model, an acquisition function and an optimization algorithm. The probabilistic model is trained using experimental data and acts as a surrogate of the real chemical reaction. Given this probabilistic model, the acquisition function estimates the values of different potential experimental reaction conditions. The optimization algorithm is then used to find the set of experimental conditions that maximizes the acquisition function, and these experimental conditions are hence suggested as the next real experiment to run. The combination of the probabilistic model and the acquisition function enables exploitation of known high-performance areas and exploration of new chemical space. By iteratively executing the suggested experimental conditions, retraining the model and optimizing the acquisition function, the BO protocol progressively identifies the best reaction conditions for the output of interest.
+
+As shown in Figure \ref{fig:multitask_overview}a-b, MTBO changes the probabilistic model in BO. Typically, a Gaussian process (GP) is used as the probabilistic model in BO due to the general applicability and efficiency of GPs in the small data regime.\cite{Snoek2012} MTBO replaces a GP with a multi-task GP that can learn the correlations between different tasks to enable better predictions. In our case, the tasks are chemical transformations from the same reaction class with varying substrates. A formal definition of GPs and multi-task GPs is in the Methods section.
 
 \begin{figure}
     \centering
@@ -34,8 +78,6 @@ As shown in Figure \ref{fig:multitask_overview}, Bayesian optimization (BO) reli
     \caption{A schematic description of multi-task Bayesian optimization to the context of reaction optimization. (a) Bayesian optimization consists of a probabilistic model (typically a Gaussian process) that predicts experiment outputs (e.g. yield) given experiment conditions; an acquisition function (AF) that predicts the value of potential new experiments; and an optimization algorithm (opt). (b) Multi-task Bayesian optimization replaces the Gaussian process with a multi-task Gaussian process trained simultaneously on an auxiliary task. In our case, this auxiliary task is a similar reaction to the one being optimized, utilizing previous experimental results. (c) When the auxiliary task for a multi-task Gaussian process is similar to the main optimization task, predictions on the main task are improved significantly. (d) When the auxiliary task for a multi-task Gaussian process is divergent to the main optimization task, predictions on the main task are similar to what is observed for the baseline single-task Gaussian process.}
     \label{fig:multitask_overview}
 \end{figure}
-
-As shown in Figure \ref{fig:multitask_overview}b, MTBO changes the probabilistic model in BO. Typically, a Gaussian process (GP) is used as the probabilistic model in BO due to the general applicability and efficiency of GPs in the small data regime.\cite{Snoek2012} MTBO replaces a GP with a multi-task GP that can learn the correlations between different tasks to enable better predictions. In our case, the tasks are chemical transformations from the same reaction class with varying substrates. A formal definition of GPs and multi-task GPs is in the Methods section.
 
 As a simple illustration of the benefits of multi-task GPs, we created example functions with one input and one output, then trained both a GP and multi-task GP on only three data points. In the multi-task GP case, we also generated 25 data points from an auxiliary task. As shown in Figure \ref{fig:multitask_overview}c, when the main and the auxiliary tasks are similar, the predictions from the multi-task GP (shown as samples from the posterior of the GP) more accurately represent the underlying function than the predictions from the single-task GP. The multi-task GP leverages covariance between the data in the two tasks to improve predictions on the main task, even with limited data for the main task - this is shown formally in the Methods section. As shown in Figure 1d, when the main and the auxiliary tasks are divergent, predictions from the single-task and multi-task GP are highly variable. However, this variability in the multi-task GP is still useful because the BO algorithm will explore to better capture the underlying distribution of the main task.
 
@@ -129,49 +171,7 @@ With the increasing density of chemical reaction data, both in the literature an
 
 The multi-task Bayesian optimization algorithm used in this study is open-source and is released as a package within the Summit framework previously reported by our group. This step towards utilizing machine learning and previous reaction data for future optimization campaigns will ultimately result in faster and more efficient optimizations, thereby serving as a broadly applicable enabling tool with relevance to medicinal chemistry and FBDD settings, where industry-standard process optimization techniques are impractical or even impossible to implement.
 
-\section{Methods}
 
-
-\subsection{Multitask Bayesian Optimization}
-
-Bayesian optimization (BO) is detailed in Chapter \ref{ch:summit}. Multi-task BO (MTBO) replaces the GP in Bayesian optimization with a multi-task GP. I use the intrinsic model of coregionalization originally proposed by Bonilla et al.,\cite{Bonilla2007} which defines a multi-task kernel $k^{ICM}_{\theta}$ as the Kronecker product of standard GP kernel (the Matérn kernel in our case) and a task kernel $k^t_{\theta}$:
-\begin{equation}
-    k^{ICM}_{\theta}(x,x') = k^t_{\theta} \otimes  k_{\theta}(x,x')
-\end{equation}
-The task kernel $k^t_{\theta}$ is a $T \times T$ matrix of trainable parameters where $T$ is the number of tasks. These parameters represent the inter-task correlation.
-
-\subsection{Benchmarks}
-% Prior to real experimentation, we wanted to understand the performance of MTBO in simulated studies. We examined two literature reports that contain experimental results from Suzuki-Miyaura coupling reactions,\cite{Baumgartner2018, Reizman2016b} and one report with results from a Buchwald-Hartwig cross-coupling[51] (demonstrated in the Supporting Information), building a predictive model for the reaction yield to behave as the ground-truth for simulated optimization studies. Buchwald-Hartwig and Suzuki-Miyaura couplings are ubiquitous in the pharmaceutical and fine chemicals industries as they allow rapid construction of aromatic scaffolds through reactions with few impurities.[52] We therefore chose these reaction classes because of their high value and applicability to real-world scenarios. More details on benchmark training can be found in the Appendix.
-
-We used literature data to benchmark our strategies \textit{in silico}. The challenge is that chemical data is often recorded in unstructured text documents such as journal publications and patents. While there are some conventions, each author is free to express the details of a chemical reaction as they wish. Such unstructured information is not amenable to most machine learning algorithms. Therefore, we designed a custom data extraction workflow that we think is a model for how to apply transfer learning in chemistry.
-
-As shown in Figure \ref{fig:ord_pipeline}, our workflow that converts unstructured data into benchmarks that can be used for comparing various strategies.  We leveraged the Open Reaction Database (ORD) format as a common representation of reactions \cite{Kearnes2021}. We wrote converters from spreadsheet formats to ORD. Once the data was transformed into ORD, the data was loaded into local storage on disk. Subsequently, the featurization step turned the ORD schema into a set of features that can be used for training a benchmark or a GP for Bayesian Optimization.  We used one-hot encodings to represent the categorical variables. 
-
-\begin{figure}[t]
-    \centering
-    \includegraphics[width=\textwidth]{gfx/Chapter03/etl_pipeline.png}
-    \caption{Diagram of a pipeline for turning raw data from the literature into a standard intermediate schema, which can be used to generate features for downstream machine learning tasks.}
-    \label{fig:ord_pipeline}
-\end{figure}
-
-We examined two literature reports that contain experimental results from Suzuki-Miyaura coupling reactions \cite{Baumgartner2018, Reizman2016b} ,and one report with results from a Buchwald-Hartwig cross-coupling \cite{Baumgartner2019}, building a predictive model for the reaction yield to behave as the ground-truth for simulated optimization studies. Buchwald-Hartwig and Suzuki-Miyaura couplings are ubiquitous in the pharmaceutical and fine chemicals industries as they allow rapid construction of aromatic scaffolds through reactions with few impurities \cite{Brown2016}. We therefore chose these reaction classes because of their high value and applicability to real-world scenarios. The specific reactions used are detailed in Figures \ref{fig:benchmarks_cn} and \ref{fig:benchmarks_suzuki}.
-
-
-\begin{figure}
-    \centering
-    \includegraphics[width=0.9\textwidth]{gfx/Chapter03/c_n_benchmarks_thesis.png}
-    \caption{Benchmark examples of C-N cross coupling (C-N B1-B4) of nitrogen functionalized aromatics (1, 4, 6, 8) with p-tolyl triflate. Data is based on experiments by Baumgartner et al. 
- \cite{Baumgartner2019}. The base equivalents, temperature and reaction time, base and catalyst are varied to maximize yield.}
-    \label{fig:benchmarks_cn}
-\end{figure}
-
-
-
-We leveraged Summit to build the predictive models from the literature reports. We utilized the ExperimentalEmulator feature in Summit, which creates a benchmark based on experimental data. The regressor used was a neural network with one hidden layer of 512 units with a ReLu activation function. A one-hot encoding was used for the pre-catalyst and ligand combinations. The neural networks were trained by five-fold cross validation over 1000 epochs using stochastic gradient descent. See Appendix 1 for the parity plots for the benchmarks. 
-
-\subsection{Flow Reactor Platform}
-
-The reactor platform consists of two Vapourtec R2 modules for controlling flow rates, a Vapourtec R4 reactor module for controlling reactor temperature, a Gilson GX-271 liquid handler for dispensing and collecting reaction material and LC-MS analytical equipment (Shimadzu/Waters) for reaction outcome determination. The Vapourtec R2 modules are connected using 30 cm sections of 1 mm ID stainless steel tubing and T-pieces, entering a Vapourtec stainless steel reactor (10 mL volume) and exiting via a 50-bar back pressure regulator and a 80 cm section of 1 mm ID stainless steel tubing to a switching valve. For each reaction, with the experimental conditions determined through LHS or algorithmically, the liquid handler dispenses 2 mL slugs of the starting material (in this case, the chloroacetanilide) pre-dissolved in the selected solvent into the sample loop for pump A - this solution also contains biphenyl as an internal standard. The selected catalyst/ligand combination in the same solvent is then loaded into the sample loop for pump B, and the solvent of interest is loaded into pump C for dilution. The reaction is conducted with a constant 0.09 M reactor concentration, yielding the corresponding product (in this case, the oxindole), which is thereby analyzed utilizing a 4-way switching valve for on-line LC-MS. Using this methodology, experiments can be run using only minimal amounts of reaction material for each experiment as we are utilizing reaction slugs. This experimental workflow is illustrated in Figure \ref{fig:self_opt_setup}.
 
 %*****************************************
 %*****************************************
