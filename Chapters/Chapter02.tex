@@ -1,0 +1,492 @@
+%*****************************************
+\chapter{Summit: Benchmarking Machine Learning for Reaction Optimization}\label{ch:summit}
+%*****************************************
+
+This chapter contains text and results published in the following venues:
+
+\begin{enumerate}
+\item \textbf{Felton K.}*, Rittig J.* and Lapkin A. \textif{Chemistry Methods}. "Summit: Benchmarking Machine Learning Methods for Reaction optimization." 2021.
+\item Taylor C.J., Pomberger, A., \textbf{Felton, K.}, Grainger R., Barecka, M., Chamberlain, T., Bourne, R.A., Lapkin, A. A. "A Brief Introduction to Chemical Reaction Optimization". \textit{Chemical Reviews}. 2023.
+\end{enumerate}
+
+* Joint first authors.
+
+Also note that Summit was originally conceived and presented during my MPhil Research, but the current benchmarks and strategies were implemented during my PhD.
+
+
+\section{Introduction}
+The development of novel and efficient chemical processes is essential to meeting grand challenges in healthcare, energy and sustainability \cite{Sheldon2018,Rogers2019}. In the fine chemicals industry particularly, there is a great need for methods to simultaneously optimise reaction throughput while also minimising environmental impact \cite{Schweidtmann2018}. A skilled chemist can often select optimal conditions for high yield after a few experiments when there is detailed mechanistic understanding of a reaction. Then, chemical engineers can develop kinetic models to design pilot plant and large scale reactors for manufacturing \cite{Roberts2008}. However, time and budget constraints often prevent detailed kinetic studies being developed to elucidate the full mechanistic model. Therefore, scientists have to rely on screening to find optimal conditions. 
+
+The challenge with screening is that there are a vast number of possible combinations of reagents, solvents, stoichiometries and temperatures for a reaction. One author estimated that there are more than 50 million potential conditions for most catalytic reactions, so brute force exploration of the parameter space is not possible \cite{Murray2013}. Indeed, even the most advanced automated droplet flow chemistry systems can only complete thousands of reactions per day \cite{Perera2018}, and the 24, 96 or 384 vial plates commonly found in the pharmaceutical industry only enable tens to hundreds of reactions per week \cite{BuitragoSantanilla2015, Shevlin2017, Mennen2019}. Since experiments often use expensive reagents, it is important to maximise the information learned and exploited from each experiment.
+
+In this chapter, I investigate if machine learning driven optimization algorithms can accelerate reaction optimization. I first build a framework for benchmarking machine learning algorithms for reaction optimization without expensive experiments. Then, I use this framework to demonstrate the effectiveness of multi-task Bayesian optimization, a transfer learning technique, in accelerating reaction optimization.
+
+I decided to investigate benchmarking because choosing the most efficient optimization strategy for a particular chemical reaction remains a challenge. Often, strategies have been applied on case studies of varying difficulty, and previous studies have shown that an algorithm which performs Ill on one reaction might be inefficient on another \cite{McMullen2010a, Hase2018a}. Furthermore, each strategy has limited capabilities and can only be applied to certain types of optimization problems. For example, the SNOBFIT optimization algorithm has been used by several authors for optimising yield by changing continuous variables (e.g., temperature and stoichiometry) \cite{McMullen2010a, Krishnadasan2007,Holmes2016a}, but it does not work with categorical variables such as solvents or bases. When ML strategies have been applied to selection of categorical variables, only a small number of categorical options have been used \cite{Baumgartner2018}. However, recent work has shown that descriptors of a solvent or catalyst can be be used to extrapolate performance from a small number of experiments to a large library \cite{Amar2019, Reid2019} .
+
+Herein, I present a comparison of a wide range of potential strategies for optimising chemical reactions on two chemically motivated \emph{in silico} benchmarks (see Figure \ref{fig:overview}). A benchmark is a standard tool in the ML field that enables practitioners to compare the performance of different ML strategies. For example, a benchmark containing over one million everyday objects enabled comparisons of image recognition models on the same easily-accessible dataset \cite{Russakovsky2015}. Much of the rapid progress in the field of image classification over the last ten years can be attributed to this benchmark. Instead of images, our benchmarks are models of reactions that provide predictions of reaction outcomes (e.g., yield) given reaction conditions. Our benchmarks act like virtual laboratories in which researchers can test the efficiency of each strategy through virtual experiments. I chose benchmarks that had already been validated experimentally, so anyone could use them without needing to run laboratory experiments. 
+
+The benchmarking is completed using an open-source python package I created called Summit. Summit is designed to make it possible for any scientists to execute standardized comparisons and repeatable tests of strategies. Additionally, Summit can be used for optimization of real experiments.
+
+
+In the subsequent sections, I review the history of self-optimization, the field from which machine learning from reaction optimization started. I also briefly discuss existing work on transfer learning for reaction optimization before detailing the strategies and benchmarks used in this chapter. Finally, I present results from Summit and the multi-task Bayesian optimization studies.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=\textwidth]{gfx/Chapter02/overview.png}
+    \caption{Overview of the approach used by Summit. Strategies are machine learning algorithms or baselines. Benchmarks are models of reactions that simulate physical experiments. Strategies and benchmarks are used together in an iterative approach to find optimal reaction conditions. This software framework enables standard comparisons of strategies on different repeatable benchmarks without the need for expensive experiments. Furthermore, the same framework can be applied confidently to real experimental case studies.}
+    \label{fig:overview}
+\end{figure}
+
+\section{Background}
+
+\subsection{Self-Optimization}
+
+Self-optimization is a modern approach to automating the discovery of optimal reaction conditions for chemical processes, which does not require the determination of mechanistic models. Self-optimization proceeds through iterative cycles of automated reaction execution, quantification, and algorithmic condition selection to efficiently identify optimal reaction conditions to maximize process metrics (yield, selectivity, etc.). Although self-optimization was initially applied to tuning analytical instruments as early as the 1970s \cite{Routh1977}. Krishnadasan et al. \cite{Krishnadasan2007} first introduced the concept of self-optimization of chemical reactions in 2007, which led to further adoption by many other research groups in the following years. Krishnadasan focused on the synthesis of CdSe quantum dots, but subsequent works have applied self-optimization to a wide range of synthetic organic reactions \cite{McMullen2010a, McMullen2011, Bourne2011, Moore2012, Christensen2020, Reizman2016b, Fitzpatrick2016,Echtermeyer2017}.
+
+Self-optimization is often conducted using automated reactors that can independently execute reactions at a specified set of reaction conditions. Automated analytical instruments then quantify the individual components of a reaction mixture, followed by an algorithmic suggestion of new reaction conditions based on previous data to improve key reaction outcomes. Self-optimization research can therefore often be divided into three subsections that map directly on to these three key aspects: development of automated reactors, development of automated analytical methods and development of optimization algorithms. One or more of these developments are typically reported in individual works in the literature. These ideas are shown conceptually in Figure \ref{fig:optimization-cycle}.  In the following, I focus on optimization algorithms, but I discuss in detail automated reactors and analytical methods in our review.
+
+In self-optimization, an efficient optimization algorithm is required to select new reaction conditions based on previous results. Chemical reactions can viewed as mathematical functions that receive reaction conditions as input values and output reaction outcomes (e.g. product yield, selectivity etc.) \cite{Clayton2019}. This functional view of chemical reactions makes it clear why optimization algorithms, which find the optimal values of mathematical functions, can be used to optimize chemical processes. Optimization algorithms iteratively evaluate the output of the function at different input values until a maximum or, if desired, a minimum, is reached. In the case of chemical processes, these iterative evaluations correspond with intelligently suggested experiments to execute in the laboratory until a set of reaction conditions are achieved that give the optimal desired output.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.9\textwidth]{gfx/Chapter02/self-optimization-cycle.png}
+    \caption{The three parts of a self-optimizing reactor are: an automated reactor system, an analytical method and an optimization algorithm.}
+    \label{fig:optimization-cycle}
+\end{figure}
+
+\subsection{Local vs Global Optimization}
+The two main classes of optimization algorithms are local and global optimization algorithms. Local optimization algorithms are designed to find the optimal values of a function closest to an initial guess. Therefore, if there is one optimal value, local optimization algorithms will likely find it, but if there are multiple optima, the success of a local optimization function is highly dependent on the initial guess. Example chemical applications of local optimization algorithms include the steepest descent algorithm, which chooses reaction conditions based on the most favorable gradient (direction) in design space to explore \cite{McMullen2010a}, and the simplex algorithm, which explores design space based on geometric transformations to exploit perceived favorable areas \cite{Routh1977, Bourne2011}. The challenge with local optimization algorithms is their dependence on the reaction conditions used to initialize the algorithm; if there are multiple regions of chemical space with local optima, the algorithm could potentially fail to find the best overall reaction conditions for the transformation, as illustrated in Figure \ref{fig:local-optimization}.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.8\textwidth]{gfx/Chapter02/local_optimzation.png}
+    \caption{An illustration of a local optimization algorithm failing to find the global maximum of a function with multiple local optima. X and Y are hypothetical experimental variables (e.g. temperature, reaction time) and the objective is the value that must be maximized (e.g. yield). Unfilled circles are function evaluations (i.e. experiments). Red indicates local maxima function value, while blue indicates local minima.}
+    \label{fig:local-optimization}
+\end{figure}
+ 
+Global optimization algorithms can identify the best value of a function independent of the initial guess but may require more experiments to obtain this global optimum. Krishnadasan and several other researchers were the first to apply global optimization to self-optimization \cite{Holmes2016b, Krishnadasan2007, McMullen2010a}. They used the Stable Noisy Branch and Fit (SNOBFIT), which, as its name suggests, relies on sequential branching and fitting steps. The algorithm begins by subdividing the optimization domain into boxes with one data point each (i.e. branching) and subsequently builds full quadratic models for each box and its nearest neighbors (i.e. fitting) \cite{Huyer2008.} SNOBFIT achieves global optimization by sampling evenly from the complete reaction condition input space. This has been shown to result in a larger number of experiments than local optimization in exchange for a higher likelihood of finding the optimum for difficult problems \cite{McMullen2010a}.
+
+More recently, researchers have found success with Bayesian optimization algorithms \cite{Schweidtmann2018, Amar2019, Hase2020, Shields2021, Manson2021}. This class of optimization algorithm is a subset of Bayesian statistics, which uses probability to express certainty in future outcomes based on past observations. In the case of reaction optimization, when an experimental iteration is completed, a probabilistic model is trained to predict its reaction outcome (e.g. yield) given the reaction conditions. Then, the Bayesian optimization algorithm chooses experiments that balance further exploration of chemical space and exploitation of the known best performing conditions \cite{Shahriari2016}. Bayesian optimization offers a principled and efficient way to apply global optimization to chemical reactions. 
+
+\subsection{Categorical Variables}
+Each of the aforementioned algorithms only utilize continuous input variables (e.g. temperature, concentration, residence time), but chemistry problems often have categorical variables also (e.g. solvent, ligand etc.). To address this algorithmic limitation, the Jensen group presented a branch-and-fit algorithm that eliminates possible values for categorical variables (e.g. particular solvents, ligands etc.) that lead to poor reaction performance \cite{Reizman2016a, Baumgartner2018}. The algorithm fits predefined mathematical models for each combination of categorical variables and, once the best categorical combination has been identified, it suggests further experiments to improve the fit of the model. Practically, this approach has been proven to be inefficient when compared to newer algorithms due to the need to fit a separate model for each categorical variable instead of developing one global model.
+
+Alternatively, it is possible to use optimization algorithms that inherently work with categorical variables. In two recent studies, Bayesian optimization algorithms Ire adapted to automatically learn the relationship between categorical variables from experimental data \cite{Manson2021, Hase2021}. These algorithms tended to perform slightly better in finding optimal reaction conditions than the aforementioned strategies that could not learn a relationship between categorical variables and may be a large research area of interest in future. Note that categorical variables can be explored by quantifying them with various ‘continuous variable’ chemical descriptors.
+
+\subsection{Multi-objective Optimization}
+Optimization problems in chemistry often involve trade-offs between multiple competing objectives, such as balancing high process yields with low costs, so optimization algorithms need to be able to consider and weight these objectives to find optimal solutions. For example, Reizman et al. optimized catalyst turnover number (ratio of the rate of product formation to catalyst consumption) with the constraint that yield must be greater than 90 \% \cite{Reizman2015b, Reizman2016a, Reizman2016b, Baumgartner2018}. This constraint was implemented to prevent the yield being maximized by simply adding higher loadings of an expensive catalyst. In other cases, researchers have optimized a weighted function of multiple objectives \cite{Krishnadasan2007, Fitzpatrick2016, Hase2018b}. Both these methods require the scientist to make an \textit{a priori} judgement about the trade-offs between competing objectives and their respective importance. This prior judgement can be limiting, and results in a single optimum point identified whereas there are likely multiple optimal solutions depending on the weightings of the individual objectives.
+
+An alternative approach to considering these trade-offs is the use of multi-objective optimization algorithms. These algorithms explore the full set of trade-offs between multiple objectives \cite{Bradford2018, Schweidtmann2018}. These algorithms construct a Pareto front, which is defined as a set of points in which an improvement in one objective would result in a detriment to another. By presenting a spectrum of trade-offs, this multi-objective approach allows the scientist to select one optimal point after the optimizationon is finished by considering other softer constraints (e.g., budget, manufacturability, downstream separation efficiency, etc.). Due to the need to optimize multiple variables and explore globally, multi-objective Bayesian optimization algorithms can be slower than gradient descent or single objective optimization and require further experimentation.
+
+Figure \ref{fig:schweidtmann_example} shows an example of the multi-objective Bayesian optimization algorithm TSEMO \cite{Bradford2018} applied to a N-benzylation reaction \cite{Schweidtmann2018}. The flow rate of $\alpha$-methylbenzylamine 38, ratio of benzyl bromide 39 to 38, solvent flow rate and temperature were modified to maximize production of 40, while minimizing formation of 41. After 20 experiments designed by Latin hypercube sampling (LHS) \cite{McKay1979}, a balanced random sampling technique, TSEMO quickly identified 58 further experimental conditions on or near the Pareto front. The Pareto front indicated that a 60 $kg m^{-3} h^{-1}$ increase in space-time yield (STY) would correspond with approximate 10 \% increase in impurity yield, and a scientist could then choose how to balance this trade-off.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=\textwidth]{gfx/Chapter02/schweidtmann_thesis.png}
+    \caption{Multi-objective self-optimization of the N-benzylation of N-benzylation of $\alpha$-methylbenzylamine \textbf{1.1} with benzyl bromide \textbf{1.2} \cite{Schweidtmann2018}. TSEMO \cite{Bradford2018} was used to maximize space time yield of the desired 2° amine \textbf{1.3} and minimize production of the percent impurity of 3° amine \textbf{1.4}. After 20 experiments designed by Latin hypercube sampling (LHS) \cite{McKay1979}, TSEMO quickly identified experiments on or near the Pareto front.}
+    \label{fig:schweidtmann}
+\end{figure}
+
+
+% \subsection{Transfer Learning for Reaction Optimization}
+
+% Self-optimization has shown promise in the automated optimization of single reactions, but there is a wealth of reaction data available that current algorithms are unable to utilize. Very recent work has used transfer learning techniques to accelerate optimization by leveraging data from similar reaction optimization campaigns, but this has mainly been demonstrated \textit{in silico } \cite{Hickman2022}, with one active learning example from Pomberger et al. with the focus of pH adjustment \cite{Pomberger2023}. In this work, I use the Summit to develop the optimal settings for multi-task Bayesian optimization (MTBO) and then, in collaboration with an experimentalists, demonstrate its effectiveness in the lab.
+
+% MTBO was originally developed to speed up hyperparameter tuning of machine learning models (e.g., choosing learning rates and batch sizes to maximize model accuracy) \cite{Swersky2013}. Using only the hyperparameters and resulting model accuracy scores of a previously trained machine learning model (which I call Task A),  MTBO decreased by up to 50\% the the number of experiments needed to find optimal hyperparameters for a new machine learning model (which I call Task B).  The data from Task A helped the model better predict Task B, even with only a few experiments for Task B.
+
+% Multi-task Bayesian optimization (MTBO) uses a multi-task probabilistic model inside a BO framework.  Swersky et al. were the first to demonstrate that multi-task BO can be effectively used to accelerate BO for hyperparameter tuning of machine learning models \cite{Swersky2013}. They demonstrated that using the results of hyperparameter tuning on one dataset could assist in tuning another with multi-task GPs. In many cases, multi-task BO could achieve 40-50\% improvements in the test accuracy of models with significantly feIr training runs.  
+
+% One of the challenges faced in applying MTBO to big data uses cases has been its lack of scalability. This in mainly due to the $O(n^3)$ cost of using GPs with exact inference. Several different approaches have been taken to solving this problem including training a vanilla neural network on the tasks and feeding the output to a Bayesian linear regression model \cite{Perrone2018} and using the auxiliary tasks to create a learned feature representation in a compressed space \cite{Hakhamaneshi2021}. These methods have retained the performance of multi-task BO while minimizing the computational cost of its deployment. However, in our case, all datasets have less than 1000 points and in many cases, less than 100. This makes multi-task GPs with exact inference more tractable.
+
+% Another direction has been to apply the machinery of multi-task GPs to multifidelity BO, which aims to leverage data from a cheap but less accurate data source to help with optimizing a more expensive function. This technique has been applied in a wide range of scenarios including parameter estimation of physics models using data from multiple experiments and simulations;\cite{Perdikaris2016} optimizing battery electrode structure using data from both cheap and expensive multitscale differential equation models (Pan 2017), and optimizing composition of alloys using a mix of DFT fidelities (Tran 2020). I foresee that, given these results, our approach will be able to be extended to combine data from simulations and experiments to rapidly optimize processes.
+
+
+\section{Methods}
+
+\subsection{Summit}
+Summit is the first python package dedicated to reaction optimization. Summit is available as open-source software on \textbf{\href{https://github.com/sustainable-processes/summit}{Github}} (\href{https://github.com/sustainable-processes/summit}{https://github.com/sustainable-processes/summit}).  Summit was designed with the principles of simplicity and  flexibility in mind. Previously, most machine learning strategies for reaction optimization have been implemented in Matlab \cite{Krishnadasan2007, McMullen2010a, McMullen2011, Bourne2011, Moore2012, Reizman2016a, Fitzpatrick2016, Bradford2018,  Baumgartner2018}. Matlab offers the benefits of being relatively easy to learn and flexible enough to enable fast development of new ideas.  However, we see strong opportunities in using python due its prevalence in data science and the availability of machine learning packages such as Tensorflow \cite{tensorflow2015} and PyTorch \cite{Paszke2019}. By leveraging these packages, we can keep the code relatively simple. Summit has two main components: benchmarks and strategies
+    
+Benchmarks are simulations of reactions. We propose two approaches to developing benchmarks in Summit. The first is to use mechanistic models that include reaction kinetics and potentially other phenomena such as mass transport. These models are typically differential equations that can be integrated to find reaction yield and selectivity \cite{Reizman2015b, Baumgartner2018}. In Summit, these equations are easily integrated using numerical integration software available in packages like SciPy, \cite{2020SciPy-NMeth} and a standard interface saves researchers the time of re-implementing common functionality. 
+
+Alternatively, when a mechanistic model is not available, it is possible to create a data-driven benchmark. Data-driven benchmarks are machine learning models trained on experimental data to predict yield or other reaction performance metrics given reaction conditions \cite{Hase2020a}.  If data is available in the form of a CSV file, this can be achieved in Summit using as little as two lines of code. We include a base class called \textit{Experiment} which is inherited by benchmarks. One noteworthy functionality is the \textit{ExperimentalEmulator} which creates a benchmark from data by training a machine learning algorithm to predict reaction outcomes given reaction conditions. The overall process involves specifying the decision variables and objectives; importing experimental data from a CSV file and using one line of code to train the model. Strategies contain the logic for machine learning algorithms. Each strategy has a \textit{suggest\_experiments} method, which takes in a dataset with any previous experimental data and generates conditions for a new set of experiments.  Since Summit is written according to object oriented methodologies, new strategies can easily inherit and override the functionality of existing strategies.
+
+In Figure \ref{fig:code_example}, we demonstrate how these components can be combined to run a closed-loop optimization in Summit. In the first line of code, one of the included benchmarks is instantiated. Then, we instantiate one of the strategies, TSEMO, passing in the domain. Domains describe the decision variables and objectives of the optimization. Finally, we pass the strategy and benchmark to the constructor for \textit{Runner}, which will run closed loop optimization automatically and report back the results. 
+
+\begin{figure}
+    \centering
+    \includegraphics[width=\textwidth]{gfx/Chapter02/paraiso.png}
+    \caption{Example code for creating a benchmarking study using Summit.}
+    \label{fig:code_example}
+\end{figure}
+
+Summit has several key utilities:
+
+\begin{itemize}
+    \item \textbf{Domains} describe the decision variables and objectives of the optimization.  There are two types of variables. Continuous variables have upper and lower bounds. Categorical variables represent discrete choices such as solvents or bases and can either be represented directly or include descriptors (e.g., melting point, boiling point). Additionally, domains can have constraints on the input space, though not all strategies can use these constraints. 
+    \item \textbf{Transforms} change the domain of a Benchmark or Experiment to work with a particular strategy or improve its performance. See Section 4 for more details.
+    \item \textbf{DataSets} are containers for holding data and its associated metadata. These DataSets make transforms simple. By  augmenting the spreadsheet-like functionality of Pandas DataFrames\cite{pandas} with the ability to distinguish between metadata and data columns, Summit enables transforms which only modify or act on the actual data while keeping additional metadata for further analysis (e.g., internal hyperparameters of optimization strategies). 
+\end{itemize}
+
+In the subsequent sections, I describe the benchmarks and strategies used in this chapter.
+
+\subsection{Benchmarks}
+
+
+
+% As shown in \ref{fig:benchmarks}B, our second benchmark is the optimization of a Pd-catalysed C-N cross coupling reaction. The aim is to select the best of three catalysts (t-BuXPhos, t-BuBrettPhos, AlPhos) and four organic bases (TEA, TMG, BTMG, and DBU) for the reaction as Ill as the residence time (1-30 minutes), temperature (30-100 $^{\circ}$C) and base equivalents (1.0-2.5). Since it is difficult to find fundamental kinetic models that span across multiple catalysts and reagents, I build a predictive model on data from 96 reactions published by Baumgartner et al.\cite{Baumgartner2019} As shown in Figure S7, the trend of the data is captured by the model, and the cross-validation results show that the model predicts yield on unseen reaction conditions with approximately 8\% mean absolute error.  I use the trained model as a virtual experiment that the optimization strategies consult for yield at given conditions. In addition to optimising yield, I also minimise cost of the reagents, so this becomes a multi-objective optimization.
+ 
+I note that I set the bounds on the decision variables by observing the limits of the experimental data from the original sources for both benchmarks. When optimising a new reaction the lab, a chemist's prior knowledge and a small number of scoping experiments could be used to set these bounds judiciously. For example, to prevent precipitation in a flow reactor, a researcher could chose bounds based on a small number of solubility experiments.
+
+\subsubsection{Mechanistic Benchmarks}
+
+% As shown in \ref{fig:benchmarks}A, the first benchmark is the optimization of a nucleophilic aromatic substitution (S\textsubscript{N}Ar) reaction in a flow reactor. The benchmark is based on a kinetic model developed by Hone et al.,\cite{Hone2017} for the reaction of difluoronitrobenzene \textbf{1} and pyrrolidine \textbf{2}, which produces one desired product and two side products. The reaction is carried out in a virtual flow reactor, so the natural objective is to maximise space time yield (STY), the mass of product formed per unit residence time. Additionally, I minimise the E-factor, which is defined as the ratio of product formed to waste produced.\cite{Sheldon2018} 
+
+
+The $S_NAr$ benchmark is a reaction between 2,4-difluoronitrobenzene \textbf{1.5} and pyrrolidine \textbf{1.6} to afford the desired products \textbf{1.7} with \textbf{1.8} and \textbf{1.9} as undesired side-products \cite{Hone2017}. Here, we aim to optimise the reaction in a virtual self-optimising flow setup, as shown in Figure \ref{fig:snar}a. Formally, the optimization problem can be stated as simultaneously maximising space time yield ($STY$) and minimizing the E-factor ($E$). The decision variables (i.e,. the reaction conditions) are the temperature (40-120 $^{\circ}$C), residence time (0.5-2 minutes), equivalents of \textbf{1.6} (1.0-5.0) and concentration of difluoronitrobenzene (0.1-0.5M).   As noted in Equation \ref{snar_formal}, this is achieved by adjusting the residence time $\tau$, inlet concentration of \textbf{1.5} $C_{1.5,i}$, equivalents of pyrrolidine $n_{1.6}$, and reactor temperature, $T$.
+\begin{equation}
+	\label{snar_formal}
+	\begin{gathered}
+		\min_{X}{(-STY, E)} \\
+		\text{where}\;\; X = [\tau,C_{1.5,i},n_{1.6}, T]
+	\end{gathered}
+\end{equation}
+
+
+\begin{figure}
+    \centering
+    \subfigure[]{
+        \centering
+        \includegraphics[width=0.5\textwidth]{gfx/Chapter02/flow_snar}
+        \subcaption{}
+    }
+    \subfigure[]{
+        \centering
+        \includegraphics[width=0.5\textwidth]{gfx/Chapter02/pareto_front_snar.png}
+        \subcaption{}
+    }
+    \caption{(a) Schematic of the virtual flow chemistry reactor used in the benchmark. (b) optimization landscape of S$_N$Ar benchmark as determined by running NSGA-II for 100 generations with a population size of 100.}
+    \label{fig:snar}
+
+\end{figure}
+
+We use hypervolume as a measure of performance on this benchmark. To calculate hypervolume, a reference is needed. We use the Nadir point as a reference, which is estimated by running the NSGA-II optimization algorithm\cite{Deb2002} on the S$_N$Ar benchmark for 100 generations with a population size of 100. As shown in \ref{fig:snar}b, the Pareto front  extends over a wide range of space time yields (2500-12 000) and a narrow range of E-factors (9.5-10.75). The Nadir point is estimated as (-2957, 10.7), given that the STY is negated to account for hypervolume assuming minimisation.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=\textwidth]{gfx/Chapter02/snar_benchmark_scheme_thesis.png}
+    \caption{Scheme showing the reaction being optimized for $S_NAr$ benchmark. This is a four dimensional optimization of a  S\textsubscript{N}Ar reaction between difluoronitrobenzene (\textbf{1.5}) and pyrrollidine (\textbf{1.6}) \cite{Hone2017}.}
+    \label{fig:snar_benchmark}
+\end{figure}
+
+We now show the equations used to calculate the objective values for given a set of conditions. Space time yield ($STY$) is defined as the mass of 2,4-difluoronitrobenzene leaving the reactor per residence time ($\tau$), and E-factor ($E$) is defined as the ratio of mass of waste to mass of product:
+
+\begin{equation}
+    \label{sty}
+	STY = \frac{M_{1.7} C_{1.7}}{\tau}
+\end{equation}
+\begin{equation}
+    \label{e_factor}
+	\begin{split}
+	 E & = \frac{m_{waste}}{\tau V} \\ 
+	   & = \frac{Q_{tot}\rho_{eth} + \frac{1}{1000}\sum_{n=1, i \neq 3}^5 M_nC_nQ_{tot}}{\frac{1}{1000}M_{1.7}C_{1.7}Q_{tot}}		
+	\end{split}
+\end{equation}
+where $M_n$ is the molar weight in g/mol of species $n$; $Q_{eth}$ and $\rho_{eth}$ are the volumetric flowrate the density of ethanol respectively; and $Q_{tot}$ is the total volumetric flowrate. The volume of the reactor is assumed to be 5 mL. The inlet concentration of \textbf{2} is calculated:
+\begin{equation}
+    C_{1.6,i} = n_{1.6} C_{1.5,i}
+\end{equation}
+is the equivalents of pyrrolidine. Since the total flowrate $Q_{tot}$ is $\frac{V}{\tau}$, then flowrates of the pumps from reservoir $n$ are calculated:
+\begin{equation}
+    Q_1 = \frac{C_{1.5,i}}{C_{1,0}}Q_{tot}
+\end{equation}
+\begin{equation}
+    Q_2 = \frac{C_{1.6,i}}{C_{2,0}}Q_{tot}
+\end{equation}
+where $C_{1,0}=1 M$ and $C_{2,0}=2 M$ are the reservoir concentrations of \textbf{1} and \textbf{2} respectively. To calculate the outlet concentrations of the products, the standard equation for a constant density plug flow reactor is used:
+\begin{equation}
+	\label{pfr}
+	d\tau = \frac{dC_n}{- r_n}
+\end{equation}
+where $C_n$ and $r_n$ are the concentration and reaction rate of species $n$, respectively. Hone et al. determined the reaction rates to be first order with kinetic constants $k_l$ (see Table \ref{table:snar_parameters}) in each species \cite{Hone2017}:
+\begin{equation}
+    \label{equation:r_1}
+	r_{1} = -(k_1+k_2)C_{1.5}C_{1.6}	
+\end{equation}
+\begin{equation}
+	r_2 = -(k_1+k_2)C_{1.5}C_{1.6}-k_3C_{1.6}C_{1.7}-k_4C_{1.6}C_{1.8}
+\end{equation}
+\begin{equation}
+	r_3 = k_1C_{1.5}C_{1.6}-k_3C_{1.6}C_{1.7}
+\end{equation}
+\begin{equation}
+	r_4 = k_1C_{1.5}C_{1.6}-k_4C_{1.6}C_{1.8}
+	\label{equation:r_4}
+\end{equation}
+\begin{equation}
+	\label{last_snar_rxn_rate}
+	r_5 = k_3C_{1.6}C_{1.7} + k_4C_{1.6}C_{1.8}
+\end{equation}
+
+\begin{table}[tb]
+  \centering
+  \caption{Kinetic parameters used for the $S_NAr$ benchmark based on work by Hone et al \cite{Hone2017}.}
+  \begin{tabular}{ccc}
+    &$k_{l,ref} \; (10^{-2} \text{mol}^{-1} \text{dm}^3 \text{s}^{-1})$ & $E_a$ (kJ $\text{mol}^{-1}$) \\
+    \hline
+    $k_{a,ref}$ & 57.9 & 33.3  \\
+    $k_{b,ref}$ & 2.70 & 35.3  \\
+    $k_{c,ref}$ & 0.865 & 38.9 \\
+    $k_{d,ref}$ & 1.63 & 44.8 \\
+  \end{tabular}
+  
+  \label{table:snar_parameters}
+\end{table}
+
+The kinetic constants $k_l$ for each reaction are calculated using the Arrhenius equation:
+\begin{equation}
+	k_l = k_{l, ref} \exp\Biggl[-\frac{E_{a,l}}{R}\biggl(\frac{1}{T}-\frac{1}{T_{ref}}\biggr)\Biggr]
+\end{equation}
+where $k_{l, \\ref}$ is the constant at the reference temperature $T_{ref}$ of $90^{\circ}$C and $E_{a,l}$ is the activation energy. The five differential equations described by Equation \ref{pfr} or Equations \ref{equation:r_1}-\ref{equation:r_4}  are integrated simultaneously over the residence time to find the final concentrations given the inlet concentrations of each species $C_{n,i}$. These concentrations are then supplied to Equations \ref{sty} and \ref{e_factor} to calculate the space time yield and E-factor.
+
+
+% \ref{fig:snar_pareto_fronts} shows the estimated Pareto fronts for the best run of each unique combination of strategy, transform, and number of initial experiments. The best run is determined by the terminal hypervolume.  The reference for the hypervolume calculations is (0, 1). TSEMO finds the best combinations of high space-time-yield and E-factor. Note that for the Custom multi-objective transform, the following objective was minimised: $-STY/1000+E/100$. \ref{tab:snar_benchmark_results} gives the complete results.
+
+% \begin{figure}[p]
+%     \centering
+%     \includegraphics[height=0.8\textheight]{figures/snar_pareto_fronts.png}
+%     \caption{Pareto fronts for the best run (by terminal hypervolume) of each unique combination of strategy, transform, and number of initial experiments for the SnAr benchmark.}
+%     \label{fig:snar_pareto_fronts}
+% \end{figure}
+
+ 
+\subsubsection{Data-driven benchmarks}
+
+
+As shown in \ref{fig:benchmarks}B, our second benchmark is the optimisation of a Pd-catalysed C-N cross coupling reaction. The C-N benchmark represents a Pd-catalyzed cross coupling between aryl triflate and aniline.\cite{Baumgartner2019} This is a five dimensional optimisation of temperature, residence time, base equivalents, catalyst and base. The catalyst choices are t-BuXPhos, t-BuBrettPhos, AlPhos. The bases are triethylamine (TEA); 1,1,3,3-tetramethylguanidine (TMG); 2-tert-butyl-1,1,3,3-tetramethylguanidine (BTMG); and 1,8-Diazabicyclo[5.4.0]undec-7-ene (DBU). The categorical variables (catalyst and base) contain descriptors that are pre-calculated using COSMOQuick computational fluid thermodynamics program.\cite{Loschen2012} The descriptor are the $\sigma$-moments, which are interpretable and general descriptors for any molecule.\cite{Zissimos2002} We use the first two $\sigma$-moments which correspond with area and polarizability respectively.
+
+The yield is determined using a Bayesian Neural Network (BNN) that is trained on the experimental data from Baumgartner et al.\cite{Baumgartner2019} The BNN is implemented in PyTorch\cite{Paszke2019} using the BLITZ library.\cite{Esposito2020}  The total dataset contains 96 experiments, where 86 are used for training and 10 for test. The model is trained using 10-fold cross validation. As shown in \ref{fig:cn_training}, a mean absolute error of 0.08 is achieved on the test set.
+
+
+\begin{figure}[p]
+    \centering
+    \includegraphics[width=0.9\textwidth]{gfx/Chapter02/c_n_benchmarks_thesis_2.png}
+    \caption{Optimisation of a C-N cross coupling between aniline (\textbf{1.11}) and aryl triflate (\textbf{1.12}).\cite{Baumgartner2019} The strategies must select one of three Buchwald catalysts and one of four organic bases for each experiment. Additionally, strategies must select the temperature, residence time, and base equivalents. The objectives are to maximise yield and minimise cost.n}
+\end{figure}
+
+
+% \begin{figure}[p]
+%     \centering
+%     \includegraphics[width=0.9\textwidth]{gfx/Chapter02/suzuki_benchmarks_thesis.png}
+%     \caption{Reaction schemes for the Suzuki cross coupling benchmarks used in this chapter. The data for training the benchmarks are taken from Baumgartner et al. \cite{Baumgartner2018} and \cite{Reizman2016b}. Optimizing these reactions requires tuning continuous variables catalyst loading, reaction time and temperature as Ill as selecting from a library of Buchwald G3 catalysts \cite{Bruno2013}.}
+%     \label{fig:benchmarks_suzuki}
+% \end{figure}
+
+
+\subsection{Strategies}
+
+\subsubsection{Bayesian Optimization}
+
+Bayesian optimization aims to solve the optimization problem.
+\begin{equation}
+    \max_x y(x)
+\end{equation}
+where $y(x)$ is the underlying function that are observed via experiments. Bayesian optimization (BO) achieves this optimization by first training a surrogate probabilistic model to represent the underlying function and, then, optimizing an acquisition function informed by this model to choose next experiments. Typically,  the probabilistic model is standard Gaussian Process. I first describe a standard BO strategy that uses a GP and expected improvement as an acquisition function (which is referred to as Single-task Bayesian optimization in this chapter). I then build on this idea to describe three other BO strategies: TSEMO, Gryffin, and multi-task Bayesian optimization (MTBO).
+
+A GP is a stochastic process characterized by a mean function $\mu(x)$ and covariance function $k_{\theta}(x,x')$. The covariance function is often called a kernel, which is the term I will use henceforth.
+
+\begin{equation}
+    f(x)= \mathcal{GP}(\mu(x), k_{\theta}(x, x'))
+\end{equation}
+
+$\theta$ are referred to as the hyperparameters of the GP and are varied to train the GP. Given a finite set of $N$ inputs $\mathbf X = \{\mathbf x_1, \mathbf x_2, \dots, \mathbf x_N \ \vert x_i \in \mathbb R^m \}$ that correspond with outputs $\mathbf y = \{y_1, y_2, \dots y_N \vert  y_i \in \mathbb R \}$, the GP is a multivariate Gaussian distribution:
+
+\begin{equation}
+    f(\mathbf X) \sim \mathcal N(\mu_{\theta}(\mathbf X), k_{\theta}(\mathbf X, \mathbf X'))
+\end{equation}
+
+The mean function and kernel act as a prior on the GP.  $\mu_{\theta}(x)$ is usually set to zero because the kernel  $k_{\theta}(x, x')$ can expressively represent any arbitrary function. In this work, I use the Matérn 5/2 kernel, with hyperparameters $\theta=\{\sigma,\mathbf L \}$. $\sigma \in \mathbb R$ is the scaling hyperparameter and $\mathbf L \in \mathbb R^m$ is a lengthscale that indicates the significance of each input feature:
+\begin{equation}
+    k_{\theta}(x, x') = \sigma^2 \biggl(1 + \sqrt{5}d_{\theta}(x,x')+\frac{5}{3}d_{\theta}(x,x')^2\biggr)\exp\biggl(-\sqrt{5}d_{\theta}(x,x') \biggr)
+\end{equation}
+$d_{\theta}(x,x')$ is the euclidean distance weighted by the lengthscale.
+\begin{equation}
+    d_{\theta}(x,x')=\biggl\lVert \frac{x-x'}{L} \biggr\rVert_2
+\end{equation}
+Inference on the GP is done by calculating the posterior of the GP. The posterior of the GP is also a Gaussian distribution:
+
+\begin{equation}
+     \tilde f(\mathbf X) \sim \mathcal N(\tilde \mu(\mathbf X), \tilde \sigma_{\theta}(\mathbf X, \mathbf X'))
+\end{equation}
+
+\begin{equation}
+    \tilde \mu_{\theta}(x) = k_{\theta}(x, \mathbf X)k_{\theta}(\mathbf X, \mathbf X')^{-1} \mathbf y
+\end{equation}
+
+\begin{equation}
+    \tilde k_{\theta}(x,x') = k_{\theta}( x, x')-k_{\theta}(x, \mathbf X) k_{\theta}(\mathbf X, \mathbf X)^{-1}k_{\theta}(\mathbf X, x)
+\end{equation}
+where $\tilde \sigma_{\theta}(x)$ are the diagonals of the covariance matrix calculated using $\tilde k_{\theta}(x, x')$.
+To train the GP, the log likelihood is maximized, which is the probability that the model predicts the training outputs given the inputs and hyperparameters. The log likelihood avoids overfitting by trading off accuracy of fit to the training data and complexity of the model.
+\begin{equation}
+    \log p(y \vert X, \theta) = -\underbrace{\frac{1}{2}(y-\tilde \mu_{\theta}(\mathbf X))^T k_{\theta}(\mathbf X, \mathbf X)^{-1}(y- \tilde\mu_{\theta}(\mathbf X)) }_{\text{Data  fit}}- \underbrace{\frac{1}{2} \log{\vert \tilde k_{\theta}(\mathbf X, \mathbf X) \vert} - \frac{d}{2}\log{2 \pi}}_{\text{Complexity penalty}}
+\end{equation}
+
+I use the expected improvement acquisition function or quantitative noisy expected improvement acquisition function. In BO with EI as an acquisition function, the aim is to choose the point that is expected to improve the most upon the existing best observed point $y^* \geq \hat y(x_i) \forall i \in (1, \dots, t)$  where  $t$ is the number of observations thus far. Therefore, I create an improvement function $I(x)$ describing the improvement of the posterior of the GP over the best observed point. If there is no improvement, $I(x)=0$.
+\begin{equation}
+    I(x) = \max(\tilde f_{\theta}(x) -y^*, 0)
+\end{equation}
+For EI, I want the expectation of the improvement:
+\begin{equation}
+    EI(x) = \mathbb E_{y}[I(x)]
+\end{equation}
+After some manipulations, the following closed form for the expected improvement is found:
+\begin{equation}
+    EI(x) =(\tilde \mu_{\theta}(x)-\hat y^*)\Phi(Z^*) + \tilde \sigma_{\theta}(x) \phi(Z^*)
+\end{equation}
+where $Z^*= \frac{y^*-\tilde\mu_{\theta}(x)}{\tilde \sigma_{\theta}(x)}$.  I then solve the following optimization problem to select the next experiment $x_{next}$.
+\begin{equation}
+    x_{\text{next}} = \text{argmax}_{x} EI(x)
+\end{equation}
+We use a gradient based solver with restarts to solve this problem.
+
+TSEMO is an abbreviation for Thompson sampling efficient multi-objective optimization \cite{Bradford2018}. As the name suggests, TSEMO is an adaptation of BO to multi-objective problems. TSEMO uses an independent GP for each objective. Instead of the Expected Improvement as an acquisition function, TSEMO maximizes the hypervolume improvement, which is a measure of the improvement of the pareto front with an additional predicted point. Instead of using the posterior directly, TESMO samples a deterministic function using random Fourier feature. This enables use of an evolutionary multi-objective optimization algorithm NSGA-II \cite{Deb2002} to create a list of potential $x_{next}$ which can then be selected for maximum hypervolume improvement.
+
+Gryffin is a BO approach concerning the challenge of categorical input variables in optimization and was recently presented by H{\"{a}}se et al \cite{Hase2020a}. Gryffin offers to support the optimization algorithm by including domain knowledge in the form of assigning descriptors to the possible values of the categorical input variables (categorical options). Since descriptors provide information about similarity or diversity of the categorical options, Gryffin utilizes this additional information by redefining the distance between the different categorical options depending on the their respective associated descriptor values. So, instead of using the frequently employed one-hot encoding of categorical options with similar distance between all options,  Gryffin defines the distance between categorical options to be the euclidean distance of the real-valued descriptors uniquely assigned to each option. In this way, a relationship of different categorical options is quantified and becomes measurable, providing additional knowledge to the optimization algorithm. 
+
+% Multi-task BO (MTBO) replaces the GP in Bayesian optimization with a multi-task GP. I use the intrinsic model of coregionalization originally proposed by Bonilla et al. \cite{Bonilla2007}, which defines a multi-task kernel $k^{ICM}_{\theta}$ as the Kronecker product of standard GP kernel (the Matérn kernel in our case) and a task kernel $k^t_{\theta}$:
+% \begin{equation}
+%     k^{ICM}_{\theta}(x,x') = k^t_{\theta} \otimes  k_{\theta}(x,x')
+% \end{equation}
+% The task kernel $k^t_{\theta}$ is a $T \times T$ matrix of trainable parameters where $T$ is the number of tasks. These parameters represent the inter-task correlation.
+
+\subsubsection{SNOBFIT}
+SNOBFIT or Stable Noisy optimization by Branch and Fit is a derivative-free optimization algorithm \cite{Huyer2008}. It was developed to optimise expensive to evaluate objective functions globally. Therefore, SNOBFIT combines exploitation and exploration of a problem domain within lower and upper bounds of the decision variables.
+
+After an initial SNOBFIT call with a randomized space-filling design, exploitation is realized by fitting local quadratic  models of the objective function for each point that has been evaluated. Then, SNOBFIT suggests new points by optimising these quadratic models. In addition to exploitation, points in unexplored regions of the problem domain are suggested. We treat constraints as hidden constraints \cite{Huyer2008}. That is, if a point suggested by SNOBFIT violates at least one constraint, we return NaN as objective function value.
+
+We noticed that SNOBFIT sometimes suggest more experiments than requested by the user. This is most common if the number of experiments is low. We believe this could be caused by the exploratory part of SNOBFIT.
+
+ \subsubsection{Nelder-Mead Simplex}
+The Nelder-Mead Simplex (NMS)\cite{Nelder1965} is a local optimization algorithm.  NMS optimises an objective function using multi-dimensional polyhedra. For an optimization problem with $n_{DoF}$ degrees of freedom, the NMS spans a polyhedra with $n_{DoF} + 1$ vertices within the feasible domain. Each vertex represents a set of conditions with the corresponding objective function value.  During the optimization process, vertices with the worst objective function values are replaced iteratively by applying geometrical operations to the polyhedra: reflection, expansion, contraction, and shrinking. 
+
+There are several limitations to NMS. First, a different number of experiments are requested in advance of each the distinct geometrical operation. Therefore, it is impossible to request a fixed number of experiments from NMS.  Second, since NMS only considers a local region of the problem domain, it can converge to local optima. 
+\subsubsection{Reinforcement Learning}
+Reinforcement learning agents learn to make optimal decisions given information about a problem.\cite{sutton2018reinforcement} These agents consist of a policy, which takes in a state (e.g., previously tried reaction conditions and corresponding yields) and suggests an action (e.g., a new set of reaction conditions). The optimality of an action or a set of actions is quantified through a reward. Zhou et al. built the bridge from RL to optimizing chemical reactions: an algorithm that (decision-maker) sequentially suggests experiments to carry out (actions) resulting in the highest yield (reward) \cite{Zhou2017}.
+
+Thereby, they proposed the Deep Reaction optimiser (DRO), a recurrent neural network architecture with a RL-motivated loss function that is proportional to the yield obtained from each experiment suggested and carried out. It was assumed that the response surfaces for chemical reactions are continuous and can be approximated by Gaussian processes (GPs). Thus, the DRO was pretrained on GPs in order to simulate optimising the response surfaces of chemical reactions. These pretrained models were then inferred to yield optimization of actual chemical reactions.
+
+\subsection{Multi-objective Transforms}
+
+Some strategies are not compatible with multi-objective domains by default. As shown in Figure \ref{fig:transforms}a, multi-objective transforms aim to convert multi-objective optimization problems into single objective optimization problems. This makes a wider range of strategies amenable to multi-objective problems. These transforms are often called achievement scalarisation functions (ASFs).
+
+\begin{figure}
+    \subfigure[]{
+        \centering
+        \includegraphics[width=0.5\linewidth]{gfx/Chapter02/custom_asf.png}
+        
+    }
+    \subfigure[]{
+        \centering
+        \includegraphics[width=0.5\linewidth]{gfx/Chapter02/categorical_transform.png}
+
+    }
+
+    \caption{(a) Schematic of achievement scalarisation functions which transform multi-objective optimization problems into single objective problems. (b) Schematic of the categorical transform, which use descriptors to represent a categorical domain in continuous space.}
+    \label{fig:transforms}
+\end{figure}
+
+Chimera is a hierarchical ASF developed by Hase et al. \cite{Hase2018b, Hase2020a}. Hierarchical means that the objectives are weighted, so the ASF will prioritise one objective over another. The main hyperparameters are the tolerances, which are values for each objective in $[0,1]$ that set how much each objective is weighted. A smaller tolerance indicates that the objective will be weighted more, while a larger tolerance indicates that the objective will be weighted less. The original paper does not give a clear mechanism for setting the tolerances, and the tolerances in the examples are tuned to the specific benchmarks used in the paper. To reflect what might be seen in practice, where the best optimal tolerances are not known in advance, we choose to round values for the tolerances and test four different combinations shown in Table \ref{tab:chimera_tolerances}. In this way, we aim to see if there was significant difference between different tolerance settings. In Figure \ref{fig:chimera_comparsion}, we show Chimera with different tolerances on the $S_NAr$ benchmark.
+
+
+\begin{table}
+    \centering
+    \caption{Tolerance combinations for Chimera used in benchmark tests.}
+    \begin{tabular}{cc}
+         Objective 1 & Objective 2  \\
+         \hline
+         0.5 & 0.5 \\
+         0.5 & 1.0 \\
+         1.0 & 0.5 \\
+         1.0 & 1.0 \\
+    \end{tabular}
+    \label{tab:chimera_tolerances}
+\end{table}
+
+\begin{figure}
+    \includegraphics[width=\textwidth]{gfx/Chapter02/chimera_comparison.png}
+    \caption{Comparison of the Chimera ASF on the SnAr Benchmark with different tolerances.}
+    \label{fig:chimera_comparsion}
+\end{figure}
+
+\subsection{Computational Resources}
+ All tests run for the original Summit paper were completed on the University of Cambridge Service for Data-Driven Discovery (CSD3), with the exception of the NelderMead strategies. Each test was run on a single CPU with 32 threads. Example scripts for running the tests on a similar cluster or single servers are available on \textbf{\href{https://github.com/sustainable-processes/summit/tree/master/experiments}{Github}}. All tests run for the multi-task Bayesian optimization paper were completed on Lightning.ai, a cloud service for machine learning. This code is also available on \textbf{\href{https://github.com/sustainable-processes/multitask}{Github}}.
+
+
+\section{Summit: Benchmarking Machine Learning for Reaction Optimization}
+
+\subsection{S\textsubscript{N}Ar optimization highlights Bayesian strategies}
+For the S\textsubscript{N}Ar benchmark, there is a negative correlation between STY and E-factor, so it is possible to optimize both simultaneously. As shown in Figure \ref{fig:S$_N$Ar_tsemo}a, as STY decreases, E-factor increases because increasing product throughput does not result in significantly greater environmental waste. Most of the waste comes from the flow of the solvent ethanol, which does not change significantly between reaction conditions \cite{Jeraal2020}.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=\textwidth]{gfx/Chapter02/snar_tsemo_pareto_hv.png}
+    \caption{An exemplary optimization of run of the S$_N$Ar benchmark with the TSEMO. (a) The objective values of each experiment suggested by TSEMO. TSEMO explores the parameter space and exploits to find conditions that give high space-time yield (>10,000 $(kg \; m^{-3} h^{-1}$) and low E-factor (<10.0). (b) Hypervolume trajectory of the optimization run. Hypervolume is a measure of the number of optimal trade-offs between space-time-yield (STY) and E-factor found by a given machine learning strategy; larger hypervolumes correspond with more optimal solutions.}
+    \label{fig:S$_N$Ar_tsemo}
+\end{figure}
+
+Out of the strategies implemented in Summit, only TSEMO is inherently able to handle multi-objective problems \cite{Bradford2018}. For the other strategies, I implement transforms that combine the objectives into a single value that can be optimised. Specifically, I implement Chimera, a hierarchical scalarisation transform that works with any number of objectives \cite{Hase2018b}, and I include a method for users to specify a custom transform of a multi-objective problem to a single objective problem \cite{Fitzpatrick2016, Epps2020}.
+
+An exemplary run of TSEMO on the S$_N$Ar benchmark is shown in Figure \ref{fig:S$_N$Ar_tsemo}. Figure \ref{fig:S$_N$Ar_tsemo}a shows the objective values of each experiment suggested by TSEMO. The optimization begins with two random experiments suggested by Latin Hypercube Sampling (LHS) \cite{McKay1979}, which are then followed by suggestions by TSEMO. Out of the first suggestions, only a few have optimal STY and E-factor values. With more data, TSEMO begins to select high concentrations of \textbf{1} (near 0.5 M), high equivalents of \textbf{2} (>3.5), and short residence times (30 seconds). However, a variety of temperatures give high STY and low E-factor. To illustrate the improvement with more experiments, I plot a measure of the quality of the pareto front called hypervolume. Hypervolume is a measure of the volume of a set of points in $N$-dimensions, and, in this case, I take the hypervolume of the total  optimal points found by a strategy after a given number of iterations. Since a larger hypervolume will always correspond with a better set of optimal values \cite{Zitzler2003}, I can see if the the optimization strategy is finding conditions that result in better values for all objectives. As shown in Figure \ref{fig:S$_N$Ar_tsemo}b, the hypervolume starts at zero indicating no optimal points are found. Subsequently, hypervolume rapidly increases with more iterations, indicating better values of STY and E-factor are achieved.
+
+Figure \ref{fig:hv_time_tradeoff} compares the performance of all strategies in Summit on the S$_N$Ar benchmark. Each strategy was run for a maximum of 50 iterations (i.e., 50 virtual reactions) and repeated with twenty different random starts to understand the influence of randomness on the performance of the strategy. Additionally, Chimera and the custom multi-objective transform were tested, and the best combination by terminal hypervolume for each strategy is shown. Figure \ref{fig:hv_time_tradeoff}a plots the hypervolume after 50 iterations and the average computation time per suggestion for each strategy. On average, the Bayesian optimization strategies (GRYFFIN, SOBO, and TSEMO) perform best, finding the most optimal points in the allotted number of experiments. However, this performance comes at the price of three orders of magnitude greater computation cost. Furthermore, these tests were run on a high performance computing cluster with up to 32 threads dedicated for each strategy, and our experience is that the runtime increases by a factor of ten on consumer hardware.  The longer computation time is likely acceptable in the case of TSEMO given the improvement in performance, but it might not be justified in the case of GRYFFIN or the SOBO strategies.  Interestingly, Nelder-Mead Simplex, which has been used in several studies \cite{McMullen2010b, Parrott2011, Sans2015, CortesBorda2016, Fitzpatrick2016, McMullen2010a, Poscharny2018}, failed to find any optimal points, even with ten random restarts on each run; in fact, random sampling performed better. This is because Nelder-Mead is a local search strategy, and I found that the multi-objective scalarisation functions (e.g., Chimera) have many local optima (see Figure S4). The DRO also failed to find optimal points, and SNOBFIT only had slightly better performance than random sampling.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=1.2\textwidth]{gfx/Chapter02/snar_hv_time_tradeoff.png}
+    \caption{Comparison of several strategies on the S$_N$Ar benchmark. (a) Trade-offs between improved performance and higher computation time. If used, a multi-objective transform is displayed in parenthesis. (b) Comparison of the hypervolume trajectories of three Bayesian optimization strategies. The mean is plotted with the 95\% confidence interval.}
+    \label{fig:hv_time_tradeoff}
+\end{figure}
+
+Figure \ref{fig:hv_time_tradeoff}b plots the average hypervolume of each of the Bayesian optimization strategies over the course of 50 iterations. GRYFFIN quickly improves the quality of its suggestions with less than ten iterations, but TSEMO has better terminal performance. Both strategies have large confidence intervals with approximately 10 \% of repeats resulting in zero hypervolume. Still, their average performance is better than other strategies evaluated. The outstanding performance of TSEMO is likely linked to the fact that it trains individual surrogate models for each objective \cite{Bradford2018}, while the other strategies directly optimise the multi-objective transform value. As shown Appendix 1, there were not consistent patterns in which multi-objective transform worked best.
+
+\subsection{Optimization of C-N Cross Coupling}
+
+Strategies for the C-N cross coupling benchmark need to be able to select continuous variables (temperature, base equivalents, residence time) and categorical variables (the base and catalyst). Only SOBO and GRYFFIN can inherently work with categorical variables. To overcome this challenge, I calculate a set of descriptors or properties for the catalyst and base that transform the categorical variables into continuous variables. Previous work has shown that descriptors such as melting and boiling point or those from thermodynamic programs can help the optimization \cite{Amar2019, Hase2020a}. I use the first two of five $\sigma$-moments from computational fluid thermodynamics program COSMO-RS as these act as universal descriptors for any molecule \cite{Zissimos2002}. I would prefer to use all five $\sigma$-moments, but I found that it is difficult to optimise in the resulting fourteen-dimensional input space. Using only the first two $\sigma$-moments for the catalyst and base makes it a seven-dimensional input space (three continuous variables and two categorical variables with two descriptors each).  Note that DRO is not included because I empirically found that pre-training the policy on input spaces greater than six-dimensions was very slow. Since the C-N benchmark is also a multi-objective problem, I use the same transforms as in S$_N$Ar benchmark.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=1.2\textwidth]{gfx/Chapter02/cn_hv_time_tradeoff.png}
+    \caption{Comparison of several strategies on the C-N benchmark. (a) Performance of various optimization strategies. If used, a multi-objective transform is displayed in parenthesis. (b) Comparison of the hypervolume trajectories of top performing strategies. The mean is plotted with the 95\% confidence interval.}
+    \label{fig:cn_hv_time}
+\end{figure}
+
+As shown in Figure \ref{fig:cn_hv_time}a, the performance across strategies is very similar for this benchmark, almost indistinguishable. For example, the results of the random selections are nearly equivalent to the machine learning strategies. I suggest this is because the effective parameter space is quite small. Once the optimal catalyst and base are selected, only three variables need to be tuned (reaction temperature, residence time and base equivalents). Furthermore, I see no noticeable difference between the strategies that use descriptors and those that do not use descriptors (SOBO and GRIFFYN).
+
+The C-N benchmark presents trade-offs in the objectives. Increasing yield often results in an increase in cost. This series of optimal trade-offs between yield and cost is called a Pareto front. In Figure \ref{fig:cn_hv_time}b, I plot the objective values for one optimization of C-N benchmark using TSEMO. With more experiments, the Pareto front is better filled out and a greater proportion of selections have high yield. As shown in Figure \ref{tab:cn_benchmark_results}, the optimal catalyst complex is AlPhos, in line with results from Baumgartner et al \cite{Baumgartner2019}. However, it is clear that some conditions result in a prediction of yield being greater than 100 \%. Some of the original data has yield greater than 100 \%, apparently due to small errors in HPLC measurements \cite{Baumgartner2019}. Since the data-driven model has no concept of chemistry (i.e., that yield cannot be greater than 100 \%), it simply learns this pattern and extrapolates it. The lack of physical constraints is a known issue in data-driven models and could possibly be overcome through hybrid models that combine physical insights and learned approximations \cite{Thompson1994, Tsay2019}.
+
+\begin{table}[tb]
+    \centering
+    \caption{Pareto front data from one run of the C-N Benchmark using TSEMO. See the SI for more information about the C-N benchmark, including the catalysts and bases used.
+    }
+    \begin{tabular}{llrrrrr}
+    \hline
+         \textbf{Catalyst} &  \textbf{Base} & \textbf{Base Equiv} & \textbf{Temp ($^{\circ}$ C)} &       $\mathbf{\tau} (s)$ &     \textbf{Yield} &      \textbf{Cost (\$)} \\
+    \hline
+     tBuXPhos &   TMG &             1.32 &       89.86 &   117.73 &  34 \% &  0.25 \\
+     tBuXPhos &   TMG &             2.38 &       64.35 &  1594.63 &  52 \% &  0.25 \\
+     tBuXPhos &   DBU &             2.03 &       71.12 &  1040.59 &  78 \% &  0.25 \\
+ tBuBrettPhos &   DBU &             2.28 &       87.16 &   107.66 &  90 \% &  0.28 \\
+ tBuBrettPhos &  BTMG &             2.50 &       99.32 &  1081.24 &  100 \% &  0.39 \\
+       AlPhos &  BTMG &             2.25 &       99.89 &  1763.66 &  100 \% &  0.52 \\
+    \end{tabular}
+
+    \label{tab:cn_benchmark_results}
+\end{table}
+
+\subsection{Discussion}
+
+Summit is a framework for optimization of chemical reactions. I present two benchmarks for reaction optimization and compare the performance of seven strategies with various combinations of multi-objective transforms on these benchmarks. Our results show that Bayesian optimization performs most consistently with TSEMO showing best-in-class performance on both benchmarks.
+
+Our framework enables researchers to test new optimization strategies without expensive experiments. I envision that new benchmarks could address outstanding challenges in reaction optimization such as multi-step optimization \cite{Coley2019, Clayton2020} and mixed objective domains (i.e., categorical and continuous objectives). Additionally, I foresee that new strategies can be tested against current and future benchmarks for performance assessment. Summit provides a simple method for implementing new benchmarks either as mechanistic models or by training data-driven models based on past experiments.
+
+In the optimization community, the idea of "No-free lunch" is often cited \cite{Wolpert1997}. The principle is that an optimization strategy that works well for one problem will inherently be bad for another.  This implies that understanding the strengths and weaknesses of each optimization strategy are important. Here, I have identified that Bayesian optimization is an efficient way to overcome the challenges of reaction optimization. In the following section, I build on this insight to improve Bayesian optimization using multi-task learning.
