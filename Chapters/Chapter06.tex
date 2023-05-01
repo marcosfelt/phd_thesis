@@ -1,229 +1,409 @@
 %************************************************
-\chapter{DeepGamma: A deep learning model for activity coefficient prediction}\label{ch:deep_gamma} 
+\chapter{Multifidelity Bayesian Optimization for Accelerated Feedback Controller Tuning}\label{ch:mfbo} 
 %************************************************
 
 \section{Introduction}
+\label{sec:intro}
+Laboratory unit operations such as reactors and distillation columns  are often subjected to many processes in short window of time. For each new process, the control systems of these unit operations need to be re-tuned, which can be a time and labor intensive endeavor. As an example, in the distillation laboratories at BASF, operators often spend days attempting to find the best tuning parameters for a new distillation column setup, which is unacceptable given the short timelines of operating a testing laboratory. While it is possible to use model predictive control, decentralized PID controllers are often used due to their robustness and simplicity. In this work, we aim to develop a fast method tuning controllers and apply this method laboratory distillation columns.
 
-Vapor-liquid equilibrium thermodynamics play an essential role in a wide variety of fields in the basic and applied sciences. For example, chemical reactions often happen in between the vapor and liquid phase, where vapor produced by a reaction is extracted to drive conversion or a reactant is introduced as a vapor. Similarly, large scale chemical processes require separation of mixtures into components to purify a valuable product. One ubiquitous method for achieving such separations is distillation, which relies on differences in boiling points of mixtures to achieve separation.
+There are a wide variety of existing tuning protocols ranging from heuristics such as Ziegler Nichols \citep{Ziegler1942} and its refinements \citep{Hang1991} to tuning using analytical equations from models via methods such as  Internal Model Control \citep{Copeland2010}. However, extending these to multi-input multi-output systems has been challenging, often requiring additional optimizations \citep{Nandong2013, Nandong2015}. Optimization-based methods have shown promise \citep{Pajares2019, Sumana2010, Rajapandiyan2012, Behroozsarand2012}, but these methods have been difficult to apply in practice due to the large number of iterations they require. Recently, Bayesian optimization, a technique for optimizing expensive to evaluate functions, has shown promise for tuning controllers \citep{NeumannBrosig2020, Fiducioso2019, Khosravi2020, Konig2020, Fujimoto2022, Brunzema2022, Khosravi2022}, but this method still often requires tens to hundreds of iterations, making it too materially expensive for laboratory chemical processes. 
 
-In order to design and engineer systems which contain vapor-liquid equilibrium, thermodynamic equations are utilized. Thermodynamic equations describe the relationship between the composition of the liquid and the vapor at a given temperature and pressure. One well-known thermodynamic equation is Raoult's Law: 
-
-\begin{equation}
-    \label{ideal-gas}
-    y_i P = x_iP_i^{sat}(T)
-\end{equation}
-
-where $y_i$ and $x_i$ are the vapor and liquid compositions of component $i$ of the mixture respectively, $P$ is the absolute pressure, and $P_i^{sat}(T)$ is the vapor pressure at temperature $T$. Raoult's law describes non-interacting ideal systems, yet it fails to properly predict vapor-liquid equilibrium the wide variety of mixtures used in industrial chemical processes. Therefore, the simplified gamma-phi equation was developed to describe deviations from ideality:
-
-\begin{equation}
-    \label{gamma-phi}
-    y_i P = x_i \gamma_i(x,T,P)   \exp \biggl(\frac{V_i^L(P-P_i^{sat}(T))}{RT}\biggr)
-\end{equation}
-
-where $\gamma_i(\mathbf x,T,P)$ is the activity coefficient at liquid composition $\mathbf x$,  temperature $T$, and pressure $P$; $V_i^L$ is the specific volume and $P_i^{sat}$ is the vapor pressure.  
-
-Activity coefficients are the unknown parameters in the gamma-phi thermodynamic equation that correct for deviations from ideality. These activity coefficients must be predicted for each new mixture using thermodynamic models such as the non-random two liquid model \cite{Renon1968}. 
-
-Unfortunately, the vapor-liquid equilibrium experiments required to parameterize thermodynamic models for predicting activity coefficients are notoriously time-intensive to complete. Classical thermodynamic measurement apparatus such as stills require equilibrium to be reached at each temperature and pressure combination before a measurement is taken \cite{Ronc1976, Dechambre2014}. This equilibration process can take anywhere from minutes to hours, meaning a full set of experiments for a new mixture can take weeks to months. As a result, vapor liquid equilibrium experiments are executed very selectively.
-
-To reduce the time required for parameterizing thermodynamic models for predicting activity coefficients, there is a large body of research focused on directly predicting the parameters from molecular structures. This work ranges from simple counting of functional groups \cite{Fredenslund1975} to density functional theory \cite{ Klamt2010} and machine learning \cite{Urata2002, Nami2011,  Jirasek2020}.  However, these prediction approaches often only cover a small subset of all mixture types (e.g., only hydrocarbons) or require significant calculation times. Thus, there is a need for a general, fast and accurate method for predicting activity coefficients \textit{a priori}.
-
-Herein, we introduce \textit{DeepGamma}, a deep learning model for fast predictions of activity coefficients directly from molecular structures.  We leverage  message passing neural networks (MPNN) to reproduce the results of quantum simulations for predicting activity coefficients without computational expense. Specifically, our model decreases the time required for calculations by a factor of 1900. Our work focuses on predicting activity coefficients of binary mixtures as a first proof of concept. 
-
-\section{Background}
-
-We classify existing methods for predicting activity coefficients into three categories: group-contribution methods, quantum chemistry based methods and machine learning methods. 
-
-\subsubsection{Group Contribution Methods}
-
-Group contribution methods such as UNIFAC were originally developed in the 1970s and predict the activity coefficient as a weighted sum of the occurrence of a predetermined set of basis functions with inputs as the chemical functional groups in each component \cite{Fredenslund1975}. UNIFAC specifically predicts the natural logarithm of the activity coefficient of component $i$ in  a mixture as the sum of a combinatorial term $\ln \gamma_i^C$ and a residual term $\ln \gamma_i^R$:
-
-\begin{equation}
-    \ln \gamma_i = \ln \gamma_i^C + \ln \gamma_i^R
-\end{equation}
-
-The combinatorial term represents the combination of different functional groups:
-
-\begin{equation}
-    \ln  \gamma^C_i = \ln \frac{\Phi_i}{x_i} + \frac{z}{2} q_i \ln \frac{\theta_i}{\Phi_i} + l_i - \frac{\Phi_i}{x_i} \sum_jx_jl_j
-\end{equation}
-
-where $\Phi_i$ and $\theta_i$ are the weighted molar segment area and area for component. These variables in addition to $l_j$ are a function of $r_i$, $z$ and $q_i$, which are  in turn functions of the group volume and surface area parameters $R_k$ and $Q_k$ for tabulated functional groups:
-
-\begin{equation}
-    \Phi_i  = \frac{r_i x_i}{\sum_j r_j x_j}
-\end{equation}
-
-\begin{equation}
-    \theta_i = \frac{q_i x_i}{\sum_j q_j x_j}
-\end{equation}
-
-\begin{equation}
-    l_i = \frac{z}{2}(r_i-q_i) - (r_i -1) \;\; z=10
-\end{equation}
-
-\begin{equation}
-    r_i  = \sum_k = v_k^i R_k
-\end{equation}
-
-\begin{equation}
-    q_i = \sum_k v_k^i Q_k
-\end{equation}
-
-$v_k^i$ is the number of groups of type $k$ in component $i$.
-
-The residual term represents inter-group interactions. It is composed of the group residual activity coefficient $\Gamma_k$ and  $\Gamma_k^{(i)}$, the residual activity coefficient of group k in reference solution with only component $i$.
-
-\begin{equation}
-    \ln \gamma^R_i = \sum_k v_k^{(i)}(\ln \Gamma_k - \ln \Gamma_k^{(i)})
-\end{equation}
-
-\begin{equation}
-    \ln \Gamma_k = Q_k \biggl[1 - \ln \bigl(\sum_m \theta_m \psi_{mk}\bigr) - \sum_m \frac{\theta_m \Psi_{km}}{\sum_n \theta_n \Psi_{nm}} \biggr]
-\end{equation}
-
-\begin{equation}
-    \theta_m = \frac{Q_m X_m}{\sum_n Q_n X_n}
-\end{equation}
-
-\begin{equation}
-    \Psi_{mn} = \exp{\frac{a_{mn}}{T}}
-\end{equation}
-
-where $a_{mn}$ is a binary interaction parameter. 
-
-While UNIFAC provides fast predictions, the accuracy of the model is limited by the interactions explicitly accounted for in each basis function. It can be challenging to hand-craft all such interactions as they can often extend between several atoms.
-
-\subsubsection{Quantum Chemistry}
-
-The second set of methods are quantum chemistry methods. These simulations often use a combination of molecular dynamics and density functional theory (DFT) calculations to predict activity coefficients for each mixture component \cite{Constantinescu2005}. COSMO-RS is one of the most reliable computational methods for liquid-phase thermodynamic predictions \cite{Klamt1995, Klamt2010}. It relies on the theory of screening charges, which states that every element of a surface of a dissolved solute must be complemented by an opposite charge in the solvent. The charge surface around a solute is divided into infinitesimally small pieces, which are then integrated to find the charge density. This charge density can then be used to calculate activity coefficients. The charge density is calculated via rigorous DFT calculations or a much faster quantitative structure-property relationship based on a database of over 65,000 pre-calculated compounds. COSMO-RS and a related method named COSMO-SAC have been applied in calculations of VLE \cite{Constantinescu2005}, liquid-liquid equilibrium (LLE) \cite{Dechambre2014} and vapor-liquid-liquid-equilibrium (VLLE) curves \cite{Kundu2011}.
-
-The downside of COSMO methods is that they are often not accurate for polar compounds \cite{Constantinescu2005, Kundu2011}. This is often due to the lack of theory for the hydrogen bonding present in these systems \cite{Kundu2011}. Another challenging aspect of COSMO-RS is the computational intensity of DFT calculations for new mixtures, though this can be somewhat alleviated by a less accurate method for predictions of charge surfaces from molecular structures \cite{Loschen2012}. 
-
-\subsubsection{Machine Learning}
-
-There has been significant work on directly predicting infinite dilution activity coefficients from molecular structures and closely related free solvation energies using simple neural networks\cite{Urata2002, RamirezBeltran2009, Nami2011, Behrooz2017}, matrix completion\cite{Jirasek2020} and  graph neural networks \cite{Vermeire2021, Felton2022, SanchezMedina2022, Qin2022, Rittig2022}. However, the limitation of these works is their lack of thermodynamic consistency and other guarantees that come with rigorously derived equations of state. To overcome this problem, recent work has attempted to predict EoS parameters \cite{Abbasi2020, Madani2021, Abdallahelhadj2022, Winter2022}, which can be in turn used to predict thermodynamic outcomes.
-
-After the publication of \textit{DeepGamma}, Winter et al developed a model for predicting activity coefficients using transformer models. Specifically, they predict the parameters of the NRTL model, for any mixture \cite{Winter2022}. By doing so, they achieve three benefits thermodynamic consistency and easy application in existing process simulation software. However, the NRTL model is known to have highly correlated parameters which lead to a wide range of parameterizations for a particular mixture. 
-
-Additionally, I note that Habicht et al. recently developed a feed forward neural network model to predict PC-SAFT parameters \cite{Habicht2023}.  Their model architecture differs from ours, and they predict PC-SAFT parameters, while our method includes the polar and associating terms (PCP-SAFT). 
-
-
-\section{Methods}
-\subsection{Models}
-
-\noindent
-\textbf{Message passing neural networks:} Molecules can be treated as graphs with atoms as nodes and bonds as edges. Therefore, message passing neural networks (MPNN) that operate on graphs can be used for end-to-end prediction of molecular properties \cite{Gilmer2017}.  In a MPNN, each node passes a vector (i.e., its current features) to its neighbor. This  vector is called a message. In each layer, a permutation invariant aggregation function such as the mean is used to calculate the total message for each node prior to passing through an activation function to get a new value for each node.  In contrast to traditional fixed fingerprints like ECFP \cite{Rogers2010}, the best feature vector is learned end-to-end for each property prediction task.
-
-One type on MPNN is a directed message passing neural network (D-MPNN) in which the encoder acts on edges (bonds) instead of nodes (atoms) to improve stability of training \cite{Yang2019}. Yang, Swanson and colleagues showed D-MPNNs have superior performance to other tools such as gradient boosted trees for property prediction tasks \cite{Yang2019}. Formally, a molecule in a D-MPNN is considered to be a graph $G$ with edges $e_{vw}$ and nodes $v$ and $w$ with atom features $x_v$. A message passing update $m_v^{t}$ is as follows:
-
-\begin{equation}
-    m_v^{t+1} = \sum_{w\in N(v)} M_t(h_v^t, h_w^t, e_{vw})
-\end{equation}
-
-\begin{equation}
-    h_v^{t+1} = U_t(h_v^t, m_v^{t+1})
-\end{equation}
-
-where $M_t$ is the message function, $U_t$ is the update function and $h_v^{t}$ is the hidden state at step $t$. To obtain predictions $\hat y$, the outputs of the last message passing step $T$ are passed through a feed forward network $R$ in a readout phase:
- 
-\begin{equation}
-    \hat y = R(h_v^T \in G)
-\end{equation}
-
-In addition to using outputs of the message passing steps as input to the feed forward network, additional features $f$ can also be added:
-
-\begin{equation}
-    \hat y = R(h_v^T \in G, f)
-\end{equation}
-
-In our case of predicting activity coefficients of binary mixtures at atmospheric pressure, we treat the temperature and composition as additional features. Therefore, the feed forward network can be written as:
-
-\begin{equation}
-   \ln \gamma(x,T)= R(h_v^T \in G, x, T)
-\end{equation}
-
-Note that we predict the natural logarithm of the activity coefficient since these values can vary over an order of magnitude.
-
-We also explore the use of an architecture that uses 3D information in addition to 2D information. In particular, we use PaiNN, a model that use a an equivariant message passing that works with both rank 1 and 3 tensors. By doing so, the model improved predictions on vector properties such as the Dipole moment.
-
-\noindent
-\textbf{DeepGamma Polynomial:} Often, adding chemical knowledge into machine learning models can make them more accurate. In the case of activity coefficient prediction, it would be best to fit a thermodynamically consistent model such as the the non-random two liquid model (NRTL) \cite{Renon1968}. However, we found that many of the mixtures in our training set (see "Datasets") were difficult to fit using NRTL, often because the large correlations between its parameters \cite{Holler2019}. As shown in Figure \ref{fig:mnae_distribution}, the NRTL model had significant errors (>0.2) for many mixtures.
+In this work, we introduce a novel optimization approach that combines simulation and Bayesian optimization (BO) to effectively tune controllers. Specifically, we develop a dynamic simulation of a distillation column that is only a low fidelity approximation of the original distillation simulation. We then develop a Bayesian optimizaiton algorithm can use these simulations, despite their low fidelity, to reduce the number of iterations required to find optimal controller parameters. 
 
 \begin{figure}
     \centering
-    \includegraphics[width=\textwidth]{gfx/Chapter06/error_distribution_fitting_cosmo.png}
-    \caption{Error distribution of mean normalized error of data fit using NRTL and polynomial models.}
-    \label{fig:mnae_distribution}
+    \includegraphics[width=0.8\textwidth]{gfx/Chapter06/tuning_workflow.png}
+    \caption{Three step workflow for distillation controller design and tuning. }
+    \label{fig:tuning_workflow}
 \end{figure}
 
-We found empirically that the activity coefficient curves fit well to a fourth order polynomial model. While this  polynomial form does not necessarily ensure Gibbs-Duheim thermodynamic consistency\footnote{The Gibbs-Duheim equation relates changes in chemical potential to changes in temperature and pressure. $\sum_{i=1}^I N_i d\mu_i$ = -SdT + VdP. At equilibrium, the right hand side becomes zero, so traditional thermodynamic models like NRTL obey the equation $\sum_{i=1}^I N_i d\mu_i=0$}, it should work well for the sole purpose of vapor liquid equilibrium activity coefficients (not liquid-liquid equilibrium for example). Therefore, we fitted fourth order polynomials to the activity coefficient data and used the D-MPNN to predict the coefficients of the polynomial model:
+\section{Methods}
+
+\subsection{Controller Tuning as an Optimization Problem}
+
+Tuning involves identifying the three parameters of the PID equation, $K^P$, $\tau_I$ and $\tau_D$:
 
 \begin{equation}
-    \ln \gamma_i(x_i,T) = \sum_{j=0}^4 c_{ij}(T)x^j
+    \label{eq:PID_defining_equation}
+    u(t) = K^P e(t) + \frac{1}{\tau_I}\int_0^t e(t')dt' + \tau_D \frac{de(t)}{dt}
+\end{equation}
+where $u(t)$ is the controller output that is feed into the actuator (e.g., a valve) and $e(t)$ is the error at time $t$
+
+We formulate the problem of controller design and tuning as an optimization problem. The aim is to find a set of controller pairings and tunings that will achieve desired behavior. We define good controller behavior as minimizing the integral absolute error (IAE) for each controlled variable and minimizing total controller movement (CM):
+\begin{equation}
+    \min_{\Omega}(IAE_1, IAE_2, IAE_3, CM_1, CM_2, CM_3)
 \end{equation}
 
 \begin{equation}
-     \mathbf{c_{ij}} = R(h_v^T \in G, \mathbf{x}, T)
+    IAE = \int_0^T \vert y_{sp}(t) - \hat y(t) \vert dt
 \end{equation}
 
-In our results we compare direct prediction of activity coefficients and predicting polynomial coefficients.
+\begin{equation}
+    CM = \sum_{t=1}^{T}( \vert x_t - x_{t-1} \vert)
+\end{equation}
+where $y_{sp}$ is the setpoint,  $\hat y$  is the value of  the variable, T is the time horizon. 
 
-\subsection{Datasets}
+\subsection{Multi-Objective and Multifidelity Bayesian Optimization for Controller Tuning}
 
-Previous work has demonstrated the power of transfer learning for improving predictions of D-MPNNs \cite{Vermeire2021}. We aim to obtain similar results for activity coefficient prediction, relying on two datasets.
+We solved the controller tuning problem using multi-objective Bayesian optimization problem. We trained an independent GP to predict each controller objective (IAE, CM) given the relevant controller parameters.   Since our problem is multi-objective, we used a multi-objective acquisition function, namely the q Noisy Expected Hypervolume Improvement (qNEHVI). This acquisition function has a balance of computational efficiency and fidelity resulting in an ability to find the pareto front of trade-offs between objectives quickly. 
 
-\noindent
-\textbf{Combisolv Solvation Energy Dataset:} Solvation energies describe the change in free energy when a gas molecule of a solute is placed into a solvent. Solvation energies are closely related to activity coefficients at infinite dilution \cite{Moine2017}, so encoder representations learned on this task could be useful for the downstream task of activity coefficient prediction. We utilize the Combisolv dataset, which contains the largest number of solvation energies publicly available to date: one million binary pairs of molecules calculated using COSMO-RS \cite{Vermeire2021}.
+We also desired to see if simulations could accelerate controller tuning. We developed a differential equation simulation of a distillation column that was aligned to experimental data using both steady state and dynamic parameter estimation (see Supplementary Material for full details). To leverage the simulation, we used a multi-task GP that could be trained on both the less abundant high fidelity experimental data and the more abundant low fidelity simulation data. We hoped that the multi-task GP could learn the correlation between the simulation and the experimental data and thus make better predictions on the experiments with less data.
 
-\noindent
-\textbf{COSMO-RS Activity Coefficient Dataset:} We executed DFT calculations for over 18 million activity coefficients by taking all the binary pairs of 460 common solvent molecules from a previously published dataset \cite{Amar2019}. The activity coefficients were calculated in 5K temperature increments between the normal boiling points of the each binary pair, and 0.1 mol/mol composition grid was used. All activity coefficients were calculated at atmospheric pressure. COSMOtherm 2020 at the TZVPD fine fidelity level was utilized, and parameters were taken the 2020 COSMObase database \cite{Klamt2010}. These calculations took 41 days on a 24 core machine. 
-
-\noindent
-\textbf{Aspen Activity Coefficient Dataset:} The third set of data were obtained using the process modeling software, Aspen Plus. This was chosen due to the fact that the thermodynamic data used to simulate processes were obtained from the Dortmund Data Bank (DDB). A total of 2500 components were added to Aspen, from which temperature dependent non-random two liquid model binary parameters of binary VLE systems were retrieved via regression of literature data from Aspen’s VLE-IG databank. VLE systems were retrieved, from which the activity coefficients were calculated at mole fractions of zero to one in increments of 0.1 and 11K temperature increments. 
+In practice, we optimized the high fidelity task when selecting  a new set of controller parameters ton run an experiment in the laboratory. Then, while waiting for the laboratory results, we used optimize the lower fidelity task using the differential equation simulation with the most recently estimated parameters. 
 
 
+\subsection{Distillation Simulation}\label{sec:distillation_model}
 
-\section{Results and Discussion}
+In order to base our simulations in reality, we collected experimental data for separation of a 50/50 methanol-water mixture at the laboratories of BASF SE in a 80 tray column with one bubble cap on each stage. The column was kept at approximately 800 mbar vacuum, and a Julabo evaporator was used as the reobiler. The column occupies approximately three stories in the BASF lab.  Three days of data were collected, one of which is used for parameter estimation and the rest for validation. 
 
-\begin{table*}[t]
-\centering
-\caption{Validation and test mean absolute error of DeepGamma (DG) models on the COSMO-RS Activity  Coefficient Dataset. Best results are bolded. TLCB stands for transfer learning, where the encoder from the model trained on the Combisolv dataset is frozen and only the feedforward network is tuned. DGP stands for models which predict polynomial coefficients instead of activity coefficients directly. Time is training time in hours.}
-% \renewcommand{\arraystretch}{1.2}
-\label{cosmo_rs_results}
-\begin{tabular}{lccllllllllll}
-& & \multicolumn{2}{c}{Valid CONT} &  \multicolumn{2}{c}{Valid  INDP}  &  \multicolumn{2}{c}{Valid MIX}  &\multicolumn{2}{c}{Test MIX} &  \multicolumn{2}{c}{Test  INDP} \\
-& Training (h) & $\ln\gamma_1$ & $\ln\gamma_2$ & $\ln\gamma_1$ & $\ln\gamma_2$ & $\ln\gamma_1$ & $\ln\gamma_2$ & $\ln\gamma_1$ & $\ln\gamma_2$ & $\ln\gamma_1$ & $\ln\gamma_2$ \\
-\hline 
-\textbf{DG}  &     62           & \textbf{0.02 }                               & \textbf{0.02  }                              & \textbf{0.07}                                & \textbf{0.07}                                & \textbf{0.07 }                               & \textbf{0.07  }                              &\textbf{ 0.06  }                              & \textbf{0.06  }                              & \textbf{0.06   }                             & \textbf{0.05 }                               \\
-DG-TLCB &  36    & 0.04                                & 0.04                                & 0.09                                & 0.09                                & 0.08                                & 0.08                                & 0.07                                & 0.07                                & 0.07                                & 0.07                                \\
-DGP &    6.2      & 0.10                                & 0.29                                & 0.16                                & 0.36                                & 0.14                                & 0.33                                & 0.14                                & 0.28                                & 0.13                                & 0.28                                \\
-DGP-TLCB & 3.5 & 0.10                                & 0.29                                & 0.16                                & 0.36                                & 0.14                                & 0.33                                & 0.14                                & 0.28                                & 0.13                                & 0.28                               
-\end{tabular}
-\end{table*}
+Our goal in simulating a distillation columns was to find a balance between model complexity and accuracy. We opted for a formulation similar to \citet{Diehl2001}, which assumes constant pressure drop over time but includes the MESH equations and hydrodynamics. As shown in Figure \ref{fig:column}, $N$ is the number of trays in the distillation column. The distillation column is numbered from the bottom, starting with the reboiler as $i=0$ and condenser as $i=N+1$.  
 
-\textit{DeepGamma} is rapidly trained to reproduce results of COSMO-RS for activity coefficient prediction. It takes 2.5 days to train our best performing model, and predictions on more than 1M activity coefficients takes less than 30 minutes on a modern GPU. This is significant because generating the original data required over one month, representing a 1900x speed up.
-
-% In all our tables, we report mean absolute error for each model and holdout set. We also report the time required for training, as this varies significantly between the full and pretrained models. Fitting the polynomial model required approximately 24 hours.
-
-Results of training on the COSMO-RS activity coefficient dataset are shown in Table \ref{cosmo_rs_results}, the base DeepGamma model achieves the lowest mean absolute error on all holdout sets. Similar mean absolute errors are achieved on the validation and test datasets for all models. As expected, the Valid CONT holdout set has the lowest MAE due to the same molecules being in the training set and holdout set.  For the best performing base model, the INDP and MIX datasets have similar error profiles, indication that model has learned a good encoder representation.  Transfer learning models have slightly worse performance than the base models, but the transfer learning models take ~50\% less time to train. Part of the reason for poorer performance is that the Combisolv model was trained with a depth of four (i.e., number of message passing steps), while the COSMO-RS model only utilized three. Since each message passing step can cause changes in the atom representation, this difference in depth could effect quality of the final fingerprint formed. Interestingly, the DeepGamma Polynomial models have the worst performance of all models. Furthermore, there are significant differences in error between the different activity coefficients predicted by the DeepGamma Polynomial.  It is possible that further hyperparameter tuning could improve the accuracy of the model, particularly through changes in the encoder and feedforward network hidden size \cite{Yang2019, Vermeire2021}.
-
-Results of training on the COSMO-RS activity coefficient dataset are shown in Table \ref{cosmo_rs_results}, the base DeepGamma model achieves the lowest mean absolute error on all holdout sets. Similar mean absolute errors are achieved on the validation and test datasets for all models. As expected, the Valid CONT holdout set has the lowest MAE due to the same molecules being in the training set and holdout set.  For the best performing base model, the INDP and MIX datasets have similar error profiles, indication that model has learned a good encoder representation.  Transfer learning models have slightly worse performance than the base models, but the transfer learning models take ~50\% less time to train. Part of the reason for poorer performance is that the Combisolv model was trained with a depth of four (i.e., number of message passing steps), while the COSMO-RS model only utilized three. Since each message passing step can cause changes in the atom representation, this difference in depth could effect quality of the final fingerprint formed. Interestingly, the DeepGamma Polynomial models have the worst performance of all models. Furthermore, there are significant differences in error between the different activity coefficients predicted by the DeepGamma Polynomial.  It is possible that further hyperparameter tuning could improve the accuracy of the model, particularly through changes in the encoder and feedforward network hidden size \cite{Yang2019, Vermeire2021}.
-
-\begin{figure}[t]
+\begin{figure}
     \centering
-    \includegraphics[width=\textwidth]{gfx/Chapter06/cosmo_base_test_indp_parity_plot.png}
-    \caption{Caption}
-    \label{fig:my_label}
+    \includegraphics{gfx/Chapter06/basic_column.png}
+    \caption{Depiction of a distillation column with $N$ trays, feed at stage $N_F$, and reboiler and condenser as stage 0 and $N+1$ respectively.}
+    \label{fig:column}
 \end{figure}
 
+
+
+% The following are parameters of the model, determined by the experimental scenario or estimated via parameter estimation (see the next section).
+
+% \begin{itemize}
+%     \item$P_{top}$ is the pressure above stage $N$ in the column
+%     \item$\Delta P_{strip}$ is the pressure drop in the stripping section (below feed stage)
+%     \item$\Delta P_{rect}$ is the pressure drop in the rectifying section (feed stage and above)
+%     \item$q_{N_F}$ is the vapor fraction in the feed
+%     \item$z_{N_F}$ is the mol fraction in the feed
+%     \item$F$ is the feed flowrate (kmol/hr)
+%     \item$Q_{reb}$ is reboiler duty
+%     \item$Q_{cond}$ is the condenser duty
+%     \item$\alpha_{strip}$ is the Murphree efficiency in the stripping section (below feed stage)
+%     \item$\alpha_{rect}$ is the Murphree efficiency in the rectifying section (feed stage and above)
+% \end{itemize}
+
+We assumed the pressure drop was constant throughout the simulation, which is reasonable given the experimental observations (a vacuum was used to keep pressure drop constant). Therefore the pressure on each stage is calculated using:
+
+\begin{table}
+    \centering
+    \caption{Parameters of the distillation column model determined by experiments.}
+    \begin{tabular}{cccc}
+        \textbf{Parameter} & \textbf{Description} & \textbf{Scenario 1} & \textbf{Scenario 2}  \\
+        \hline
+         $P_{top}$ &  Pressure on stage N of the column &  0.5 & 0.22 \\ 
+         $q_{N_F}$ & vapor fraction  in the feed & 1.0 & 1.0 \\
+         $z_{N_F}$  & mole fraction of methanol in the feed &  0.5  & 0.5 \\
+         $F$ & Feed flow rate &  333 mol/min  & 332 mol/min \\
+    \end{tabular}
+    \label{tab:parameters}
+\end{table}
+
+\begin{equation}
+    P_i = P_{i+1} + \Delta P_i \;\; i=0\dots N
+\end{equation}
+
+where $\Delta P_i =\Delta P_{strip}$ for stages below feed stage and $\Delta P_i =\Delta P_{rect}$ for feed stage and above. The condenser pressure is calculated using $P_{cond}=P_{N} - \Delta P_{rect}$.
+
+Constant parameters are shown in Table \ref{tab:parameters} and state variables in Table \ref{tab:state_variables}.
+\begin{table}
+    \centering
+    \caption{State variables of the distillation column model.}
+    \begin{tabular}{cc}
+        \textbf{Variabe} & \textbf{Description}  \\
+        \hline
+         $x_i$ &  Liquid composition of methanol on stage $i$ \\
+         $y_i$ & Vapor composition of water on stage $i$\\
+         $L_i$ & Liquid flow on stage $i$  \\
+         $V_i$  & Vapor flow on stage $i$ \\
+         $T_i$  & Temperature on stage $i$ \\
+         $T_i$  & Holdup on stage $i$ \\
+    \end{tabular}
+    
+    \label{tab:state_variables}
+\end{table}
+
+\subsubsection{Material Balances}
+Material balances are calculated for all stages including the reobiler and condenser.
+
+\begin{equation}
+\frac{dn_i}{dt} = L_{i+1}-L_i + V_{i-1}-V_i \; \forall i=1 \dots N_F-1, N_F+2 \dots N+1
+\end{equation}
+
+\begin{equation}
+   \frac{dn_0}{dt} = L_1 - L_0 - V_0 
+\end{equation}
+
+
+\begin{equation}
+    \frac{dn_{N+1}}{dt} = V_{N}-(L_{N+1} + D)    
+\end{equation}
+
+The  feed stage and the stage above the feed stage are treated separately:
+
+\begin{equation}
+    \frac{dn_{N_F}}{dt} = L_{N_F+1}-L_{N_F} + V_{N_F-1}-V_{N_F} + q_{N_F}F   
+\end{equation}
+
+\begin{equation}
+   \frac{dn_{N_F+1}}{dt} = L_{N_F+2}-L_{N_F+1} + V_{N_F}-V_{N_F+1} + (1-q_{N_F})F 
+\end{equation}
+
+
+\subsubsection{Component Balances}
+
+Component balances are calculated for all stages including the reobiler and condenser.
+
+\begin{equation}
+   \frac{d(x_{i} n_{i})}{dt}= y_{i-1}V_{i-1} -y_iV_i + x_{i+1}L_{i+1} - x_{i}L_i 
+\end{equation}
+
+\begin{equation}
+    \frac{d(x_{N+1} n_{N+1})}{dt}  = y_NV_N - y_{N+1}V_{N+1} - x_{N+1}(L_{N+1} + D) 
+\end{equation}
+
+
+\begin{equation}
+     \frac{d(x_{0} n_{0})}{dt} = L_1(x_1-x_0) + V_0(x_0-y_0) 
+\end{equation}
+
+The  feed stage and the stage above the feed stage are treated separately:
+
+\begin{equation}
+ \frac{d(x_{N_F} n_{N_F})}{dt}  = y_{N_F-1}V_{N_F-1} -y_{N_F}V_{N_F} + x_{N_F+1}L_{N_F+1} - x_{N_F}L_{N_F} + q_{N_F}z_FF   
+\end{equation}
+
+\begin{equation}
+    \frac{d(x_{N_F+1} n_{N_F+1})}{dt} = y_{N_F+2}V_{N_F+2} -y_{N_F+1}V_{N_F+1} + x_{N_F}L_{N_F} - x_{N_F+1}L_{N_F+1} + (1-q_{N_F})z_FF 
+\end{equation}
+
+
+\subsubsection{Energy Balances}
+
+For liquid enthalpy, we take a mole fraction weighted average of the specific enthalpies. Data is taken from Perry’s Chemical Engineering Handbook.
+
+\begin{equation}
+    h^{L,c}(T,P) = \int_{T_{ref}}^T C_p^c(\tau)d\tau 
+\end{equation}
+
+\begin{equation}
+    h^L(T_i, P_i, x_i) = x_ih^{L,0}(T_i,P_i) + (1-x_i)h^{L,1}(T_i,P_i)
+\end{equation}
+
+\begin{equation}
+    h^L_i := h^L(T_i, P_i,x_i)
+\end{equation}
+
+\begin{equation}
+    h^L_{N_F} := h^L(T_{N_F}, P_{N_F},x_{N_F})
+\end{equation}
+
+
+For vapor enthalpy, we take a mole fraction weighted average of the specific enthalpies. Data is taken from Perry’s Chemical Engineering Handbook.
+
+\begin{equation}
+    h^{V,c}(T,P) = H^{vap, c}(T_{ref}) + 4R(T-T_{ref})
+\end{equation}
+
+\begin{equation}
+    h^V(T_i, P_i, x_i) = x_i h^{V,0}(T_i,P_i) + (1-x_i) h^{V,1}(T_i,P_i)
+\end{equation}
+
+
+\begin{equation}
+    h^V_i := h^V(T_i, P_i,x_i)
+\end{equation}
+
+\begin{equation}
+    h^V_{N_F} := h^V(T_{N_F}, P_{N_F},x_{N_F})
+\end{equation}
+
+    
+We assume that vapor holdup is negligible and therefore only consider the liquid holdup. Given these definitions, the enthalpy balances on the trays, reboiler and condenser are:
+
+\begin{equation}
+    \frac{d(n_ih^L_i)}{dt} =  h^L_{i+1}L_{i+1}-h^L_iL_i+h^V_{i-1}V_{i-1}-h^V_iV_i
+\end{equation}
+
+\begin{equation}
+    \frac{d(n_0h^L_0)}{dt} = h^L_1L_1 - h^L_0L_0 - h^V_0V_0 + Q_{reb}
+\end{equation}
+
+
+\begin{equation}
+    \frac{d(n_{N+1}h^L_{N+1})}{dt} = h^V_NV_{N}-h^L_{N+1}(L_{N+1} + D) + Q_{cond}
+\end{equation}
+
+Stage energy balance for all stages except the feed stage and  one above the feed stage:
+
+\begin{equation}
+    \frac{d(n_{N_F}h^L_{N_F})}{dt} = h^L_{N_F+1}L_{N_F+1}-h^L_{N_F}L_{N_F} + h^V_{N_F-1}V_{N_F-1}-h^V_{N_F}V_{N_F} + q_{N_F}F h^L_{N_F}
+\end{equation}
+
+where $q_{N_F}$ is the vapor fraction of the feed.
+
+\begin{equation}
+    \frac{d(n_{N_F+1}h^L_{N_F+1})}{dt} = h^L_{N_F+2}L_{N_F+2}-h^L_{N_F+1}L_{N_F+1} +h^V_{N_F} V_{N_F}-h^V_{N_F+1} V_{N_F+1} + (1-q_{N_F})Fh^V_{N_F}
+\end{equation}
+
+
+\subsubsection{Activity Coefficient Model}
+
+We use the NRTL model for calculating the activity coefficients, though a variety of models could be used. The NRTL parameters for methanol-water are shown in Table X.
+
+\begin{equation}
+    \ln \gamma_{i,0} = x_2^2\biggl [\tau_{21} \biggl (\frac{G_{21}}{x_1+x_2G_{21}}\biggr)^2 + \frac{\tau_{12}G_{12}}{(x_2 + x_1 G_{12})^2} \biggr ]
+\end{equation}
+
+\begin{equation}
+     \ln \gamma_{i,0} = x_1^2\biggl [\tau_{12} \biggl (\frac{G_{12}}{x_2+x_1G_{12}}\biggr)^2 + \frac{\tau_{21}G_{21}}{(x_1 + x_2 G_{21})^2} \biggr ]   
+\end{equation}
+
+\subsubsection{Pressure Balance}
+
+Vapor pressure is calculated using Antoine’s equation with coefficients taken from NIST. 
+
+\begin{equation}
+    \log P_{i,k}^{sat} = A_k + \frac{B_k}{T_i + C_k}
+\end{equation}
+
+For trays ($i=1\dots N$), modified Raoult’s Law is used with Murphree efficiencies to account for deviations from equilibrium.
+
+\begin{equation}
+    y_i = \alpha_i\frac{x_i\gamma_i(T_i, P_i, x_i)P_0^{sat}(T_i)}{P} + (1-\alpha_i)y_{i-1}
+\end{equation}
+
+This leads to the bubble pressure balance:
+
+\begin{equation}
+    P = x_i\gamma_{i,0}(T_i, P_i, x_i)P^{sat}_{i,0} + (1-x_i)\gamma_{i,1}(T_i, P_i, (1-x_i))P^{sat}_{i,1}
+\end{equation}
+
+\subsubsection{Francis Weir Formula}
+
+The Francis weir formula is used in dynamic mode to calculate liquid flow over the weir given a certain holdup. As shown in Figure \ref{fig:weir}, $h_i^{ow}$ from the the clear liquid to the weir. We can calculate this by taking the difference between the actual volume in the weir and a reference volume $n^v_{ref}$ (i.e., the volume if there was no crest) given the cross sectional area.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.4\textwidth]{gfx/Chapter06/weir.png}
+    \caption{Diagram of weir showing $h_{ow}$ measured from the top of the clear liquid on a tray.}
+    \label{fig:weir}
+\end{figure}
+
+
+\begin{equation}
+    h^{ow}_i = \frac{n^v_i-n^v_{ref}}{A}
+\end{equation}
+
+The francis Weir formula for calculating flow over the Weir comes from the Bernoulli equation for the horizontal velocity $v$. We integrate from the top of the liquid (y=0) to the weir ($y=h_i^{ow}$)
+
+\begin{equation}
+    \frac{1}{2} \rho v^2 = \rho g y \ \Longrightarrow v(y) = \sqrt{2gy}
+\end{equation}
+
+\begin{equation}
+    L_i^{vol} = \int_0^{h_i^{ow}} v(y)wdy = w\sqrt{2g}\int_0^{h_i^{ow}} y^{1/2}dy = \frac{2}{3}w\sqrt{2g}(h_i^{ow})^{3/2} 
+\end{equation}
+
+
+Substituting in above equation for  $h_i^{ow}$:
+
+\begin{equation}
+   L_i^{vol} = \frac{2}{3} w\sqrt{2g}\biggl(\frac{n^v_i-n^v_{ref}}{A}\biggr)^{3/2}  
+\end{equation}
+
+Diehl lumps all the constants into an estimatable parameter $W_{tray}$:
+
+\begin{equation}
+    L_i^{vol} = W_{tray}(n_i^v-n^v_{ref})^{3/2}
+\end{equation}
+
+\begin{equation}
+    W_{tray} = \frac{2}{3}w\sqrt{2g}A^{-3/2}
+\end{equation}
+
+Based on measurements from BASF, we assume the diameter of the weir $w$ is 8 mm and the height of the weir $h$ is 10 mm. We take $h = 1\cdot10^{-2} m$ and $A=\pi w^2/4 = \pi(8 \cdot 10^{-3})^2/4 = 5.024 \cdot 10^{-5} m^2$, and g is the gravity of Earth. Therefore $W_{tray}^{init}=120149 \; m^{-3/2}s^{-1}$. $n^v_{ref}=Ah=1.45 \cdot 10^{-4} m$.t  We can use this initial estimate for $W_{tray}$ and then refine via dynamic parameter estimation.
+
+Since the simulation is in molar flowrates, we need to convert from volumetric flowrates to molar flowrates:
+
+\begin{equation}
+    L_i = \rho(T_i, x_i)L^{vol}_i  
+\end{equation}
+
+
+where $\rho(T_i,x_i)$ is the volumetric density, calculated by a weighted average of the volumetric density of both components. Volumetric density come from Perry’s.
+
+\begin{equation}
+    \rho(T_i, x_i) = x_i\rho^0(T_i, x_i) + (1-x_i)\rho^1(T_i, x_i)
+\end{equation}
+
+
+\subsection{Parameter estimation to align simulations to experiments}
+
+We created a simulation of a distillation column that can be aligned to experiments using a small amount of steady state data. The distillation simulation was built in Python using GEKKO \citep{Beal2018}, and the differential algebraic equation model used for the simulations is fully detailed in \ref{sec:distillation_model}. To align the simulation to experiments, a three step procedure, illustrated in Figure \ref{fig:simulation_workflow}, was followed: initialization, steady state solution with parameter estimation and dynamic simulation. All simulations were solved with the APOPT nonlinear programming solver to a tolerance $10^{-9}$ and relative tolerance $10^{-9}$.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=\textwidth]{gfx/Chapter06/simulation_workflow.png}
+    \caption{Schematic of the workflow for aligning the distillation simulation to experiments.}
+    \label{fig:simulation_workflow}
+\end{figure}
+
+To initialize  the simulation, only the component material balances and pressure balances were solved. The constant molal overflow assumption was used, which states that there is constant liquid flow in the stripping and rectifying section respectively as well as constant vapor flow. 
+
+Given the initialization, the full steady state simulation was then solved and used to generate the nominal values for steady state parameter estimation to the experimental data. The parameters estimated were the Murphree efficiencies and reboiler and condenser duties. While the condenser duty during dynamic simulation was fixed at the value from steady state parameter estimation, the reboiler duty was a manipulated variable; therefore, the steady-state estimated value of the reboiler duty served as an initial condition. The objective of the parameter estimation was to minimize the $L_1$ error between the simulation and experimental temperatures on stages 10, 22 and 35, as these stages were shown to be sensitive to changes in the parameters (see \ref{sec:sensitivity}). Therefore, the parameter estimation problem was formulated as:
+%  The $l_1$ norm was chosen due to its improved  handling of outliers \citep{Safdarnejad2016}.
+\begin{subequations}
+    \begin{align}
+        \min_{\boldsymbol \theta_{est}} \sum_{i\in \{10, 22, 35\}} \mathopen|T_i-T_i^{exp}\mathclose|\\
+        s.t. \;\; 0 = \mathbf f(\mathbf X, \boldsymbol \theta)
+    \end{align}
+\end{subequations}
+where $\mathbf X$ are the state variables in Table X  and $\boldsymbol \theta = \{\boldsymbol \theta_{est}, \boldsymbol \theta_{const} \}$.  $\boldsymbol \theta_{est}$ are the parameters to be estimated in Table \ref{tab:param_estimation} and $\boldsymbol \theta_{const}$ are the constant parameters in Table \ref{tab:parameters}. $\mathbf f$ is the system of equations represented by equations B.2-B.11, B.20-B.24, B.28-B.29, and B.36 with all derviatives set equal to zero. 
+% \{\mathbf x, \mathbf y, \mathbf T, \mathbf L, \mathbf n\}$ 
+\begin{table}[]
+    \centering
+    \begin{tabular}{cccc}
+        \textbf{Parameter} & \textbf{Description} & \textbf{Initial Guess} & \textbf{Estimated Value}  \\
+        \hline
+         $\alpha_{strip}$ & Murphree efficiency in stripping section &  0.5 & 0.22 \\ 
+         $\alpha_{rect}$ & Murphree efficiency in rectifying section & 0.5 & 1.0 \\
+         % $\Delta P_{rect}$ & \thead{Pressure drop \\ in rectifying section} &  $\Delta P_{tot}/N$ \\ 
+         % $\Delta P_{strip}$ & \thead{Pressure drop \\ in stripping section} &  $\Delta P_{tot}/N$ \\ 
+         $ Q_{reb}$ & Reboiler duty at steady state &  0.245 kW  & 0.259 kW  \\
+         $ Q_{cond}$ & Condenser duty at steady state &  -0.239 kW  & -0.253 kW
+    \end{tabular}
+    \caption{Parameters of the distillation column model estimated using experimental data. Estimates of the reboiler and condenser duties were made using the nominal values from the steady-state simulation, which in turn were guessed by plugging the flowrates and temperatures from the initialization into equations B.21 and B.22 with the derivatives set to 0.}
+    \label{tab:param_estimation}
+\end{table}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=\textwidth]{gfx/Chapter06/2021_11_17_steady_state_estimated.png}
+    \caption{Steady state simulation after parameter estimation of a separation of 50/50 methanol-water separation in a distillation column with 80 bubble cap trays. \textbf{Top left}: Composition profile of the column with liquid composition in solid lines and vapor composition in dotted lines. \textbf{Top right}: Temperature profile of the simulation and experiments. \textbf{Bottom left}: Flow profile in column. \textbf{Bottom right}: Pressure profile in column.  }
+    \label{fig:estimated}
+\end{figure}
+
+We used an average of the experimental stage temperatures over nine hours of steady state experimental data for parameter estimation. The resulting steady-state simulation after parameter estimation is shown in Figure \ref{fig:estimated}, which aligns well to the experimental temperature profile.  In Figure \ref{fig:validation}a, we show that using the estimated parameters with settings from a different day of experiments gives good alignment between simulation and experiment.  An example closed-loop dynamic simulation is shown in Figure Xb, which demonstrates that the dynamic simulation aligns closely to the experimental dynamics. 
+
+% \begin{figure}
+%     \begin{subfigure}[c]{0.49\textwidth}
+%         \centering
+%         \includegraphics[clip,width=\textwidth]{gfx/Chapter06/2021_11_18_steady_state_temperature.png}
+%         \subcaption{}
+%     \end{subfigure}
+%     \begin{subfigure}[c]{0.49\textwidth}
+%         \centering
+%         \includegraphics[clip,width=\textwidth]{gfx/Chapter06/2021_11_18_steady_state_temperature.png}
+%         \subcaption{}
+%     \end{subfigure}
+%     \caption{Caption}
+%     \label{fig:validation}
+% \end{figure}
+
+
+
+
+
+\section{Results}
 
 \section{Conclusion}
-
-While \textit{DeepGamma}, can offer 1900x speed-up compared to the original quantum simulations, it has several limitiations. First, it relies solely on quantum simulation data, which are themselves not fully predictive of experimental results. Second, the results are not necessarily thermodynamically consistent. This is due to the feedforward network used in the readout phase not being permutation invariant; the activity coefficient predictions are not independent of the order of the molecules. Finally, the model does not scale past binary mixtures. Therefore, I looked to develop a more comprehensive approach to thermodynamic predictions using deep learning.
-
-% *****************************************
-% *****************************************
-% *****************************************
-% *****************************************
-% *****************************************

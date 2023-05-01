@@ -1,409 +1,369 @@
 %************************************************
-\chapter{Multifidelity Bayesian Optimization for Accelerated Feedback Controller Tuning}\label{ch:mfbo} 
+\chapter{Reinforcement Learning for tuning of  Distillation Control Systems}\label{ch:rl_tuning} 
 %************************************************
+Despite a long history of research and innovation, tuning of feedback controllers in chemical plants remains a time-intensive and costly task. This pain point was made clear by our collaborators at BASF who regularly need to tune controllers for pilot plant distillation columns. Their operators often spend weeks attempting to find the best tuning parameters for a new distillation column setup, which is unacceptable given the short timelines of operating a test in a pilot plant.
 
-\section{Introduction}
-\label{sec:intro}
-Laboratory unit operations such as reactors and distillation columns  are often subjected to many processes in short window of time. For each new process, the control systems of these unit operations need to be re-tuned, which can be a time and labor intensive endeavor. As an example, in the distillation laboratories at BASF, operators often spend days attempting to find the best tuning parameters for a new distillation column setup, which is unacceptable given the short timelines of operating a testing laboratory. While it is possible to use model predictive control, decentralized PID controllers are often used due to their robustness and simplicity. In this work, we aim to develop a fast method tuning controllers and apply this method laboratory distillation columns.
+In this chapter, the aim is to develop a workflow for tuning control systems of distillation columns. I begin by reviewing the literature in this domain before outlining a failed approach we took using reinforcement learning.  In the following chapter, I then transition to discuss our new approach, which relies on more rigorous dynamic simulation and Bayesian optimization.
 
-There are a wide variety of existing tuning protocols ranging from heuristics such as Ziegler Nichols \citep{Ziegler1942} and its refinements \citep{Hang1991} to tuning using analytical equations from models via methods such as  Internal Model Control \citep{Copeland2010}. However, extending these to multi-input multi-output systems has been challenging, often requiring additional optimizations \citep{Nandong2013, Nandong2015}. Optimization-based methods have shown promise \citep{Pajares2019, Sumana2010, Rajapandiyan2012, Behroozsarand2012}, but these methods have been difficult to apply in practice due to the large number of iterations they require. Recently, Bayesian optimization, a technique for optimizing expensive to evaluate functions, has shown promise for tuning controllers \citep{NeumannBrosig2020, Fiducioso2019, Khosravi2020, Konig2020, Fujimoto2022, Brunzema2022, Khosravi2022}, but this method still often requires tens to hundreds of iterations, making it too materially expensive for laboratory chemical processes. 
 
-In this work, we introduce a novel optimization approach that combines simulation and Bayesian optimization (BO) to effectively tune controllers. Specifically, we develop a dynamic simulation of a distillation column that is only a low fidelity approximation of the original distillation simulation. We then develop a Bayesian optimizaiton algorithm can use these simulations, despite their low fidelity, to reduce the number of iterations required to find optimal controller parameters. 
+\section{Background}
 
-\begin{figure}
-    \centering
-    \includegraphics[width=0.8\textwidth]{figures/tuning_workflow.png}
-    \caption{Three step workflow for distillation controller design and tuning. }
-    \label{fig:tuning_workflow}
+
+\subsection{Distillation control basics}
+A continuous distillation column separates a mixture of fluids by differences in their boiling points. As shown in Figure \ref{lv_config}, a mixture is fed to the input of a column at rate $F$ with composition $z_F$.  When the feed enters the column, it is heated by vapor flowing up from the reboiler. Inside the column are trays or packing designed to increase the surface area for contact between the liquid and the vapor. This causes the lower boiling component(s) to migrate to the top of the column as vapor, while the higher boiling component(s) migrate to the bottom. The purified vapor is condensed at the top of the column, and a portion is returned to the column as reflux $L$; the rest of the condensed vapor is collected as distillate $D$. Similarly, some of the bottom liquid is boiled up to vapor $V$, and the remainder is collected as bottoms $B$.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[height=0.3\textheight]{gfx/Chapter05/lv_configuration_inferential.png}
+  \caption{Schematic of a distillation column with feed $F$, bottoms $B$, boilup $V$, reflux $L$ and distillate $D$.The  LV control configuration is used with an inferential composition controller. The level in the condenser and reboiler are controllers with the distillate and bottoms flows, respectively. Composition control can then be achieves with reflux or boilup, and in this case, reflux is used.}
+  \label{lv_config}
 \end{figure}
 
-\section{Methods}
+Distillation control schemes are designed to reject three common disturbances: changes in reboiler heating duty;  changes in condenser cooling duty; and changes in feed composition, rate or enthalpy.\citep{Riggs2006} All of these disturbances will affect the composition of the distillate and bottoms.  For example, a decrease in reboiler heating duty will reduce the vapor flow rate up the column.  As a result, the distillate composition will become less pure.\footnotemark   In the worst case, weeping can occur, where liquid flow prevents gas flow upwards and causes a drop in the purity of the distillate and bottoms streams. \footnotetext{This assumes that the distillate to feed ratio is kept constant, so the reflux decreases causing the distillate to become less pure.}
 
-\subsection{Controller Tuning as an Optimization Problem}
+Feedback controllers are usually used to respond to these disturbances and maintain optimal operation of the column.  In the most general sense, a feedback controller receives a desired value of a control variable (CV) and keeps that variable constant through measurements and actuation. For example, a temperature controller on a hot water tank might use thermocouple measurements inside the tank to guide how it actuates a hot water inlet valve. Distillation columns have several potential controller variables and potential actuators. This makes distillation a multiple input multiple output (MIMO) control problem. 
 
-Tuning involves identifying the three parameters of the PID equation, $K^P$, $\tau_I$ and $\tau_D$:
+Approaches for designing MIMO control schemes can be broadly divided into those that use several decentralized single-input single-ouput (SISO) proportional integral derivative (PID) controllers\citep{Behroozsarand2012, Shen1994, Lin2006, Luyben1986} and those that design a single integrated controller.\citep{Martin2013, Mesbah2017,Spielberg2019,Terzi2020} In the decentralized approach, one controller might maintain the temperature of a particular tray in the distillation column by manipulating reflux rate while another holds the level in the reflux drum constant by changing distillate rate (see Figure \ref{lv_config}). It would be common to also have another controller on the reboiler or sump level.\citep{Skogestad2007} In contrast, the single integrated controller approach lumps all inputs and outputs into one central mathematical formulation, which can theoretically enable better rejection of disturbances.\citep{Mesbah2017} The most popular integrated controller formulation is model predictive control (MPC). MPC uses an internal model of the process to predict a series of discrete control actions that will lead to reaching the setpoints of all CVs. 
+
+Instead of being used separately, MPC and decentralized PID control are often used in tandem. The PID controllers respond quickly to high frequency disturbances, while the MPC provides setpoints for the PID controllers that optimize the overall performance of the system.\citep{Skogestad2007} The MPC controller is often referred to as the supervisory control layer, while the PID controllers are called the regulatory control layer. Before a supervisory controller can be designed, the regulatory control layer needs to be properly designed. This starts with choosing controller pairings.
+
+In the literature, a specific combination of control pairings is called a configuration. Configurations are named based on the manipulated variables for composition control. For example, the LV configuration uses the reflux (L) and/or vapor boilup (V) streams as manipulated variables for composition control.\citep{Skogestad2007}  The remaining two degrees of freedom are used for level control; in the LV configuration, the condenser and reboiler levels are controlled by the distillate (D) and bottoms (B) flow rates, respectively. These level controllers respond to a wide variety of disturbances including fluctuations in the cooling duty of the condenser, changes in column pressure drop or changes in the heating duty of the reboiler.
+
+
+Each configuration has its own benefits and drawbacks based on the desired operating mode of the column (e.g., high vs. low reflux) and the type of disturbances observed. For example, the LV configuration is not preferred for high reflux ratios because the distillate flow will be very small, so it will have little influence on the condenser level.\citep{Skogestad2007} Furthermore, L and V are highly coupled, which degrades control performance.\citep{Riggs2006} Four common  control  configurations are shown in Table \ref{table:distillation_configurations}.
+
+\subsection{Choosing controller pairings} 
+\begin{table*}[t]
+	\centering
+	\caption{Comparison of control configurations for distillation columns. The following abbreviations are used for flows: L is reflux, V is vapor boilup, D is distillate and B is bottoms. S.S. means steady state.}
+	\label{table:distillation_configurations}
+		\begin{tabular}{ c c c }
+			Configuration & Inputs for Level Control & Notes\\
+			\hline
+			L,V & D,B & Not good for high reflux ratios\citep{Skogestad2007}   \\
+			D,B & L,V & Works at low relative volatility\citep{Finco1989} \\
+			D,V & L,B & Large S.S. coupling, practically effective\citep{Riggs2006} \\
+			L,B & D,V & Works well for high purity columns\citep{Skogestad2007} \\
+		\end{tabular}
+\end{table*}
+ The challenge is that the combinatorial space for control configurations is large.\citep{Shinskey1984} If temperature control is used to control composition, sensors could theoretically be placed on any stage in a distillation column. If two level controllers and one temperature controller are used, there are $36N$ potential pairings, where $N$ is the number of stages.\footnotemark It is common for pilot plant columns to have 30 or more stages, so there are usually over 1000 potential pairings making brute force testing of all pairings infeasible.
+ \footnotetext{This is calculated by considering that there are four potential flow pairings (LV, DB, DV, LB) and five potential ratio pairings (double ratio, L/D-B, L/D-V, L/D-B, L-V/B, D-V/B) giving nine pairings. With single point temperature control, there are $4N$ pairings (two potential flows and two potential flows in ratio with feed paired with $N$ potential stages). This gives in total potential $9*4*N=36N$ pairings.}
+
+Therefore, engineers have attempted to predict the best pairings based on small amounts of data. Traditionally, the relative gain array (RGA) has been suggested to choose control pairings.\citep{Shinskey1984,DeWal2001,Skogestad2007} For a two-input two-output MIMO system, the RGA is defined by Equation \ref{eq:RGA} and \ref{eq:lambda}.
+
+\begin{equation} \label{eq:RGA}
+	RGA = \begin{pmatrix} \lambda_{11} & \lambda_{12} \\ \lambda_{21} & \lambda_{22} \end{pmatrix}
+\end{equation}
+\begin{equation} \label{eq:lambda}
+	\lambda_{11} = \frac{(\Delta y_1/\Delta u_1)_{u_2}}{(\Delta y_1/\Delta u_1)_{y_2}}
+\end{equation}
+
+The diagonal of the RGA represents the pairings. An input $u_1$ is paired with an output $y_1$, and another input $u_2$ is paired with output $y_2$. The parameter $\lambda_{11}$ is the ratio of the process gain without control to the process gain with control.\citep{Riggs2006} That is, the numerator represents how much $y_1$ changes when input 1 changes ($\Delta u_1$) while keeping input 2 constant (i.e., the second loop is left open).  The denominator represents how much $y_1$ changes when input 1 changes and the second loop is closed. Note that all other $\lambda$ values can be determined once $\lambda_{11}$ is specified for a 2x2 system.\citep{Riggs2006}
+
+%\begin{figure*}[bt]
+%  \includegraphics[width=\textwidth, keepaspectratio]{gfx/Chapter05/two_by_two_control_loop}
+%  \caption{A block diagram of a 2x2 control system. $G$ are process transfer functions representing the conversion of an input to an output in Laplace space.}
+%  \label{two_by_two_control_loop}
+%\end{figure*}
+
+\begin{table*}[bt]
+  \caption{Significance of RGA values. Reproduced from Shinskey.\citep{Shinskey1984}} 
+  \begin{tabular}{c l}
+    \centering
+    $\lambda_{ij}$ & Significance \\
+    \hline
+    
+    <0 & Conditionally stable - do not close loop \\
+    0 & Control depends on other loop(s) \\
+    0-1 & Interaction extends period and raises gain \\
+    1.0 & No interaction with other loops \\
+    >1  & Interaction reduces control effectiveness \\
+    $\infty$ & Loops are completely dependent \\
+  \end{tabular}
+  \label{significance_of_rga}
+\end{table*}
+
+As shown in Table \ref{significance_of_rga}, Shinskey lists six different bands for the RGA, each with a different physical interpretation.\citep{Shinskey1984} A $\lambda_{11}$ value of 1.0 indicates there is no coupling between the two loops and is highly desirable.   Negative values mean that the system is only stable if the first loop is left open and the second is closed; this is because the second loop causes a response in the wrong direction. $\lambda_{11}$ values between zero and one can be tolerated, with preference for values closer to one. Large values represent significant coupling, with the extreme of infinity meaning the loops are completely dependent. This extreme case occurs when the two variables being controlled are necessarily dependent, such as steam temperature and pressure. It is important to note that interpretations for systems larger than 2x2 are not clear.
+
+The advantage of the RGA is that it only requires steady-state gains. These can be calculated from a simple open-loop pulse experiment or, if the plant is stable and close to steady-state, closed-loop plant data.\citep{Pensar1993} However, analyzing the steady-state behavior of a distillation column is usually not sufficient. Distillation columns are inherently dynamic, and a configuration that appears robust from steady-state analysis could be unstable in practice. Conversely, configurations that appear impossible at steady-state are often possible in the dynamic regime. 
+
+
+For example, Finco and Luyben completed a rigorous dynamic study on the optimal control configuration for a propylene/propane column and found that the unconventional D-B configuration worked most effectively.\citep{Finco1989} Steady-state simulations would suggest that the D-B configuration is not feasible because an overall mass balance on the column necessitates that only D or B can be fixed at a given feed rate (i.e., $F = D + B$).\citep{Skogestad2007} This is evidenced by an infinite value of $\lambda_{11}$ for this configuration. However, in practice, Finco found that operators in an actual plant were implicitly using the D-B configuration and that, in general, high purity columns with components that have low relative volatilities (i.e., components with similar boiling points) are best controlled by the D-B configuration.\citep{Finco1989}
+
+These results suggest that dynamic analysis should be used in favor of steady-state analysis. McAvoy developed the dynamic relative gain array (DRGA), which uses a dynamic transfer function model to take into account the performance of the dynamic response.\citep{Riggs2006}\footnotemark The original DRGA sweeps across all frequencies of the transfer function model to find the dynamic response to different types of disturbances. A more recent method works with any dynamic model.\citep{McAvoy2003} It designs a simple optimal controller using the linear quadratic regulator and then uses partial derivatives of the closed-loop model to find the DRGA. When applied to an ill-conditioned 2x2 system and a nonlinear 4x4 system, the method was able to find the best pairings, whereas the RGA chose the incorrect pairings. 
+\footnotetext{The Cambridge University archives do not contain this paper, and the British Library Interloan Exchange has been shut down due to COVID-19. Therefore, descriptions in other papers and textbooks are relied upon for this summary.}
+
+
+%\begin{itemize}
+%	\item The method that Jan mentioned in my viva
+%	\item The method from the Braatz group: https://aiche.onlinelibrary.wiley.com/doi/full/10.1002/aic.14107
+%	\item The self-optimizing control methods from Skogestad
+%	\item The multiobjective optimization method from Yi Cao
+%	\item The branch and bound method in the thesis
+%\end{itemize}
+%
+%%In cases where an accurate dynamic model is available, the DRGA offers a promising method.  However, at the pilot plant stage, it is difficult to access accurate dynamic models.  Vapour liquid equilibrium data is often not available, and the behavior of a specific column might not be known (e.g., valve characteristics, heat-transfer coefficients, component aging, fouling, etc.). Despite half of a century of research, choosing control pairings is still a difficult and non-automatic procedure that cannot be carried out online. In contrast, PID tuning is a necessarily online procedure.
+%
+%Out of all the methods available, branch and bound is most promising due to its generality. What I"m not sure about is if we can use it here....could I reimplement that method myself and use it on flow chemistry distillation?
+
+In this work, one control configuration is assumed for a distillation column, but in future work, one of the above heuristics will be used to select a controller configuration prior to the following step of controller tuning.
+
+\subsection{Tuning decentralized controllers}
+In addition to selecting control pairings, each of the decentralized PID controllers needs to be tuned. Tuning involves identifying the three parameters of the PID equation, $K^P$, $\tau_I$ and $\tau_D$:
 
 \begin{equation}
     \label{eq:PID_defining_equation}
     u(t) = K^P e(t) + \frac{1}{\tau_I}\int_0^t e(t')dt' + \tau_D \frac{de(t)}{dt}
 \end{equation}
-where $u(t)$ is the controller output that is feed into the actuator (e.g., a valve) and $e(t)$ is the error at time $t$
-
-We formulate the problem of controller design and tuning as an optimization problem. The aim is to find a set of controller pairings and tunings that will achieve desired behavior. We define good controller behavior as minimizing the integral absolute error (IAE) for each controlled variable and minimizing total controller movement (CM):
-\begin{equation}
-    \min_{\Omega}(IAE_1, IAE_2, IAE_3, CM_1, CM_2, CM_3)
-\end{equation}
-
-\begin{equation}
-    IAE = \int_0^T \vert y_{sp}(t) - \hat y(t) \vert dt
-\end{equation}
-
-\begin{equation}
-    CM = \sum_{t=1}^{T}( \vert x_t - x_{t-1} \vert)
-\end{equation}
-where $y_{sp}$ is the setpoint,  $\hat y$  is the value of  the variable, T is the time horizon. 
-
-\subsection{Multi-Objective and Multifidelity Bayesian Optimization for Controller Tuning}
-
-We solved the controller tuning problem using multi-objective Bayesian optimization problem. We trained an independent GP to predict each controller objective (IAE, CM) given the relevant controller parameters.   Since our problem is multi-objective, we used a multi-objective acquisition function, namely the q Noisy Expected Hypervolume Improvement (qNEHVI). This acquisition function has a balance of computational efficiency and fidelity resulting in an ability to find the pareto front of trade-offs between objectives quickly. 
-
-We also desired to see if simulations could accelerate controller tuning. We developed a differential equation simulation of a distillation column that was aligned to experimental data using both steady state and dynamic parameter estimation (see Supplementary Material for full details). To leverage the simulation, we used a multi-task GP that could be trained on both the less abundant high fidelity experimental data and the more abundant low fidelity simulation data. We hoped that the multi-task GP could learn the correlation between the simulation and the experimental data and thus make better predictions on the experiments with less data.
-
-In practice, we optimized the high fidelity task when selecting  a new set of controller parameters ton run an experiment in the laboratory. Then, while waiting for the laboratory results, we used optimize the lower fidelity task using the differential equation simulation with the most recently estimated parameters. 
-
-
-\subsection{Distillation Simulation}\label{sec:distillation_model}
-
-In order to base our simulations in reality, we collected experimental data for separation of a 50/50 methanol-water mixture at the laboratories of BASF SE in a 80 tray column with one bubble cap on each stage. The column was kept at approximately 800 mbar vacuum, and a Julabo evaporator was used as the reobiler. The column occupies approximately three stories in the BASF lab.  Three days of data were collected, one of which is used for parameter estimation and the rest for validation. 
-
-Our goal in simulating a distillation columns was to find a balance between model complexity and accuracy. We opted for a formulation similar to \citet{Diehl2001}, which assumes constant pressure drop over time but includes the MESH equations and hydrodynamics. As shown in Figure \ref{fig:column}, $N$ is the number of trays in the distillation column. The distillation column is numbered from the bottom, starting with the reboiler as $i=0$ and condenser as $i=N+1$.  
-
-\begin{figure}
-    \centering
-    \includegraphics{figures/basic_column.png}
-    \caption{Depiction of a distillation column with $N$ trays, feed at stage $N_F$, and reboiler and condenser as stage 0 and $N+1$ respectively.}
-    \label{fig:column}
-\end{figure}
-
-
-
-% The following are parameters of the model, determined by the experimental scenario or estimated via parameter estimation (see the next section).
-
-% \begin{itemize}
-%     \item$P_{top}$ is the pressure above stage $N$ in the column
-%     \item$\Delta P_{strip}$ is the pressure drop in the stripping section (below feed stage)
-%     \item$\Delta P_{rect}$ is the pressure drop in the rectifying section (feed stage and above)
-%     \item$q_{N_F}$ is the vapor fraction in the feed
-%     \item$z_{N_F}$ is the mol fraction in the feed
-%     \item$F$ is the feed flowrate (kmol/hr)
-%     \item$Q_{reb}$ is reboiler duty
-%     \item$Q_{cond}$ is the condenser duty
-%     \item$\alpha_{strip}$ is the Murphree efficiency in the stripping section (below feed stage)
-%     \item$\alpha_{rect}$ is the Murphree efficiency in the rectifying section (feed stage and above)
-% \end{itemize}
-
-We assumed the pressure drop was constant throughout the simulation, which is reasonable given the experimental observations (a vacuum was used to keep pressure drop constant). Therefore the pressure on each stage is calculated using:
-
-\begin{table}
-    \centering
-    \caption{Parameters of the distillation column model determined by experiments.}
-    \begin{tabular}{cccc}
-        \textbf{Parameter} & \textbf{Description} & \textbf{Scenario 1} & \textbf{Scenario 2}  \\
-        \hline
-         $P_{top}$ & \thead{Pressure on stage \\ $N$ of the column} &  0.5 & 0.22 \\ 
-         $q_{N_F}$ & \thead{vapor fraction  \\ in the feed} & 1.0 & 1.0 \\
-         $z_{N_F}$  & \thead{mole fraction of methanol \\ in the feed} &  0.5  & 0.5 \\
-         $F$ & \thead{Feed flow rate} &  333 mol/min  & 332 mol/min \\
-    \end{tabular}
-    \label{tab:parameters}
-\end{table}
-
-\begin{equation}
-    P_i = P_{i+1} + \Delta P_i \;\; i=0\dots N
-\end{equation}
-
-where $\Delta P_i =\Delta P_{strip}$ for stages below feed stage and $\Delta P_i =\Delta P_{rect}$ for feed stage and above. The condenser pressure is calculated using $P_{cond}=P_{N} - \Delta P_{rect}$.
-
-Constant parameters are shown in Table \ref{tab:parameters} and state variables in Table \ref{tab:state_variables}.
-\begin{table}
-    \centering
-    \caption{State variables of the distillation column model.}
-    \begin{tabular}{cc}
-        \textbf{Variabe} & \textbf{Description}  \\
-        \hline
-         $x_i$ & \thead{Liquid composition of methanol on stage $i$}  \\
-         $y_i$ & \thead{Vapor composition of water on stage $i$}\\
-         $L_i$ & \thead{Liquid flow on stage $i$}  \\
-         $V_i$  & \thead{Vapor flow on stage $i$} \\
-         $T_i$  & \thead{Temperature on stage $i$} \\
-         $T_i$  & \thead{Holdup on stage $i$} \\
-    \end{tabular}
+where $u(t)$ is the controller output that is feed into the actuator (e.g., a valve) and $e(t)$ is the error at time $t$.
+ The parameters in Equation \ref{eq:PID_defining_equation} have intuitive explanations, which is one of the key advantages of PID control. $K^P$ is the proportional constant because it causes the actuator input to increase proportionally to the error. Proportional control gives fast responses to disturbances (e.g., an increase in flowrate upstream of a distillation column) but will always result in the controlled variable being offset from the setpoint. $\tau_I$ changes the amount of integral control, which helps remove steady-state offset.  Finally, $\tau_D$ varies the amount of derivative control, which helps prevent overshoot of the setpoint. Precisely, overshoot is the the maximum error after the value of the controlled variable has crossed the setpoint value. The goal of tuning is to maximize the speed of the dynamic response to disturbances while minimizing the magnitude of overshoot and offset. 
     
-    \label{tab:state_variables}
+As noted by several authors, though Equation \ref{eq:PID_defining_equation} is the textbook definition for a PID controller, the actual implementation of PID can vary significantly between different hardware manufacturers.\citep{ODwyer2009, KiamHeongAng2005}  O'Dwyer identifies nine different classes of PID algorithms used by industrial controllers.\citep{ODwyer2009} For example, some controllers include a low-pass filter on the derivative term to prevent drastic changes in error response. Algorithms used to tune PID controllers often assume a particular form of the PID equation, which is important to consider when choosing an algorithm for tuning a PID controller.  
+Here, the literature on PID tuning is divided into three areas: heuristic tuning, Internal Model Control (IMC) tuning, and optimization based tuning. This is not an exhaustive list, but instead a survey of the most commonly used techniques as well as those with potential to be fully automated.  
+
+\subsubsection{Heuristic tuning}
+A wide range of heuristic methods have been created based on the experience of operators or engineers in the field. The most well-known and widely used technique is the Ziegler-Nichols (Z-N) tuning method, developed in 1942.\citep{Ziegler1942} It is known to deliver fast responses to disturbances and can be run directly on a process.\citep{Riggs2006} Z-N works by turning on P action only and increasing the proportional gain ($K^P$) until oscillations result. The minimum gain that causes oscillations is known as the ultimate gain $K_u$, and the period of the oscillations is known as the ultimate period $P_u$. These two parameters are then used in the relationships shown in Table \ref{table:ZN_parameters} to find the PID parameters.
+
+\begin{table}[b]
+	\centering
+	\caption{Tuning parameters for the Z-N method. $K_u$ is the ultimate gain, and $P_u$ is the ultimate period.}
+	\label{table:ZN_parameters}
+	\begin{tabular}{ c c c c }
+	& $K^P$ & $\tau_I$ & $\tau_D$ \\
+	\hline
+	P & 0.5$K_u$ & - & - \\
+	PI & 0.45$K_u$ & 0.83$P_u$ & - \\
+	PID & 0.6$K_u$ & 0.5$P_u$ & 0.125$P_u$ \\
+	\end{tabular}
 \end{table}
 
-\subsubsection{Material Balances}
-Material balances are calculated for all stages including the reobiler and condenser.
+The advantages of Z-N and its refinements\citep{Hang1991} are that they do not require a process model or any complex calculations. They can be easily implemented by an operator online, which perhaps explains their popularity.\citep{KiamHeongAng2005} However, it is often undesirable to introduce oscillations into a chemical process, which, if taken too far, could result in a loss of control (i.e., an unstable or runaway process). Relay feedback is an alternative method of obtaining $K_u$ and $P_u$, which only introduces small oscillations into the process.\citep{Shen1994} A relay is introduced into the control loop (i.e., an on-off switch).  As shown in Figure \ref{relay_tuning}, the following process is executed: 
+\begin{enumerate}
+    \item A small step change is made in the input, u.
+    \item The output y in monitored, and when it begins to rise, the input is changed to the negative of the step value.
+    \item When the output crosses original steady state, the input is changed back to the positive value.
+    \item 	This is continued, and the resulting oscillations are used to find the ultimate gain and period. Then, the Z-N parameters in Table \ref{table:ZN_parameters} can be used to find the PID parameters. 
+\end{enumerate}
 
-\begin{equation}
-\frac{dn_i}{dt} = L_{i+1}-L_i + V_{i-1}-V_i \; \forall i=1 \dots N_F-1, N_F+2 \dots N+1
-\end{equation}
-
-\begin{equation}
-   \frac{dn_0}{dt} = L_1 - L_0 - V_0 
-\end{equation}
-
-
-\begin{equation}
-    \frac{dn_{N+1}}{dt} = V_{N}-(L_{N+1} + D)    
-\end{equation}
-
-The  feed stage and the stage above the feed stage are treated separately:
-
-\begin{equation}
-    \frac{dn_{N_F}}{dt} = L_{N_F+1}-L_{N_F} + V_{N_F-1}-V_{N_F} + q_{N_F}F   
-\end{equation}
-
-\begin{equation}
-   \frac{dn_{N_F+1}}{dt} = L_{N_F+2}-L_{N_F+1} + V_{N_F}-V_{N_F+1} + (1-q_{N_F})F 
-\end{equation}
-
-
-\subsubsection{Component Balances}
-
-Component balances are calculated for all stages including the reobiler and condenser.
-
-\begin{equation}
-   \frac{d(x_{i} n_{i})}{dt}= y_{i-1}V_{i-1} -y_iV_i + x_{i+1}L_{i+1} - x_{i}L_i 
-\end{equation}
-
-\begin{equation}
-    \frac{d(x_{N+1} n_{N+1})}{dt}  = y_NV_N - y_{N+1}V_{N+1} - x_{N+1}(L_{N+1} + D) 
-\end{equation}
-
-
-\begin{equation}
-     \frac{d(x_{0} n_{0})}{dt} = L_1(x_1-x_0) + V_0(x_0-y_0) 
-\end{equation}
-
-The  feed stage and the stage above the feed stage are treated separately:
-
-\begin{equation}
- \frac{d(x_{N_F} n_{N_F})}{dt}  = y_{N_F-1}V_{N_F-1} -y_{N_F}V_{N_F} + x_{N_F+1}L_{N_F+1} - x_{N_F}L_{N_F} + q_{N_F}z_FF   
-\end{equation}
-
-\begin{equation}
-    \frac{d(x_{N_F+1} n_{N_F+1})}{dt} = y_{N_F+2}V_{N_F+2} -y_{N_F+1}V_{N_F+1} + x_{N_F}L_{N_F} - x_{N_F+1}L_{N_F+1} + (1-q_{N_F})z_FF 
-\end{equation}
-
-
-\subsubsection{Energy Balances}
-
-For liquid enthalpy, we take a mole fraction weighted average of the specific enthalpies. Data is taken from Perry’s Chemical Engineering Handbook.
-
-\begin{equation}
-    h^{L,c}(T,P) = \int_{T_{ref}}^T C_p^c(\tau)d\tau 
-\end{equation}
-
-\begin{equation}
-    h^L(T_i, P_i, x_i) = x_ih^{L,0}(T_i,P_i) + (1-x_i)h^{L,1}(T_i,P_i)
-\end{equation}
-
-\begin{equation}
-    h^L_i := h^L(T_i, P_i,x_i)
-\end{equation}
-
-\begin{equation}
-    h^L_{N_F} := h^L(T_{N_F}, P_{N_F},x_{N_F})
-\end{equation}
-
-
-For vapor enthalpy, we take a mole fraction weighted average of the specific enthalpies. Data is taken from Perry’s Chemical Engineering Handbook.
-
-\begin{equation}
-    h^{V,c}(T,P) = H^{vap, c}(T_{ref}) + 4R(T-T_{ref})
-\end{equation}
-
-\begin{equation}
-    h^V(T_i, P_i, x_i) = x_i h^{V,0}(T_i,P_i) + (1-x_i) h^{V,1}(T_i,P_i)
-\end{equation}
-
-
-\begin{equation}
-    h^V_i := h^V(T_i, P_i,x_i)
-\end{equation}
-
-\begin{equation}
-    h^V_{N_F} := h^V(T_{N_F}, P_{N_F},x_{N_F})
-\end{equation}
-
-    
-We assume that vapor holdup is negligible and therefore only consider the liquid holdup. Given these definitions, the enthalpy balances on the trays, reboiler and condenser are:
-
-\begin{equation}
-    \frac{d(n_ih^L_i)}{dt} =  h^L_{i+1}L_{i+1}-h^L_iL_i+h^V_{i-1}V_{i-1}-h^V_iV_i
-\end{equation}
-
-\begin{equation}
-    \frac{d(n_0h^L_0)}{dt} = h^L_1L_1 - h^L_0L_0 - h^V_0V_0 + Q_{reb}
-\end{equation}
-
-
-\begin{equation}
-    \frac{d(n_{N+1}h^L_{N+1})}{dt} = h^V_NV_{N}-h^L_{N+1}(L_{N+1} + D) + Q_{cond}
-\end{equation}
-
-Stage energy balance for all stages except the feed stage and  one above the feed stage:
-
-\begin{equation}
-    \frac{d(n_{N_F}h^L_{N_F})}{dt} = h^L_{N_F+1}L_{N_F+1}-h^L_{N_F}L_{N_F} + h^V_{N_F-1}V_{N_F-1}-h^V_{N_F}V_{N_F} + q_{N_F}F h^L_{N_F}
-\end{equation}
-
-where $q_{N_F}$ is the vapor fraction of the feed.
-
-\begin{equation}
-    \frac{d(n_{N_F+1}h^L_{N_F+1})}{dt} = h^L_{N_F+2}L_{N_F+2}-h^L_{N_F+1}L_{N_F+1} +h^V_{N_F} V_{N_F}-h^V_{N_F+1} V_{N_F+1} + (1-q_{N_F})Fh^V_{N_F}
-\end{equation}
-
-
-\subsubsection{Activity Coefficient Model}
-
-We use the NRTL model for calculating the activity coefficients, though a variety of models could be used. The NRTL parameters for methanol-water are shown in Table X.
-
-\begin{equation}
-    \ln \gamma_{i,0} = x_2^2\biggl [\tau_{21} \biggl (\frac{G_{21}}{x_1+x_2G_{21}}\biggr)^2 + \frac{\tau_{12}G_{12}}{(x_2 + x_1 G_{12})^2} \biggr ]
-\end{equation}
-
-\begin{equation}
-     \ln \gamma_{i,0} = x_1^2\biggl [\tau_{12} \biggl (\frac{G_{12}}{x_2+x_1G_{12}}\biggr)^2 + \frac{\tau_{21}G_{21}}{(x_1 + x_2 G_{21})^2} \biggr ]   
-\end{equation}
-
-\subsubsection{Pressure Balance}
-
-Vapor pressure is calculated using Antoine’s equation with coefficients taken from NIST. 
-
-\begin{equation}
-    \log P_{i,k}^{sat} = A_k + \frac{B_k}{T_i + C_k}
-\end{equation}
-
-For trays ($i=1\dots N$), modified Raoult’s Law is used with Murphree efficiencies to account for deviations from equilibrium.
-
-\begin{equation}
-    y_i = \alpha_i\frac{x_i\gamma_i(T_i, P_i, x_i)P_0^{sat}(T_i)}{P} + (1-\alpha_i)y_{i-1}
-\end{equation}
-
-This leads to the bubble pressure balance:
-
-\begin{equation}
-    P = x_i\gamma_{i,0}(T_i, P_i, x_i)P^{sat}_{i,0} + (1-x_i)\gamma_{i,1}(T_i, P_i, (1-x_i))P^{sat}_{i,1}
-\end{equation}
-
-\subsubsection{Francis Weir Formula}
-
-The Francis weir formula is used in dynamic mode to calculate liquid flow over the weir given a certain holdup. As shown in Figure \ref{fig:weir}, $h_i^{ow}$ from the the clear liquid to the weir. We can calculate this by taking the difference between the actual volume in the weir and a reference volume $n^v_{ref}$ (i.e., the volume if there was no crest) given the cross sectional area.
-
-\begin{figure}
-    \centering
-    \includegraphics[width=0.4\textwidth]{figures/weir.png}
-    \caption{Diagram of weir showing $h_{ow}$ measured from the top of the clear liquid on a tray.}
-    \label{fig:weir}
+\begin{figure}[bt]
+  \centering
+  \includegraphics[scale=0.3]{gfx/Chapter05/relay_tuning.png}
+  \caption{Illustration of the relay tuning procedure for input $u$ and output $y$. Adapted from Shen et al.\citep{Shen1994}}
+  \label{relay_tuning}
 \end{figure}
 
+Z-N and relay feedback methods are designed for SISO controllers in an independent environment. For decentralized MIMO control, previous work has shown that the Z-N rules in Table 1 give extremely aggressive tuning that causes oscillations when multiple controllers are introduced.\citep{Riggs2006} To compensate for this issue, Luyben introduced the BLT tuning method, which calculates a detuning factor $F$ to reduce the proportional gain of each controller.\citep{Luyben1986} $F$ depends on the number of loops being tuned, and Luyben's empirical simulations suggested that more nonlinearities in a system required higher values of $F$ (i.e., more detuning).
 
+While heuristic methods are simple, they unfortunately often only work well for one type of process. Z-N, for example, works well for processes that can be explained by certain integral plus deadtime models.\citep{ODwyer2009} However, for  processes with strong nonlinearities, Z-N fails.\citep{Hang1991} This means that a different heuristic is needed for each type of process, and furthermore, the process type needs to be correctly identified. As a result there has been an explosion of tuning rules over the last thirty years, so large handbooks are needed to reference the rules.\citep{ODwyer2009} To compensate for the weaknesses of heuristic tuning, researchers have turned to other approaches.
+ 
+\subsubsection{Internal model control tuning}
+Internal Model Control (IMC) is a fundamental approach to controller tuning. Researchers have derived analytical equations for the controller parameters ($K^P$, $\tau_I$, and $\tau_D$) in terms of standard dynamic models. To tune a controller, process data is  fitted to the parameters of a dynamic model and, then, the appropriate analytical equation is used to calculate the controller parameters.
+
+First-order plus deadtime (FOPDT) models are used as the starting point for IMC. These models represent the relationship between the input and output of a dynamic process as a first-order ordinary differential equation with deadtime ($\theta$). $\theta$ represents the time it takes for a change in input to begin affecting the output of the process. The standard FOPDT form is:
 \begin{equation}
-    h^{ow}_i = \frac{n^v_i-n^v_{ref}}{A}
+    \tau_P \frac{dy}{dt} + y = K_p u(t-\theta)
+\end{equation}
+where $\tau_P$ is the process time constant and $K_p$ is the process gain. $\tau_P$ represents the time for the output of a process to reach 63.3\% of its new steady state value after a step change in input, and $K_p$ represents how much a change in input will affect the output.  
+
+Control models are often represented in the Laplace domain as transfer functions. The transfer function of the FOPDT model is:
+\begin{equation}
+    G_P(s) = \frac{K_p e^{-\theta s}}{\tau_p s +1}
+\end{equation}
+In many processes, the process time constant is significantly greater than the deadtime (called a lag-dominant process), so the FOPDT model can be simplified as follows \citep{Copeland2010}:
+\begin{equation}
+    G_P(s) = \frac{Y(s)}{U(s)} = \frac{K_p e^{-\theta s}}{\tau_p s +1} \approx \frac{K_p e^{-\theta s}}{\tau_p s } = \frac{K e^{-\theta s}}{s}
 \end{equation}
 
-The francis Weir formula for calculating flow over the Weir comes from the Bernoulli equation for the horizontal velocity $v$. We integrate from the top of the liquid (y=0) to the weir ($y=h_i^{ow}$)
-
+As noted by Copeland et al.\citep{Copeland2010}, most IMC algorithms in the literature can be derived by combining the simplified FOPDT model above with the transfer function for a PID controller to get a standard form of the overall transfer function:
 \begin{equation}
-    \frac{1}{2} \rho v^2 = \rho g y \ \Longrightarrow v(y) = \sqrt{2gy}
+    G_O \equiv \frac{Y(s)}{u(s)} = \frac{[(2\lambda + \theta)s+1]e^{-\theta s}}{(\lambda s+1)^2}
 \end{equation}
+$\lambda$ is a tuning factor that determines the speed of the loop. A smaller $\lambda$ means a more aggressive control loop with faster responses. IMC tuning is often referred to as $\lambda$ tuning due to this factor. 
 
+The difference between various IMC algorithms is how $\lambda$ is calculated. Each algorithm gives equations for the PID parameters with a tuning parameter, and the relationship between that tuning parameter and $\lambda$ varies. For example, in Skogstad IMC tuning, equations for the PI parameters can be written as follows\citep{Copeland2010}: 
 \begin{equation}
-    L_i^{vol} = \int_0^{h_i^{ow}} v(y)wdy = w\sqrt{2g}\int_0^{h_i^{ow}} y^{1/2}dy = \frac{2}{3}w\sqrt{2g}(h_i^{ow})^{3/2} 
+    K^P = \frac{1}{K(\gamma +\theta)}
 \end{equation}
-
-
-Substituting in above equation for  $h_i^{ow}$:
-
 \begin{equation}
-   L_i^{vol} = \frac{2}{3} w\sqrt{2g}\biggl(\frac{n^v_i-n^v_{ref}}{A}\biggr)^{3/2}  
+    \tau_I = 4(\gamma+\theta)
 \end{equation}
+where $\lambda=2\gamma$. This is just one illustration that the tuning parameters in most IMC algorithms are scalar multiples of $\gamma$.
 
-Diehl lumps all the constants into an estimatable parameter $W_{tray}$:
+Recent work has extended IMC tuning to multiple control loops.\citep{Nandong2013, Nandong2015} The procedure relies on decomposing the process into modes using partial fractions and, then, designing a series of PIDF controllers (PID controllers with filters) for these modes. The method uses four overall parameters to tune any $n$ by $n$ MIMO system. To determine these four parameters, a heuristic based on frequency domain analysis can be used. Furthermore, an optimization algorithm can be used to tune the four parameters until the integral error is minimized for all control loops. This method has been shown to give better results than BLT tuning for several  multivariable systems.  
 
-\begin{equation}
-    L_i^{vol} = W_{tray}(n_i^v-n^v_{ref})^{3/2}
-\end{equation}
+IMC tuning is promising because it relies on a model of the process and analytically derived equations that guarantee stability. Furthermore, as shown by Copeland, a single equation can represent a whole class of processes accurately.\citep{Copeland2010} However, many assumptions are made when deriving the models, which is particularly problematic for nonlinear operations like distillation. Additionally, the multivariable technique developed by Nandong\citep{Nandong2015} still requires iteration and bears more resemblance to optimization based tuning.
 
-\begin{equation}
-    W_{tray} = \frac{2}{3}w\sqrt{2g}A^{-3/2}
-\end{equation}
+\subsubsection{Optimization tuning}
+The control tuning problem can be posed as an optimization problem.  The objective is a function of the error from the setpoint\citep{Pajares2019, Sumana2010, Rajapandiyan2012, Behroozsarand2012}, and the decision variables  are the PID parameters.  Hence, an optimization algorithm can be used to iteratively approach an optimal set of parameters. Optimization is, in some sense, a heuristic. The user must choose a form of the objective(s), which inherently determines how the algorithm manages the trade-off between fast responses, minimum overshoot and minimal offset. However, instead of a user deciding how to calculate a detuning factor or accurately model the plant dynamics, an algorithm guides to the same result using gradient descent or a heuristic (e.g., genetic algorithms). In the MIMO case, where there are strong nonlinearities, this automatic learning could be potentially useful. 
 
-Based on measurements from BASF, we assume the diameter of the weir $w$ is 8 mm and the height of the weir $h$ is 10 mm. We take $h = 1\cdot10^{-2} m$ and $A=\pi w^2/4 = \pi(8 \cdot 10^{-3})^2/4 = 5.024 \cdot 10^{-5} m^2$, and g is the gravity of Earth. Therefore $W_{tray}^{init}=120149 \; m^{-3/2}s^{-1}$. $n^v_{ref}=Ah=1.45 \cdot 10^{-4} m$.t  We can use this initial estimate for $W_{tray}$ and then refine via dynamic parameter estimation.
+Various stochastic optimization algorithms have been used previously because they do not require calculation of derivatives\citep{Sumana2010, Ganesh2010, Behroozsarand2012}, and some have global optimization properties (i.e., they converge to the global optimum over time). Multiobjective genetic algorithms enable consideration of the tradeoffs between multiple optimal tuning strategies.\citep{Behroozsarand2012, Pajares2019} These optimal tuning policies are often called Pareto optimal points. In addition to GAs, gradient optimization can be used.\citep{Sommer2011} It is not clear which methods work most effectively in general from the case studies.
 
-Since the simulation is in molar flowrates, we need to convert from volumetric flowrates to molar flowrates:
+The most important choice for optimization is selection of the objective. For example, Sumana et al. use optimization for tuning a multivariable PID control scheme for a reactive distillation column, and they sum the errors over  test cases with different disturbances.\citep{Sumana2010} By including multiple scenarios, the algorithm provides moderate performance on all cases, whereas the compared heuristics only work well for certain test cases. A variety of measures can be used including the integral squared error, integral absolute error, and integral time-weighted error. 
 
-\begin{equation}
-    L_i = \rho(T_i, x_i)L^{vol}_i  
-\end{equation}
+The potential disadvantage of optimization based tuning is its inefficiency. Genetic algorithms often require hundreds of iterations to converge. This problem is not addressed in the literature because most papers are simulation based and simply do not need to be concerned with resource consumption. Overall, current methods for decentralized PID tuning rely on heuristics without guarantees, restrictive models or potentially inefficient optimization methods.  This spurs us to evaluate an alternative procedure.
 
-
-where $\rho(T_i,x_i)$ is the volumetric density, calculated by a weighted average of the volumetric density of both components. Volumetric density come from Perry’s.
-
-\begin{equation}
-    \rho(T_i, x_i) = x_i\rho^0(T_i, x_i) + (1-x_i)\rho^1(T_i, x_i)
-\end{equation}
-
-
-\subsection{Parameter estimation to align simulations to experiments}
-
-We created a simulation of a distillation column that can be aligned to experiments using a small amount of steady state data. The distillation simulation was built in Python using GEKKO \citep{Beal2018}, and the differential algebraic equation model used for the simulations is fully detailed in \ref{sec:distillation_model}. To align the simulation to experiments, a three step procedure, illustrated in Figure \ref{fig:simulation_workflow}, was followed: initialization, steady state solution with parameter estimation and dynamic simulation. All simulations were solved with the APOPT nonlinear programming solver to a tolerance $10^{-9}$ and relative tolerance $10^{-9}$.
-
+\section{Methods}
 \begin{figure}
-    \centering
-    \includegraphics[width=\textwidth]{figures/simulation_workflow.png}
-    \caption{Schematic of the workflow for aligning the distillation simulation to experiments.}
-    \label{fig:simulation_workflow}
+  \includegraphics[width=\linewidth]{gfx/Chapter05/rl_tuning_loop.png}
+  \caption{Schematic of the reinforcement learning and transfer learning process. An RL agent chooses the gain parameters for the PID controllers and receives rewards based on the behavior of the process.}
+  \label{immalabel}
 \end{figure}
 
-To initialize  the simulation, only the component material balances and pressure balances were solved. The constant molal overflow assumption was used, which states that there is constant liquid flow in the stripping and rectifying section respectively as well as constant vapor flow. 
+Herein, RL is used to tune PID controllers for continuous chemical processes.  As shown in Figure \ref{immalabel}, process simulations represent the environment, and the agent makes changes to the PID tuning parameters for this environment. 
 
-Given the initialization, the full steady state simulation was then solved and used to generate the nominal values for steady state parameter estimation to the experimental data. The parameters estimated were the Murphree efficiencies and reboiler and condenser duties. While the condenser duty during dynamic simulation was fixed at the value from steady state parameter estimation, the reboiler duty was a manipulated variable; therefore, the steady-state estimated value of the reboiler duty served as an initial condition. The objective of the parameter estimation was to minimize the $L_1$ error between the simulation and experimental temperatures on stages 10, 22 and 35, as these stages were shown to be sensitive to changes in the parameters (see \ref{sec:sensitivity}). Therefore, the parameter estimation problem was formulated as:
-%  The $l_1$ norm was chosen due to its improved  handling of outliers \citep{Safdarnejad2016}.
-\begin{subequations}
-    \begin{align}
-        \min_{\boldsymbol \theta_{est}} \sum_{i\in \{10, 22, 35\}} \mathopen|T_i-T_i^{exp}\mathclose|\\
-        s.t. \;\; 0 = \mathbf f(\mathbf X, \boldsymbol \theta)
-    \end{align}
-\end{subequations}
-where $\mathbf X$ are the state variables in Table X  and $\boldsymbol \theta = \{\boldsymbol \theta_{est}, \boldsymbol \theta_{const} \}$.  $\boldsymbol \theta_{est}$ are the parameters to be estimated in Table \ref{tab:param_estimation} and $\boldsymbol \theta_{const}$ are the constant parameters in Table \ref{tab:parameters}. $\mathbf f$ is the system of equations represented by equations B.2-B.11, B.20-B.24, B.28-B.29, and B.36 with all derviatives set equal to zero. 
-% \{\mathbf x, \mathbf y, \mathbf T, \mathbf L, \mathbf n\}$ 
-\begin{table}[]
-    \centering
-    \begin{tabular}{cccc}
-        \textbf{Parameter} & \textbf{Description} & \textbf{Initial Guess} & \textbf{Estimated Value}  \\
-        \hline
-         $\alpha_{strip}$ & \thead{Murphree efficiency \\ in stripping section} &  0.5 & 0.22 \\ 
-         $\alpha_{rect}$ & \thead{Murphree efficiency \\ in rectifying section} & 0.5 & 1.0 \\
-         % $\Delta P_{rect}$ & \thead{Pressure drop \\ in rectifying section} &  $\Delta P_{tot}/N$ \\ 
-         % $\Delta P_{strip}$ & \thead{Pressure drop \\ in stripping section} &  $\Delta P_{tot}/N$ \\ 
-         $ Q_{reb}$ & \thead{Reboiler duty \\ at steady state} &  0.245 kW  & 0.259 kW  \\
-         $ Q_{cond}$ & \thead{Condenser duty \\ at steady state} &  -0.239 kW  & -0.253 kW
-    \end{tabular}
-    \caption{Parameters of the distillation column model estimated using experimental data. Estimates of the reboiler and condenser duties were made using the nominal values from the steady-state simulation, which in turn were guessed by plugging the flowrates and temperatures from the initialization into equations B.21 and B.22 with the derivatives set to 0.}
-    \label{tab:param_estimation}
+\subsection{Representing a continuous process to an RL agent}
+A continuous process can be viewed as an environment with multiple parameters that determine its performance. The parameters might be the sizing of the equipment, operating conditions, or the tuning of the control system; the performance might be measured in terms of throughput, stability or cost. In RL, changes to the parameters of the environment are called actions $\mathcal A$ because they are taken by an agent interacting with the environment. To know which actions to take, a RL agent needs a representation of the state $\mathcal S$ of the environment and rewards $\mathcal R$ for the actions it takes. The state of a continuous process can be represented by process data such as the error and oscillations in each control loop,\cite{Lee2005, Badgwell2019, Shin2019} while the reward is the performance. Whenever an action is taken, the new state is determined by the transition probability $\mathcal P$. Note that state refers to anything an RL agent observes about the environment, not just the thermodynamic state of a chemical process.
+
+
+$\mathcal S$, $\mathcal A$, $\mathcal P$, and $\mathcal R$ are all components of a Markov Decision Process (MDP). In the MDP framework, the current state $s$ contains all the information an optimal agent needs to take an optimal action $a$.  RL can be phrased in several ways, but the approach taken here is to find a policy $\pi_{\theta}(s,a)$ that determines the distribution over actions given a state $s$:
+
+\begin{equation}
+	\pi_{\theta}(s,a) = \mathbb P[a|s,\theta]
+\end{equation}
+The policy is parametrized by $\theta$, which usually represents the weights and biases of a neural network. $\theta$ is learned through policy gradient algorithms, which define the gradient of the network loss $J(\theta)$ as:
+\begin{equation}
+	\label{policy_gradient_theorem}
+	\nabla_{\theta}J(\theta) = \mathbb E_{\pi_{\theta}} [\nabla_{\theta} \log \pi_\theta(s,a)Q^{\pi_{\theta}}(s,a)]
+\end{equation}
+where $Q^{\pi_{\theta}}(s,a)$ is the value function that is trained to predict the expected future rewards, or return, of taking action $a$ from state $s$. Having the gradient of the cost in Equation \ref{policy_gradient_theorem} enables stochastic gradient descent to be used minimize the gradient, and thus find $\theta$ that give an optimal policy for the given MDP.
+
+The MDP in this work is a simulation of a continuous  distillation column. The simulation is based on "Column A" by Skogestad and Morari in which a generic mixture with constant relative volatility of 1.5 is separated using a 41 stage column (including a reboiler and a condenser).\cite{Skogestad1988} As shown in Figure \ref{lv_config}, the LV control configuration is applied, which means that reflux (L) or boilup (V) are available for composition control of the distillate or bottoms flows. Instead of measuring composition directly, temperature is often used as a proxy, which is the approach followed here.\cite{Wolff1996, Luyben2006} This is due to the strong link between temperature in the column and compositions of the outlet streams (i.e. distillate and bottoms).\cite{Luyben2006} The temperature of stage thirty is controlled by the reflux rate. In the LV configuration, the distillate and bottoms flowrates are used to control the levels in the reboiler and condenser, which ensures the column is never empty and there is always continuous flow.  The level controllers are P-only, while the composition controller is in PI mode; derivative control is not used because it is most often useful for processes with very short time constants. The aim is to use an RL algorithm to take actions that change these four parameters such that the performance of the distillation column, or reward, is maximized.
+
+Tuning occurs in episodes, where the RL agent updates the controller parameters every $n$ minutes of virtual simulation time and receives rewards for the tuning used in the previous $n$ minutes. Time resets to zero at the beginning of each episode. The update frequency was chosen to be every ten minutes based on the observation that changes to the controller parameters began to take effect within this time. As shown in Equation \ref{reward_function_1}, the reward function $R_t$ is a combination of the average normalized error $e_i(t)$ in $i=1 \dots N_c$ controllers and the number of oscillations in each the manipulated variables $p_i$. To calculate $p_i$, noise is removed using the Savitzky-Golay filter with a window length of 51 and polynomial order of three. This filter is used because it is commonly applied for filtering out high frequency noise from sensors; the parameters were selected via trial and error. The mean of the filtered signal is then subtracted to center the signal around zero, and the absolute value is taken. Finally, the number of local maxima with values greater than 1\% of the maximum variation in flowrate are summed. This method captures both damped and unstable oscillations.
+\begin{gather}
+	\label{reward_function_1}	
+ 	R_t = - \frac{1}{N_c t}\sum_{i=0}^{N_c}\sum_{\tau=0}^t \lvert e_i(\tau) \rvert  - \sum_{i=0}^{N_c}p_i\\[2em]
+ 	\label{reward_function_2}	
+	\text{where}\;\;\; 	e_i(t) = \frac{\hat y(t) - \hat y_{setpoint}(t)}{\Delta \hat y_{max}}
+\end{gather}
+
+The state of the process simulation environment is represented as a $12\times 1$ array with the first four components as the proportional ($K_i^p$) gain constants of the three controllers and integral gain constant ($K_i^I$) of the temperature controller from the previous update. The next three components are the average normalized error from the setpoint $\bar E_i(t_1,t_2)$ in each controller $i$:
+\begin{equation}
+	\bar E_i(t_1, t_2) =\frac{1}{t_2-t_1}\sum_{\tau=t_1}^{t_2} \lvert e_i(\tau) \rvert
+\end{equation}
+The final five components of the state array represent the number of oscillations in the manipulated variables, feed composition, and feed rate. 
+
+\subsection{RL agent}
+A state of the art RL algorithm, proximal policy optimization (PPO), is applied.\cite{Schulman2017} Previously, the algorithms for training RL agents were only robust when simple linear functions were used to predict the relationship between states and actions, and empirically, working in continuous action spaces was not successful.\cite{Sutton2018} However, over the last ten years, several methods for training nonlinear functions were developed, enabling much more complex behaviors to be learned.\cite{Mnih2013, Lillicrap2016} These methods belong to a family of algorithms called policy gradient algorithms, which use neural networks as a policy that predicts a continuous action given a state. Training these networks relies on taking random samples of the experience of an RL agent to remove the time correlation and meet the independent and identical input distribution requirements for training nonlinear functions such as neural networks. If the MDP criteria are met and the state fully describes the history, then randomization during training will be effective. Empirically, PPO has strong performance because it limits the amount the policy can be updated in any iteration. This prevents the policy from deviating into an undesirable action space in a single update and therefore failing to collect useful training data in subsequent steps.\cite{Schulman2017, Engstrom2020} To train the agent, random, but bounded oscillatory feed compositions and feed rate disturbances are simulated in each episode. This disturbance represents slow oscillating changes in feed rate $F$ and feed composition $z_F$ that often occur in continuous processes. For a given episode, the disturbance is as follows:
+\begin{equation}
+	F(t) = 
+	\begin{cases}
+		\underline F \;\; \text{if}\;\; t < 1200 \;\text{seconds} \\
+		\underline F(1+ 0.2\cos(0.001t-1200))+\frac{1}{60000} \mathcal{N}(0,1) \;\; \text{otherwise}
+	\end{cases}
+\end{equation}
+
+\begin{equation}
+	z_F(t) = 
+	\begin{cases}
+		\underline z_F \;\; \text{if}\;\; t < 1200 \;\text{seconds} \\
+		\underline z_F(1+ 0.2\cos(0.001t-1200))+0.001 \mathcal{N}(0,1) \;\; \text{otherwise}
+	\end{cases}
+\end{equation}
+where $\underline F$ is the nominal feed rate and $\underline z_F$ is the nominal feed composition.
+
+\subsection{Software implementation}
+Discrete time PI controllers are implemented using the following form:
+	\begin{equation}
+	u_i(t+1) = K_i^P e_i(t) +K_i^I \sum_{\tau=0}^{t}{e_i(\tau)}\ 
+	\end{equation}
+where $u_i(t)$ is the output of controller, $K_i^P$ is the proportional gain, and $K_i^I$ is the integral gain. The controller output is used to scale the nominal flowrate by the maximum change in flowrate $\Delta L_{max}$:
+\begin{equation}
+	L(t) \leftarrow \underline L + u_i(t)\Delta L_{max}
+\end{equation}
+
+The output of the controllers is bounded in the range $[-1,1]$ to reflect that, in an actual process, the flowrate can only change in a finite range outside of its nominal range due to valve and pump limits. In practice, the integral term is also constrained because it can become very large when an actuator saturates, causing large changes in controller output upon desaturation of the actuator. This phenomena is called windup, and the constraint procedure is called anti-windup.\cite{Riggs2006}
+
+Normalization of states and actions can improve the performance of an RL algorithm.\cite{Engstrom2020} This is due to the assumption that the inputs outputs of the policy network will be identically and independently distributed (i.i.d.).  The identical distribution requirement is met by scaling the state and action arrays in the range $[-1,1]$ based on bounds that are set \emph{a priori}. The bounds on the controller parameters in the state and action arrays are set by taking a confidence interval around an estimate of the process gain $K_i^{Process}$ or time constant $\tau_i^{Process}$ for a particular input-output pairing\cite{Cai2009, Astrom2006}:
+
+\begin{equation}
+	[K_i^{P, low}, K_i^{P, high}] = \Biggl [\frac{1}{ K_i^{Process}}-10 \frac{1}{\vert K_i^{Process} \vert}, \frac{1}{K_i^{Process}}+10 \frac{1}{\vert K_i^{Process} \vert}\Biggr ]
+\end{equation}
+\begin{equation}
+	[K_i^{I, low}, K_i^{I, high}] = \Biggl [0, \frac{10}{ \tau_i^{Process}}\Biggr ]
+\end{equation}
+
+ Empirically, this was a sufficiently wide range for the algorithm to be able to to explore negative and positive gain constants as well as smaller and longer reset times. The errors $e_i(t)$ were already scaled in  $[-1, 1]$ (see Equation \ref{reward_function_2}). The number of local minima and maxima (i.e., oscillations) was normalized by ten times the number of integration steps in a RL step, which proved to be a sufficiently large range. 
+ 
+The distillation model, PID controllers and RL algorithms are implemented in python. The source code can be found on \href{https://github.com/sustainable-processes/distillation_control}{Github}. The RK45 integration method in SciPy is used for solving the distillation column model,\cite{2020SciPy-NMeth} and the python package simple-pid is utilized for modeling PID controllers.\cite{Lundberg2019}The implementation of PPO is taken from the OpenAI spinning up package. The environment implements a step method that takes actions from the RL algorithms (i.e., new controller parameters) and outputs the new state and rewards after stepping forward ten minutes in simulation time. The RL algorithms iteratively call step until the environment determines an episode is terminated. Episodes are terminated at the maximum episode time. Training of a policy with two layers of twelve hidden units required approximately three hours on a machine with 16 parallel workers. The learning rate of the value and policy networks was 1e-4. Other simulation parameters are shown in Table \ref{parameters_table}.
+
+\begin{table}[bt]
+  \begin{tabular}{cccc}
+    Variable & Code Name & Units & Default \\
+    \hline
+    $\Delta t$ & step\_time & seconds & 600  \\
+    $N_T$ & n\_stages &  & 41 \\
+    $k$ & feed\_stage & & 20  \\
+    $\alpha$ & alpha & & 1.5  \\
+    $\underline F$ & nominal\_feed\_rate & kmol/second & 0.0167  \\
+    $\underline z_F$ & nominal\_feed\_composition & & 0.5   \\
+    $\underline q$ & nominal\_q & & 1.0 \\
+	$\underline{R_R}$ & reflux\_ratio & & 5.41 \\
+	$\underline D$ & nominal\_distillate\_rate & kmol/second  & $0.5 \underline F$ \\
+    $\Delta L_{max}$ & flow\_delta & kmol/second  & 0.005  \\
+	$\tau_l$ & tau\_l  & seconds & 3.78  \\
+	$\lambda$ & lambd\_a & & 0 \\
+	$K^{Process}_{reboiler}$ & kp\_reboil\_level & seconds & -0.333  \\
+	$K^{Process}_{condenser}$ & kp\_codenser\_level & seconds &  -0.333\\
+	$K^{Process}_{temperature}$ & Kp\_temperature & seconds deg C/kmol & -0.021 \\
+	$\tau^{Process}_{temperature}$ & Taup\_temperature & seconds & 7200 \\
+  \end{tabular}
+  \caption{Values of parameters used for distillation column simulations. Code Name refers to the name of the variable in the software.}
+  \label{parameters_table}
 \end{table}
 
-\begin{figure}
-    \centering
-    \includegraphics[width=\textwidth]{figures/2021_11_17_steady_state_estimated.png}
-    \caption{Steady state simulation after parameter estimation of a separation of 50/50 methanol-water separation in a distillation column with 80 bubble cap trays. \textbf{Top left}: Composition profile of the column with liquid composition in solid lines and vapor composition in dotted lines. \textbf{Top right}: Temperature profile of the simulation and experiments. \textbf{Bottom left}: Flow profile in column. \textbf{Bottom right}: Pressure profile in column.  }
-    \label{fig:estimated}
+
+\section{Results and discussion}
+
+\begin{figure*}[tb]
+  \includegraphics[width=\textwidth]{gfx/Chapter05/dis3_74_reward_parameters.png}
+  \caption{An RL agent was trained to find the optimal tuning parameters for a distillation column using the proximal policy optimization (PPO) algorithm over approximately 77,000 steps. (a) Average reward improves over the course of training. As the training continues, the agent learns to select parameters that favor distillation column stability and minimal controller error. (b) The controller gain parameters stabilize over the course of training.}
+  \label{ppo_training_curve}
+\end{figure*}
+
+An RL agent was trained using the PPO algorithm to tune the parameters of controllers on a dynamic simulation of a distillation column. As shown in Figure \ref{ppo_training_curve}a, the agent learns by itself to tune the controllers for a distillation column. At first, it takes random actions, but as the training progresses, the underlying policy is better able to predict how to change the controller parameters based on the state of the last step (i.e., ten minutes in the simulation). As shown in Figure \ref{ppo_training_curve}b, the controller parameters stabilize over the course of training. This indicates that the algorithm has finished exploring and is now able to exploit. Furthermore, the column parameters have the correct signs that would be expected for this control system.
+
+\begin{figure*}[p]
+  \includegraphics[width=\textwidth]{gfx/Chapter05/20200424_trained_policy_sixty_minutes.png}
+  \caption{Results of controlling Skogestad Column A using the LV configuration with inferential composition control via temperature on stage 30 for sixty minutes of simulation time. An RL agent was used to select tuning parameters. (a) Holdup of the reboiler and condenser over time. The setpoint for both values is 0.5 kmol. (b) Stage temperatures over time. Stage 30 is controlled at $70^{\circ}$C, a value determined via steady state simulations. (c) The compositions in the feed, distillate and bottoms over time. (d) Liquid flows in the feed, reflux, distillate, and bottoms.}
+  \label{trained_policy}
+\end{figure*} 
+
+However, as shown in Figure \ref{trained_policy}, when the trained agent is applied to the column after training, there are significant oscillations in the controlled variables. Figure \ref{trained_policy}a shows that the holdups oscillate more than 20\%, and Figure \ref{trained_policy}b illustrates that the controlled temperature stage is varying significantly. This is caused by a high gain in the temperature control loop (Figure \ref{trained_policy}c and d). Consequently, there are nearly 20\% oscillations in the reflux flow rate which results in oscillations in condenser holdup (as the reflux comes from the condenser). Thus, the tuning of the temperature control loop has an influence on the level control loop and vice versa.
+
+\begin{figure}[t]
+  \includegraphics[width=1.2\textwidth]{gfx/Chapter05/dis3_74_errors_oscillations}
+  \caption{Normalized error and oscillations in the control loops and feed.}
+  \label{errors_oscillations}
 \end{figure}
 
-We used an average of the experimental stage temperatures over nine hours of steady state experimental data for parameter estimation. The resulting steady-state simulation after parameter estimation is shown in Figure \ref{fig:estimated}, which aligns well to the experimental temperature profile.  In Figure \ref{fig:validation}a, we show that using the estimated parameters with settings from a different day of experiments gives good alignment between simulation and experiment.  An example closed-loop dynamic simulation is shown in Figure Xb, which demonstrates that the dynamic simulation aligns closely to the experimental dynamics. 
+Figure \ref{errors_oscillations}a shows that the normalized error in all control loops decreases over training. However, as shown in Figure \ref{errors_oscillations}b, the normalized number of oscillations in the distillate, bottoms, and reflux flows increases on average, while the feed rate and composition have very few oscillations. The discrepancy between oscillations in the feed and other flows illustrates that the oscillations are being introduced by the control system and not the external disturbances. This is particularly problematic since the reward continues to increase despite the worsening oscillations. In other words, the agent is encouraged to introduce more oscillations into the system by increasing the magnitude of the gains.
 
-\begin{figure}
-    \begin{subfigure}[c]{0.49\textwidth}
-        \centering
-        \includegraphics[clip,width=\textwidth]{figures/2021_11_18_steady_state_temperature.png}
-        \subcaption{}
-    \end{subfigure}
-    \begin{subfigure}[c]{0.49\textwidth}
-        \centering
-        \includegraphics[clip,width=\textwidth]{figures/2021_11_18_steady_state_temperature.png}
-        \subcaption{}
-    \end{subfigure}
-    \caption{Caption}
-    \label{fig:validation}
+The simplest remedy to this problem would be to incentivize the agent to reduce oscillations. As shown in Figure \ref{reward_tradeoff}a, the oscillations term in the reward is an order of magnitude smaller than the error term at the beginning of training. Only near the end of the training, when the policy has stabilized, do the error and oscillations reach the same magnitude. An experiment was conducted where the oscillations term in the reward function was multiplied by ten. As shown in Figure \ref{reward_tradeoff}b, the temperature control proportional gain selected by the agent trended positive over the training, which is the wrong sign for this parameter. This indicates that simply changing the weighting of the oscillations term will not solve the problem.
+
+The use of P-only control on the level controllers is consistent with the academic literature\cite{Skogestad1988} but not practical in actual distillation control. Astrom notes that P-only control requires specification of the correct bias in the controller output to achieve zero steady state error.\cite{Astrom2006} A more robust alternative is to include the integral term, which acts like a continuously adjusting bias.
+
+
+The time constant of Skogestad Column A is approximately 194 minutes,\cite{Skogestad1988} and, as shown in Figure \ref{trained_policy}c, the feed disturbances used in this simulation are slow and oscillatory. The ten minute updates are unlikely to capture these disturbances. When there is not sufficient information in a single update of the state to predict actions, the problem no longer meets Markov criteria and becomes a partially observed Markov decision process (POMDP). In other contexts, researchers have applied RL to POMDPs by replacing the feedforward neural network policy with a recurrent neural network (RNN) policy that takes account of previous state updates.\cite{Bakker2002, Hausknecht2015} In fact, recent work demonstrated that a particular type of RNN, long short term memory (LSTM) networks, have superior performance to feedforward networks on POMDPs.\cite{openai2018} Furthermore, it might be possible to learn the best descriptors of the process directly from time series data using a convolutional kernel and feed these descriptors to an LSTM.\cite{Hausknecht2015, Badgwell2019} This would ensure that data summary methods (e.g., averaging the error) do not result in insufficient state information. 
+
+\begin{figure}[t]
+  \includegraphics[width=1.2\textwidth]{gfx/Chapter05/oscillations_study.png}
+  \caption{Study on removing the oscillatory behavior of the RL tuned control system. (a) The different components of the reward function over the course of training with standard weighting. (b) Results from an experiment with increased weighting of the oscillations term in the reward function.}
+  \label{reward_tradeoff}
 \end{figure}
 
-
-
-
-
-\section{Results}
+Changing the type of disturbance applied during training could also enable better agent performance. Oscillatory disturbances are notoriously difficult to attenuate using PID controllers, so step disturbances are commonly used during tuning to give a monotone input-output relationship.\cite{Astrom2006} Using step disturbances of varying magnitude would likely enable the agent to learn more effectively as there would be sufficient information to implicitly learn a model of the distillation column. 
+ 
+A final challenge is due to the specifics of the dynamic models of continuous processes. The model used here does not include energy balances or commonly observed phenomena such as flooding.\cite{Nooraii1998} Therefore, the behavior learned by the agent might not transfer well to an actual distillation column.
 
 \section{Conclusion}
+
+In this chapter, I introduced the challenge of controller tuning for distillation columns and introduce a set of experiments to that attempted to apply RL to controller tuning. I found that the RL agent was unable to find optimal tuning parameters despite thousands of iterations. While it might have been  possible to improve the performance of the RL tuning, several challenges with the approach led to the halting of the project:
+
+\begin{itemize}
+    \item RL requires many iterations to find optimal policy: Even the simulation training can take hours to days on fast computer.
+    \item RL trained on specific configuration not transferable: A new agent would need to be trained for each new configuration of the distillation column, which is unacceptable given the above training constraint.
+    \item Applying trained policy to the pilot plant might be impossible: RL agents have not been deployed in chemical plants and, therefore, do not have the same safety verification that other techniques such as model predictive control have. 
+\end{itemize}
+
+ Overall, these conclusions led us to try a different approach based on rigorous dynamic simulation and Bayesian optimizaiton.
