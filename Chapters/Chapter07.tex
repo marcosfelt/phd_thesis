@@ -145,8 +145,6 @@ In our case of predicting activity coefficients of binary mixtures at atmospheri
 
 Note that we predict the natural logarithm of the activity coefficient since these values can vary over an order of magnitude.
 
-We also explore the use of an architecture that uses 3D information in addition to 2D information. In particular, we use PaiNN, a model that use a an equivariant message passing that works with both rank 1 and 3 tensors. By doing so, the model improved predictions on vector properties such as the Dipole moment.
-
 \noindent
 \textbf{DeepGamma Polynomial:} Often, adding chemical knowledge into machine learning models can make them more accurate. In the case of activity coefficient prediction, it would be best to fit a thermodynamically consistent model such as the the non-random two liquid model (NRTL) \cite{Renon1968}. However, we found that many of the mixtures in our training set (see "Datasets") were difficult to fit using NRTL, often because the large correlations between its parameters \cite{Holler2019}. As shown in Figure \ref{fig:mnae_distribution}, the NRTL model had significant errors (>0.2) for many mixtures.
 
