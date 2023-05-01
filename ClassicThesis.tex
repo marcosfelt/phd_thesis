@@ -39,8 +39,8 @@
 \input{classicthesis-config}
 
 % \includeonly{Chapters/Chapter05}
-\usepackage{subcaption}
-\usepackage{subfigure}
+% \usepackage{subcaption}
+% \usepackage{subfigure}
 
 %********************************************************************
 % Bibliographies
@@ -84,22 +84,23 @@
 \cleardoublepage
 
 \include{Chapters/Chapter01}
+\include{Chapters/Chapter02}
 \cleardoublepage
 
 \part{Reaction Optimization}
-\include{Chapters/Chapter02}
-\cleardoublepage
 \include{Chapters/Chapter03}
+\cleardoublepage
+\include{Chapters/Chapter04}
 \cleardoublepage
 
 \part{Controller Tuning} 
-\include{Chapters/Chapter04}
 \include{Chapters/Chapter05}
+\include{Chapters/Chapter06}
 \cleardoublepage
 
 \part{Predictive Thermodynamics}
-\include{Chapters/Chapter06}
 \include{Chapters/Chapter07}
+\include{Chapters/Chapter08}
 
 %********************************************************************
 % Backmatter
@@ -113,9 +114,12 @@
 %********************************************************************
 % Other Stuff in the Back
 %*******************************************************
-\cleardoublepage\include{FrontBackmatter/Bibliography}
-\cleardoublepage\include{FrontBackmatter/Declaration}
-\cleardoublepage\include{FrontBackmatter/Colophon}
+\cleardoublepage
+\include{FrontBackmatter/Bibliography}
+\cleardoublepage
+\include{FrontBackmatter/Declaration}
+\cleardoublepage
+\include{FrontBackmatter/Colophon}
 % ********************************************************************
 % Game Over: Restore, Restart, or Quit?
 %*******************************************************
