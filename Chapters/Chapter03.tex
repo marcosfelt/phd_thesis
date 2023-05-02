@@ -7,11 +7,9 @@ This chapter contains text and results published in the following venues:
 \begin{enumerate}
 \item \textbf{Felton K.}*, Rittig J.* and Lapkin A. \textit{Chemistry Methods}. "Summit: Benchmarking Machine Learning Methods for Reaction optimization." 2021.
 \item Taylor C.J., Pomberger, A., \textbf{Felton, K.}, Grainger R., Barecka, M., Chamberlain, T., Bourne, R.A., Lapkin, A. A. "A Brief Introduction to Chemical Reaction Optimization". \textit{Chemical Reviews}. 2023.
-\end{enumerate}
-
 * Joint first authors.
-
-Also note that Summit was originally conceived and presented during my MPhil Research, but the current benchmarks and strategies were implemented during my PhD.
+\end{enumerate}
+\textbf{My contribution}: Also note that Summit was originally conceived and presented during my MPhil Research, but the current benchmarks and strategies were implemented during my PhD.
 
 
 \section{Introduction}
@@ -286,68 +284,7 @@ The yield is determined using a Bayesian Neural Network (BNN) that is trained on
 
 \subsubsection{Bayesian Optimization}
 
-Bayesian optimization aims to solve the optimization problem.
-\begin{equation}
-    \max_x y(x)
-\end{equation}
-where $y(x)$ is the underlying function that are observed via experiments. Bayesian optimization (BO) achieves this optimization by first training a surrogate probabilistic model to represent the underlying function and, then, optimizing an acquisition function informed by this model to choose next experiments. Typically,  the probabilistic model is standard Gaussian Process. I first describe a standard BO strategy that uses a GP and expected improvement as an acquisition function (which is referred to as Single-task Bayesian optimization in this chapter). I then build on this idea to describe three other BO strategies: TSEMO, Gryffin, and multi-task Bayesian optimization (MTBO).
-
-A GP is a stochastic process characterized by a mean function $\mu(x)$ and covariance function $k_{\theta}(x,x')$. The covariance function is often called a kernel, which is the term I will use henceforth.
-
-\begin{equation}
-    f(x)= \mathcal{GP}(\mu(x), k_{\theta}(x, x'))
-\end{equation}
-
-$\theta$ are referred to as the hyperparameters of the GP and are varied to train the GP. Given a finite set of $N$ inputs $\mathbf X = \{\mathbf x_1, \mathbf x_2, \dots, \mathbf x_N \ \vert x_i \in \mathbb R^m \}$ that correspond with outputs $\mathbf y = \{y_1, y_2, \dots y_N \vert  y_i \in \mathbb R \}$, the GP is a multivariate Gaussian distribution:
-
-\begin{equation}
-    f(\mathbf X) \sim \mathcal N(\mu_{\theta}(\mathbf X), k_{\theta}(\mathbf X, \mathbf X'))
-\end{equation}
-
-The mean function and kernel act as a prior on the GP.  $\mu_{\theta}(x)$ is usually set to zero because the kernel  $k_{\theta}(x, x')$ can expressively represent any arbitrary function. In this work, I use the Matérn 5/2 kernel, with hyperparameters $\theta=\{\sigma,\mathbf L \}$. $\sigma \in \mathbb R$ is the scaling hyperparameter and $\mathbf L \in \mathbb R^m$ is a lengthscale that indicates the significance of each input feature:
-\begin{equation}
-    k_{\theta}(x, x') = \sigma^2 \biggl(1 + \sqrt{5}d_{\theta}(x,x')+\frac{5}{3}d_{\theta}(x,x')^2\biggr)\exp\biggl(-\sqrt{5}d_{\theta}(x,x') \biggr)
-\end{equation}
-$d_{\theta}(x,x')$ is the euclidean distance weighted by the lengthscale.
-\begin{equation}
-    d_{\theta}(x,x')=\biggl\lVert \frac{x-x'}{L} \biggr\rVert_2
-\end{equation}
-Inference on the GP is done by calculating the posterior of the GP. The posterior of the GP is also a Gaussian distribution:
-
-\begin{equation}
-     \tilde f(\mathbf X) \sim \mathcal N(\tilde \mu(\mathbf X), \tilde \sigma_{\theta}(\mathbf X, \mathbf X'))
-\end{equation}
-
-\begin{equation}
-    \tilde \mu_{\theta}(x) = k_{\theta}(x, \mathbf X)k_{\theta}(\mathbf X, \mathbf X')^{-1} \mathbf y
-\end{equation}
-
-\begin{equation}
-    \tilde k_{\theta}(x,x') = k_{\theta}( x, x')-k_{\theta}(x, \mathbf X) k_{\theta}(\mathbf X, \mathbf X)^{-1}k_{\theta}(\mathbf X, x)
-\end{equation}
-where $\tilde \sigma_{\theta}(x)$ are the diagonals of the covariance matrix calculated using $\tilde k_{\theta}(x, x')$.
-To train the GP, the log likelihood is maximized, which is the probability that the model predicts the training outputs given the inputs and hyperparameters. The log likelihood avoids overfitting by trading off accuracy of fit to the training data and complexity of the model.
-\begin{equation}
-    \log p(y \vert X, \theta) = -\underbrace{\frac{1}{2}(y-\tilde \mu_{\theta}(\mathbf X))^T k_{\theta}(\mathbf X, \mathbf X)^{-1}(y- \tilde\mu_{\theta}(\mathbf X)) }_{\text{Data  fit}}- \underbrace{\frac{1}{2} \log{\vert \tilde k_{\theta}(\mathbf X, \mathbf X) \vert} - \frac{d}{2}\log{2 \pi}}_{\text{Complexity penalty}}
-\end{equation}
-
-I use the expected improvement acquisition function or quantitative noisy expected improvement acquisition function. In BO with EI as an acquisition function, the aim is to choose the point that is expected to improve the most upon the existing best observed point $y^* \geq \hat y(x_i) \forall i \in (1, \dots, t)$  where  $t$ is the number of observations thus far. Therefore, I create an improvement function $I(x)$ describing the improvement of the posterior of the GP over the best observed point. If there is no improvement, $I(x)=0$.
-\begin{equation}
-    I(x) = \max(\tilde f_{\theta}(x) -y^*, 0)
-\end{equation}
-For EI, I want the expectation of the improvement:
-\begin{equation}
-    EI(x) = \mathbb E_{y}[I(x)]
-\end{equation}
-After some manipulations, the following closed form for the expected improvement is found:
-\begin{equation}
-    EI(x) =(\tilde \mu_{\theta}(x)-\hat y^*)\Phi(Z^*) + \tilde \sigma_{\theta}(x) \phi(Z^*)
-\end{equation}
-where $Z^*= \frac{y^*-\tilde\mu_{\theta}(x)}{\tilde \sigma_{\theta}(x)}$.  I then solve the following optimization problem to select the next experiment $x_{next}$.
-\begin{equation}
-    x_{\text{next}} = \text{argmax}_{x} EI(x)
-\end{equation}
-We use a gradient based solver with restarts to solve this problem.
+In addition to the standard single objective Bayesian optimization (BO) described in Chapter \ref{ch:background}, this chapter uses to other BO strategies: TSEMO and Gryffin.
 
 TSEMO is an abbreviation for Thompson sampling efficient multi-objective optimization \cite{Bradford2018}. As the name suggests, TSEMO is an adaptation of BO to multi-objective problems. TSEMO uses an independent GP for each objective. Instead of the Expected Improvement as an acquisition function, TSEMO maximizes the hypervolume improvement, which is a measure of the improvement of the pareto front with an additional predicted point. Instead of using the posterior directly, TESMO samples a deterministic function using random Fourier feature. This enables use of an evolutionary multi-objective optimization algorithm NSGA-II \cite{Deb2002} to create a list of potential $x_{next}$ which can then be selected for maximum hypervolume improvement.
 
