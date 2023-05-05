@@ -1,5 +1,5 @@
 %************************************************
-\chapter{ML-SAFT: A machine learning framework for PCP-SAFT parameter prediction}\label{ch:deep_gamma} 
+\chapter{ML-SAFT: A machine learning framework for PCP-SAFT parameter prediction}\label{ch:ml_saft} 
 %************************************************
 This chapter is based on the following paper:
 \begin{enumerate}
@@ -8,7 +8,6 @@ This chapter is based on the following paper:
 \textbf{My contribution}: I developed the concept of ML-SAFT, created the both the Dortmund and COSMO-RS datasets, trained the dipole moment prediction model and all ML-SAFT parameter prediction models and wrote the manuscript.
 
 \section{Introduction}
-\label{sec:intro}
 In Chapter \ref{ch:deep_gamma}, I developed a deep learning method for predicting activity coefficients but found the predictions to be thermodynamically inconsistent. To enable general and thermodynamically consistent predictions, one approach is to predict thermodynamic model parameters \cite{Abbasi2020, Matsukawa2021, Madani2021, Abdallahelhadj2022, Winter2022}, which also enables simple use in existing process simulation packages. Given the predicted parameters, the thermodynamic model can in turn be used to predict thermodynamic properties. For instance, Winter et al. \cite{Winter2022} developed a model for predicting the parameters of the NRTL activity coefficient model for a wide range of binary mixtures. In this work, I extend this approach of predicting parameters to an Equation of State (EoS), namely Perturbed Chain Polar Statistical Associating Fluid Theory (PCP-SAFT) \cite{Gross2006}, an established extension of the original PC-SAFT EoS to include polar molecules \cite{Gross2001}. The advantages of PCP-SAFT include its ability to predict mixture properties using parameters regressed on pure component data (though I only explore pure component predictions in this work) and its accurate representation of polar compound properties \cite{Cripwell2017}. 
 
 I introduce ML-SAFT, a framework for creating machine learning models that predict PCP-SAFT parameters, shown conceptually in Figure \ref{fig:ML-SAFT_workflow}. The PCP-SAFT parameters are physically interpretable, but they must be regressed or predicted for each molecule.  To train ML models, I developed, to the best of my knowledge, the largest database (988 molecules) of regressed PCP-SAFT parameters using experimental data. I used a combination of deep learning and heuristics to enable large-scale automated regression of PCP-SAFT parameters. I then carried out an extensive evaluation of several machine learning architectures for predicting these regressed PCP-SAFT parameters.
