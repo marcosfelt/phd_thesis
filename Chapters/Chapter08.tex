@@ -25,7 +25,12 @@ We introduce ML-SAFT, a framework for creating machine learning models that pred
 We note that Habicht et al. \cite{Habicht2023} recently developed a feed forward neural network model to predict PC-SAFT parameters from molecular fingerprints. Our framework includes the polar and associating terms and a larger database of regressed PCP-SAFT parameters. We additionally found that random forests outperformed feedforward networks for PCP-SAFT parameter prediction.
 
 
-he goal of ML-SAFT is to predict the six pure component parameters of PCP-SAFT: $\sigma$, the hard sphere diameter; $m$, number of segments in a chain of a component; $\epsilon/k$, the depth of the well; $\mu$, the dipole moment; and $\epsilon_{AB}$ and $\kappa_{AB}$, the association parameters. We use the implementation of PCP-SAFT in FeO$_{s}$ \cite{Rehner2023}.
+\section{Methods}
+\label{sec:methods}
+
+\subsection{The PCP-SAFT equation of state}
+
+The goal of ML-SAFT is to predict the six pure component parameters of PCP-SAFT: $\sigma$, the hard sphere diameter; $m$, number of segments in a chain of a component; $\epsilon/k$, the depth of the well; $\mu$, the dipole moment; and $\epsilon_{AB}$ and $\kappa_{AB}$, the association parameters. We use the implementation of PCP-SAFT in FeO$_{s}$ \cite{Rehner2023}.
 
 \subsection{Baseline predictive PCP-SAFT methods}\label{sec:baselines}
 

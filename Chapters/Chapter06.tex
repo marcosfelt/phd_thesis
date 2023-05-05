@@ -4,13 +4,13 @@
 
 \section{Introduction}
 \label{sec:intro}
-Laboratory unit operations such as reactors and distillation columns  are often subjected to many processes in a short window of time. For each new process, the control systems of these unit operations need to be re-tuned, which can be a time and labor intensive endeavor. As an example, in the distillation laboratories at BASF, operators often spend days attempting to find the best tuning parameters for a new distillation column setup, which is unacceptable given the short timelines of operating a testing laboratory. While it is possible to use model predictive control, decentralized PID controllers are often used due to their robustness and simplicity. In this work, we aim to develop a fast method tuning controllers and apply this method laboratory distillation columns.
+Laboratory unit operations such as reactors and distillation columns  are often subjected to many processes in a short window of time. For each new process, the control systems of these unit operations need to be re-tuned, which can be a time and labor intensive endeavor. As an example, in the distillation laboratories at BASF, operators often spend days attempting to find the best tuning parameters for a new distillation column setup, which is unacceptable given the short timelines of operating a testing laboratory. While it is possible to use model predictive control, decentralized PID controllers are often used due to their robustness and simplicity. In this chapter, I aim to develop a fast method for tuning controllers and apply this method laboratory distillation columns.
 
-There are a wide variety of existing tuning protocols ranging from heuristics such as Ziegler Nichols \citep{Ziegler1942} and its refinements \citep{Hang1991} to tuning using analytical equations from models via methods such as  Internal Model Control \citep{Copeland2010}. However, extending these to multi-input multi-output systems has been challenging, often requiring additional optimizations \citep{Nandong2013, Nandong2015}. Optimization-based methods have shown promise \citep{Pajares2019, Sumana2010, Rajapandiyan2012, Behroozsarand2012}, but these methods have been difficult to apply in practice due to the large number of iterations they require. Recently, Bayesian optimization (BO), a technique for optimizing expensive to evaluate functions, has shown promise for tuning controllers \citep{NeumannBrosig2020, Fiducioso2019, Khosravi2020, Konig2020, Fujimoto2022, Brunzema2022, Khosravi2022}, but this method still often requires tens to hundreds of iterations, making it too materially expensive for laboratory chemical processes.
+As noted in \ref{ch:rl_tuning}, there are a wide variety of existing tuning protocols ranging from heuristics such as Ziegler Nichols \citep{Ziegler1942} and its refinements \citep{Hang1991} to tuning using analytical equations from models via methods such as  Internal Model Control \citep{Copeland2010}. However, extending these to multi-input multi-output systems has been challenging, often requiring additional optimizations \citep{Nandong2013, Nandong2015}. Optimization-based methods have shown promise \citep{Pajares2019, Sumana2010, Rajapandiyan2012, Behroozsarand2012}, but these methods have been difficult to apply in practice due to the large number of iterations they require. Recently, Bayesian optimization (BO) has shown promise for tuning controllers \citep{NeumannBrosig2020, Fiducioso2019, Khosravi2020, Konig2020, Fujimoto2022, Brunzema2022, Khosravi2022}, but this method still often requires tens to hundreds of iterations, making it too materially expensive for laboratory chemical processes.
 
 One approach to reduce the number of iterations required for BO is multifidelity Bayesian optimization (MFBO). MFBO leverages data from an auxiliary simulation or data source that is faster or cheaper to evaluate. Early examples of this approach include Kennedy et al. who used low fidelity approximations of an oil rig simulation to reduce the number of calls to a slower simulator \cite{Kennedy2000}. More recently, a multifidelity Bayesian optimization approaches have developed to accelerate the tuning of hyperparameters for machine learning models, design of batteries and optimization of airplane rotors. Readers should refer to chapter \ref{ch:background} for review of multifidelity and transfer learning in Bayesian optimization.
 
-In this work, we introduce use multifidelity Bayesian optimization to accelerate controller tuning. Specifically, we develop a dynamic simulation of a distillation column that is only a low fidelity approximation of the original distillation experiment. We then use multifidelity Bayesian optimizaiton algorithm can use this simulation to reduce the number of iterations required to find optimal controller parameters. 
+In this chapter, I use multifidelity Bayesian optimization to accelerate controller tuning. Specifically, I develop a dynamic simulation of a distillation column that is only a low fidelity approximation of the original distillation experiment. I then use the multifidelity Bayesian optimizaiton algorithm to reduce the number of iterations required to find optimal controller parameters. 
 
 \begin{figure}
     \centering
@@ -23,7 +23,7 @@ In this work, we introduce use multifidelity Bayesian optimization to accelerate
 
 \subsection{Controller Tuning as an Optimization Problem}
 
-Controller tuning involves identifying the three parameters of the PID equation, $K^P$, $\tau_I$ and $\tau_D$:
+As noted in chapter \ref{ch:rl_tuning}, controller tuning involves identifying the three parameters of the PID equation, $K^P$, $\tau_I$ and $\tau_D$:
 
 \begin{equation}
     \label{eq:PID_defining_equation}
@@ -31,18 +31,21 @@ Controller tuning involves identifying the three parameters of the PID equation,
 \end{equation}
 where $u(t)$ is the controller output that is feed into the actuator (e.g., a valve) and $e(t)$ is the error at time $t$. In thiw work, we only use PI controllers, so $\tau_D=0$.
 
-We formulate the problem of controller design and tuning as an optimization problem. The aim is to find a set of controller parameters that will achieve desired behavior. We define good controller behavior as minimizing the integral absolute error (IAE) for each controlled variable and minimizing total controller movement (CM):
+I formulate the problem of controller design and tuning as an optimization problem. The aim is to find a set of controller parameters that will achieve desired behavior. I define good controller behavior as minimizing the integral absolute error (IAE) for each controlled variable
+% and minimizing total controller movement (CM):
 \begin{equation}
-    \min_{\Omega}(IAE_1, IAE_2, IAE_3, CM_1, CM_2, CM_3)
+    \min_{\Omega}(IAE_1, IAE_2, IAE_3)
+    %  CM_1, CM_2, CM_3)
 \end{equation}
+
 
 \begin{equation}
     IAE = \int_0^T \vert y_{sp}(t) - \hat y(t) \vert dt
 \end{equation}
 
-\begin{equation}
-    CM = \sum_{t=1}^{T}( \vert x_t - x_{t-1} \vert)
-\end{equation}
+% \begin{equation}
+%     CM = \sum_{t=1}^{T}( \vert x_t - x_{t-1} \vert)
+% \end{equation}
 where $y_{sp}$ is the setpoint,  $\hat y$  is the value of  the variable, T is the time horizon. 
 
 \subsection{Multi-Objective and Multifidelity Bayesian Optimization for Controller Tuning}
@@ -323,7 +326,7 @@ Diehl lumps all the constants into an estimatable parameter $W_{tray}$:
     W_{tray} = \frac{2}{3}w\sqrt{2g}A^{-3/2}
 \end{equation}
 
-Based on measurements from BASF, we assume the diameter of the weir $w$ is 8 mm and the height of the weir $h$ is 10 mm. We take $h = 1\cdot10^{-2} m$ and $A=\pi w^2/4 = \pi(8 \cdot 10^{-3})^2/4 = 5.024 \cdot 10^{-5} m^2$, and g is the gravity of Earth. Therefore $W_{tray}^{init}=120149 \; m^{-3/2}s^{-1}$. $n^v_{ref}=Ah=1.45 \cdot 10^{-4} m$.t  We can use this initial estimate for $W_{tray}$ and then refine via dynamic parameter estimation.
+Based on measurements from BASF, we assume the diameter of the weir $w$ is 8 mm and the height of the weir $h$ is 10 mm. We take $h = 1\cdot10^{-2} m$ and $A=\pi w^2/4 = \pi(8 \cdot 10^{-3})^2/4 = 5.024 \cdot 10^{-5} m^2$, and g is the gravity of Earth. Therefore $W_{tray}^{init}=120149 \; m^{-3/2}s^{-1}$. $n^v_{ref}=Ah=5.024 \cdot 10^{-7} m^3$.  We can use this initial estimate for $W_{tray}$ and then refine via dynamic parameter estimation.
 
 Since the simulation is in molar flowrates, we need to convert from volumetric flowrates to molar flowrates:
 
@@ -402,10 +405,29 @@ We used an average of the experimental stage temperatures over nine hours of ste
 %     \label{fig:validation}
 % \end{figure}
 
-
-
-
-
 \section{Results}
+
+\subsection{Distillation simulation correlates with experiments}
+
+% Figure 3: Steady state simulation
+
+% Figure 4: Dynamic simulation
+
+\subsection{MFBO accelerates controller tuning}
+
+% Figure 5: MFBO vs BO optimization curves (hypervolume)
+
+% Figure 7: Pareto front
+
+% Figure 8: Controller behavior bfore and after tuning
+% (just manipulated and controlled variables)
+
+
+\subsection{Ablation studies}
+
+% Figure 9: Separate input features vs shared
+
+% Figure 10: qNEHVI vs qEHVI
+
 
 \section{Conclusion}
