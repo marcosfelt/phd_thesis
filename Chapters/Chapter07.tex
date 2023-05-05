@@ -33,11 +33,11 @@ Unfortunately, the vapor-liquid equilibrium experiments required to parameterize
 
 To reduce the time required for parameterizing thermodynamic models for predicting activity coefficients, there is a large body of research focused on directly predicting the parameters from molecular structures. This work ranges from simple counting of functional groups \cite{Fredenslund1975} to density functional theory \cite{ Klamt2010} and machine learning \cite{Urata2002, Nami2011,  Jirasek2020}.  However, these prediction approaches often only cover a small subset of all mixture types (e.g., only hydrocarbons) or require significant calculation times. Thus, there is a need for a general, fast and accurate method for predicting activity coefficients \textit{a priori}.
 
-Herein, we introduce \textit{DeepGamma}, a deep learning model for fast predictions of activity coefficients directly from molecular structures.  We leverage  message passing neural networks (MPNN) to reproduce the results of quantum simulations for predicting activity coefficients without computational expense. Specifically, our model decreases the time required for calculations by a factor of 1900. Our work focuses on predicting activity coefficients of binary mixtures as a first proof of concept. 
+In this chapter, I introduce \textit{DeepGamma}, a deep learning model for fast predictions of activity coefficients directly from molecular structures.  I leverage  message passing neural networks (MPNN) to reproduce the results of quantum simulations for predicting activity coefficients without computational expense. Specifically, this model decreases the time required for calculations by a factor of 1900. This work focuses on predicting activity coefficients of binary mixtures as a first proof of concept. 
 
 \section{Background}
 
-We classify existing methods for predicting activity coefficients into three categories: group-contribution methods, quantum chemistry based methods and machine learning methods. 
+I classify existing methods for predicting activity coefficients into three categories: group-contribution methods, quantum chemistry based methods and machine learning methods. 
 
 \subsubsection{Group Contribution Methods}
 
@@ -108,8 +108,7 @@ The downside of COSMO methods is that they are often not accurate for polar comp
 \subsubsection{Machine Learning}
 
 There has been significant work on directly predicting infinite dilution activity coefficients from molecular structures and closely related free solvation energies using simple neural networks\cite{Urata2002, RamirezBeltran2009, Nami2011, Behrooz2017}, matrix completion\cite{Jirasek2020} and  graph neural networks \cite{Vermeire2021, Felton2022, SanchezMedina2022, Qin2022, Rittig2022}. However, the limitation of these works is their lack of thermodynamic consistency and other guarantees that come with rigorously derived equations of state. To overcome this problem, recent work has attempted to predict EoS parameters \cite{Abbasi2020, Madani2021, Abdallahelhadj2022, Winter2022}, which can be in turn used to predict thermodynamic outcomes.
-
-After the publication of \textit{DeepGamma}, Winter et al developed a model for predicting activity coefficients using transformer models. Specifically, they predict the parameters of the NRTL model, for any mixture \cite{Winter2022}. By doing so, they achieve three benefits thermodynamic consistency and easy application in existing process simulation software. However, the NRTL model is known to have highly correlated parameters which lead to a wide range of parameterizations for a particular mixture. 
+ 
 
 \section{Methods}
 \subsection{Models}
@@ -117,10 +116,10 @@ After the publication of \textit{DeepGamma}, Winter et al developed a model for 
 \noindent
 \textbf{Message passing neural networks:} Molecules can be treated as graphs with atoms as nodes and bonds as edges. Therefore, message passing neural networks (MPNN) that operate on graphs can be used for end-to-end prediction of molecular properties \cite{Gilmer2017}.  In a MPNN, each node passes a vector (i.e., its current features) to its neighbor. This  vector is called a message. In each layer, a permutation invariant aggregation function such as the mean is used to calculate the total message for each node prior to passing through an activation function to get a new value for each node.  In contrast to traditional fixed fingerprints like ECFP \cite{Rogers2010}, the best feature vector is learned end-to-end for each property prediction task.
 
-One type on MPNN is a directed message passing neural network (D-MPNN) in which the encoder acts on edges (bonds) instead of nodes (atoms) to improve stability of training \cite{Yang2019}. Yang, Swanson and colleagues showed D-MPNNs have superior performance to other tools such as gradient boosted trees for property prediction tasks \cite{Yang2019}. Formally, a molecule in a D-MPNN is considered to be a graph $G$ with edges $e_{vw}$ and nodes $v$ and $w$ with atom features $x_v$. A message passing update $m_v^{t}$ is as follows:
+One type on MPNN is a directed message passing neural network (D-MPNN) in which the encoder acts on edges (bonds) instead of nodes (atoms) to improve stability of training \cite{Yang2019}. Yang, Swanson and colleagues showed D-MPNNs have superior performance to other tools such as gradient boosted trees for property prediction tasks \cite{Yang2019}. Formally, a molecule in a D-MPNN is considered to be a graph $G$ with edges $e_{vw}$ and nodes $v$ and $w$ with atom features $x_v$. A message passing update $m_{vw}^{t}$ is as follows:
 
 \begin{equation}
-    m_v^{t+1} = \sum_{w\in N(v)} M_t(h_v^t, h_w^t, e_{vw})
+    m_{vw}^{t+1} = \sum_{w\in N(v)} M_t(h_v^t, h_w^t, e_{vw})
 \end{equation}
 
 \begin{equation}
@@ -213,14 +212,22 @@ Results of training on the COSMO-RS activity coefficient dataset are shown in Ta
 \begin{figure}[t]
     \centering
     \includegraphics[width=\textwidth]{gfx/Chapter07/cosmo_base_test_indp_parity_plot.png}
-    \caption{Caption}
+    \caption{Parity plot showing predicted versus ground truth activity coefficients obtained from COSMO-RS.}
     \label{fig:my_label}
 \end{figure}
 
 
 \section{Conclusion}
 
-While \textit{DeepGamma}, can offer 1900x speed-up compared to the original quantum simulations, it has several limitiations. First, it relies solely on quantum simulation data, which are themselves not fully predictive of experimental results. Second, the results are not necessarily thermodynamically consistent. This is due to the feedforward network used in the readout phase not being permutation invariant; the activity coefficient predictions are not independent of the order of the molecules. Finally, the model does not scale past binary mixtures. Therefore, I looked to develop a more comprehensive approach to thermodynamic predictions using deep learning.
+In this chapter, I propose \textit{DeepGamma}, an approach to predicting activity coefficients directly from molecular structures using directed messasge passing neural networks. The approach offers an over 1900x speed-up compared to the original quantum simulations.  Furthermore, the model is accurate at predicting activity coefficients of unseen molecules.
+
+However, I found that transfer learning did not improve the accuracy of the model but did reduce training time. This lack of improved performance is likely due to the discrepancy between the pretraining task (Gibbs free energy of solvation) and the downstream task of activity coefficient prediction. In particular, the pretraining task only used data a 298K, while my dataset used variable temperature. Recent work \cite{Lansford2023} has shown that learning temperature dependent data can lead to different topology in the trained neural network and thus makes it difficult to transfer from a model trained at a single temperature to one at multiple temperatures.
+
+\textit{DeepGamma} has several limitations. First,  it relies solely on quantum simulation data, which are themselves not fully predictive of experimental results. This could be improved in the future by training on experimental data as is done in the next chapter
+
+Second, the results are not Gibbs-Duheim  consistent. Since \textit{DeepGamma} was published, several works have proposed to overcome this challenge by incorporating more physical constraints into the neural network. For example, Sanchez Medina used  a Gibbs-Helmholtz-derived expression as the last layer of their readout feed forward network to ensure thermodynamic consistency.\cite{SanchezMedina2023} In a similar approach Winter et al developed a model for predicting activity coefficients using transformer models. Specifically, they predict the parameters of the NRTL model, for any mixture \cite{Winter2022}.  However, the NRTL model is known to have highly correlated parameters which lead to a wide range of parameterizations for a particular mixture. An alternative strategy was proposed in a paper I recently coauthored with Jan Rittig. We propose using the Gibbs Duheim equation as a constraint in the loss function and show that doing so improved both consistency and accuracy of the predicted activity coefficients (CITE when submitted). 
+
+In the next chapter, I propose a more comprehensive approach to thermodynamic predictions that leverages equations of state. This enables prediction of multiple properties that are thermodynamically consistent.
 
 % *****************************************
 % *****************************************
