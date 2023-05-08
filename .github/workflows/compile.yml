@@ -11,7 +11,7 @@ jobs:
         with:
           root_file: ClassicThesis.tex
           continue_on_error: true
-          args: -pdf -file-line-error -interaction=nonstopmode
+          args: -pdf -f -file-line-error -interaction=nonstopmode
       - name: Upload PDF file
         uses: actions/upload-artifact@v3
         with:
