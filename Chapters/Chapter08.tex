@@ -5,6 +5,7 @@ This chapter is based on the following paper:
 \begin{enumerate}
 \item \textbf{Felton K.}, Ra{\ss}pe-Lange L., Rittig J., Leonhard K., Mitsos A., Meyer-Kirschner J., Kn\"osche C., Lapkin A. \textit{Chemical Engineering Journal}. "ML-SAFT: A machine learning framework for PCP-SAFT parameter prediction." Submitted.
 \end{enumerate}
+
 \textbf{My contribution}: I developed the concept of ML-SAFT, created the both the Dortmund and COSMO-RS datasets, trained the dipole moment prediction model and all ML-SAFT parameter prediction models and wrote the manuscript.
 
 \section{Introduction}
@@ -126,7 +127,7 @@ where $w_i^{A}$ is weight for molecule $i$ with association status $A$ and $n_A$
 
 \subsection{Pretraining of MPNNs}
 
-We also explored using pretraining to improve the quality of predictions from PCP-SAFT. Specifically, I pretrained the MPNN architecture on the PCP-SAFT parameters regressed to COSMO-RS data. Then, I frozen the message passing encoder and only trained the feed forward portion of the MPNN on the regressed parameters from Dortmund. I refer to this strategy as MPNN-TL.
+I also explored using pretraining to improve the quality of predictions from PCP-SAFT. Specifically, I pretrained the MPNN architecture on the PCP-SAFT parameters regressed to COSMO-RS data. Then, I frozen the message passing encoder and only trained the feed forward portion of the MPNN on the regressed parameters from Dortmund. I refer to this strategy as MPNN-TL.
 
 \subsection{Evaluation of predictive PCP-SAFT methods}
 
@@ -186,8 +187,7 @@ To evaluate the accuracy of ML models trained to predict the regressed PCP-SAFT 
 Table \ref{tab:thermo_parameters} presents the absolute average deviation from experimental data of PCP-SAFT predictions of vapor pressure and liquid density using the predicted PCP-SAFT parameters from various ML models. The RF model gave the most accurate predictions for both the vapor pressure and the liquid density with an average of 39\% and 9\% AAD, respectively, for the molecules in the test set.
 
 \begin{table}
-	\caption{Comparison of thermodynamic predictions using PCP-SAFT parameters predicted by ML-SAFT models only. The best score for each thermodynamic quantity is
-marked in bold. $n$ is the number of molecules in the test set that each method can
+	\caption{Comparison of thermodynamic predictions using PCP-SAFT parameters predicted by ML-SAFT models only. The best score for each thermodynamic quantity is marked in bold. $n$ is the number of molecules in the test set that each method can
 predict.}
 	\begin{center}
         \label{tab:thermo_parameters}
@@ -231,7 +231,7 @@ We compared ML-SAFT to predictions from the QM method SEPP\cite{Kaminski2020} an
 \end{table}
 % Furthermore, we found empirically that our heuristic for identifying associating and non-associating molecules using RDKit\cite{rdkit} worked more effectively than the algorithm based on COSMO charge density used in SEPP.
 
-Comparison with the group contribution method was impaired by the need to convert molecules to groups prior to predictions. Only 13 of the molecules in the test set had functional groups that were already parametrized in the database by Sauer et al \cite{Sauer2014}. For this small group of molecules, the RF predictions were significantly more accurate than the GC method for vapor pressure, while the D-MPNN predictions performed best for density. 
+Comparison with the group contribution method was impaired by the need to convert molecules to groups prior to predictions. Only 13 of the molecules in the test set had functional groups that were already parameterized in the database by Sauer et al \cite{Sauer2014}. For this small group of molecules, the RF predictions were significantly more accurate than the GC method for vapor pressure, while the D-MPNN predictions performed best for density. 
 
 
 \begin{table}
@@ -250,7 +250,7 @@ Comparison with the group contribution method was impaired by the need to conver
 
 \subsection{Improving MPNN predictions using transfer learning}
 
-We hypothesized that transfer learning could be used to improve the accuracy of the MPNN predictions. As noted in the methods, I used COSMO-RS\cite{Klamt1995, Klamt2010} to generate pseudo experimental data which I the processed through the same regression and training pipeline as the Dortmund data to produce a trained MPNN. I subsequently fixed the message passing encoder of the MPNN and only trained the feedforward readout network; this model I called MPNN-TL. As shown in Figure \ref{fig:cosmo_dortmund}, a subset of the molecules (289) are in both the COSMO-RS and Dortmund databank, and there is good correlation between the PCP-SAFT parameters regressed from tehse datasets. This suggests that the data regressed from  COSMO-RS simulations could be a good pretraining task. 
+We hypothesized that transfer learning could be used to improve the accuracy of the MPNN predictions. As noted in the methods, I used COSMO-RS\cite{Klamt1995, Klamt2010} to generate pseudo experimental data which I the processed through the same regression and training pipeline as the Dortmund data to produce a trained MPNN. I subsequently fixed the message passing encoder of the MPNN and only trained the feedforward readout network; this model I called MPNN-TL. As shown in Figure \ref{fig:cosmo_dortmund}, a subset of the molecules (289) are in both the COSMO-RS and Dortmund databank, and there is good correlation between the PCP-SAFT parameters regressed from both datasets. This suggests that the data regressed fro  COSMO-RS simulations could be a good pretraining task. 
 
 \begin{figure}
     \centering
@@ -262,19 +262,17 @@ We hypothesized that transfer learning could be used to improve the accuracy of 
 The results of the pre-training approach are shown in Table \ref{tab:scores_tl}. On the test set, MPNN-TL outperforms the MPNN giving more accurate predictions of vapor pressure that are on par with the RF. Similarly, the MPNN makes more accurate predictions of density that both the standard MPNN and RF. These results demonstrate that using simulation data can improve the accuracy of neural networks by broadening the scope of moelcular data seen during their training. 
 
 \begin{table}
-    \caption{Average absolute deviation percentage of the predictions of vapor pressure and liquid density. The best score for each target is marked in bold.}
-    \begin{center}
-        \begin{tabular}{lrrr|r}
-             & MPNN & MPNN-TL & RF & Regressed \\
-            \hline
-            $n$ & 29 & 29 & 29 & 29 \\
-            \%AAD $p_{sat}$ & 62.08 & 37.88 & \textbf{36.19} & 4.31 \\
-            \%AAD $\rho^{L}$ & 6.56 & \textbf{6.41} & 9.92 & 0.45 \\
-        \end{tabular}
-    \end{center}
-    \label{tab:scores_tl}
+	\caption{Comparison of thermodynamic predictions using PCP-SAFT parameters predicted by MPNN model with and without transfer learning and the random forest. The best score for each thermodynamic quantity  is marked in bold. $n$ is the number of molecules in the test set that each method can predict.}
+	\begin{center}
+            \begin{tabular}{lrrr|r}
+                & MPNN & MPNN-TL & RF & Regressed \\
+                \hline
+                $n$ & 81 & 81 & 81 & 81 \\
+                \%AAD $p_{sat}$ & 69.73 & 50.63 & \textbf{38.55} & 4.47 \\
+                \%AAD $\rho^{L}$ & 13.86 & \textbf{5.56} & 8.64 & 0.80 \\
+            \end{tabular}
+	\end{center}
 \end{table}
-
 
 \section{Conclusion}
 
