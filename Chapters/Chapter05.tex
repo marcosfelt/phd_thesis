@@ -22,75 +22,75 @@ Distillation control schemes are designed to reject three common disturbances: c
 
 Feedback controllers are usually used to respond to these disturbances and maintain optimal operation of the column.  In the most general sense, a feedback controller receives a desired value of a control variable (CV) and keeps that variable constant through measurements and actuation. For example, a temperature controller on a hot water tank might use thermocouple measurements inside the tank to guide how it actuates a hot water inlet valve. Distillation columns have several potential controller variables and potential actuators. This makes distillation a multiple input multiple output (MIMO) control problem. 
 
-Approaches for designing MIMO control schemes can be broadly divided into those that use several decentralized single-input single-ouput (SISO) proportional integral derivative (PID) controllers\citep{Behroozsarand2012, Shen1994, Lin2006, Luyben1986} and those that design a single integrated controller.\citep{Martin2013, Mesbah2017,Spielberg2019,Terzi2020} In the decentralized approach, one controller might maintain the temperature of a particular tray in the distillation column by manipulating reflux rate while another holds the level in the reflux drum constant by changing distillate rate (see Figure \ref{lv_config}). It would be common to also have another controller on the reboiler or sump level.\citep{Skogestad2007} In contrast, the single integrated controller approach lumps all inputs and outputs into one central mathematical formulation, which can theoretically enable better rejection of disturbances.\citep{Mesbah2017} The most popular integrated controller formulation is model predictive control (MPC). MPC uses an internal model of the process to predict a series of discrete control actions that will lead to reaching the setpoints of all CVs. 
+Approaches for designing MIMO control schemes can be broadly divided into those that use several decentralized single-input single-ouput (SISO) proportional integral derivative (PID) controllers\citep{Behroozsarand2012, Shen1994, Lin2006, Luyben1986} and those that design a single integrated controller.\citep{Martin2013, Mesbah2017,Spielberg2019,Terzi2020} In the decentralized approach, one controller might maintain the temperature of a particular tray in the distillation column by manipulating reflux rate while another holds the level in the reflux drum constant by changing distillate rate (see Figure \ref{lv_config}). It would be common to also have another controller on the reboiler or sump level.\citep{Skogestad2007} In contrast, the single integrated controller approach lumps all inputs and outputs into one central mathematical formulation, which can theoretically enable better rejection of disturbances.\citep{Mesbah2017} The most popular integrated controller formulation is model predictive control (MPC). MPC uses an internal model of the process to predict a series of discrete control actions that will lead to reaching the setpoints of all CVs.  However, in practice, many laboratory distillation columns still use decentralized control due to its simplicity.
 
-Instead of being used separately, MPC and decentralized PID control are often used in tandem. The PID controllers respond quickly to high frequency disturbances, while the MPC provides setpoints for the PID controllers that optimize the overall performance of the system.\citep{Skogestad2007} The MPC controller is often referred to as the supervisory control layer, while the PID controllers are called the regulatory control layer. Before a supervisory controller can be designed, the regulatory control layer needs to be properly designed. This starts with choosing controller pairings.
+% Instead of being used separately, MPC and decentralized PID control are often used in tandem. The PID controllers respond quickly to high frequency disturbances, while the MPC provides setpoints for the PID controllers that optimize the overall performance of the system.\citep{Skogestad2007} The MPC controller is often referred to as the supervisory control layer, while the PID controllers are called the regulatory control layer. Before a supervisory controller can be designed, the regulatory control layer needs to be properly designed. This starts with choosing controller pairings.
 
-In the literature, a specific combination of control pairings is called a configuration. Configurations are named based on the manipulated variables for composition control. For example, the LV configuration uses the reflux (L) and/or vapor boilup (V) streams as manipulated variables for composition control.\citep{Skogestad2007}  The remaining two degrees of freedom are used for level control; in the LV configuration, the condenser and reboiler levels are controlled by the distillate (D) and bottoms (B) flow rates, respectively. These level controllers respond to a wide variety of disturbances including fluctuations in the cooling duty of the condenser, changes in column pressure drop or changes in the heating duty of the reboiler.
+% In the literature, a specific combination of control pairings is called a configuration. Configurations are named based on the manipulated variables for composition control. For example, the LV configuration uses the reflux (L) and/or vapor boilup (V) streams as manipulated variables for composition control.\citep{Skogestad2007}  The remaining two degrees of freedom are used for level control; in the LV configuration, the condenser and reboiler levels are controlled by the distillate (D) and bottoms (B) flow rates, respectively. These level controllers respond to a wide variety of disturbances including fluctuations in the cooling duty of the condenser, changes in column pressure drop or changes in the heating duty of the reboiler.
 
 
-Each configuration has its own benefits and drawbacks based on the desired operating mode of the column (e.g., high vs. low reflux) and the type of disturbances observed. For example, the LV configuration is not preferred for high reflux ratios because the distillate flow will be very small, so it will have little influence on the condenser level.\citep{Skogestad2007} Furthermore, L and V are highly coupled, which degrades control performance.\citep{Riggs2006} Four common  control  configurations are shown in Table \ref{table:distillation_configurations}.
+% Each configuration has its own benefits and drawbacks based on the desired operating mode of the column (e.g., high vs. low reflux) and the type of disturbances observed. For example, the LV configuration is not preferred for high reflux ratios because the distillate flow will be very small, so it will have little influence on the condenser level.\citep{Skogestad2007} Furthermore, L and V are highly coupled, which degrades control performance.\citep{Riggs2006} Four common  control  configurations are shown in Table \ref{table:distillation_configurations}.
 
-\subsection{Choosing controller pairings} 
-\begin{table*}[t]
-	\centering
-	\caption{Comparison of control configurations for distillation columns. The following abbreviations are used for flows: L is reflux, V is vapor boilup, D is distillate and B is bottoms. S.S. means steady state.}
-	\label{table:distillation_configurations}
-		\begin{tabular}{ c c c }
-			Configuration & Inputs for Level Control & Notes\\
-			\hline
-			L,V & D,B & Not good for high reflux ratios\citep{Skogestad2007}   \\
-			D,B & L,V & Works at low relative volatility\citep{Finco1989} \\
-			D,V & L,B & Large S.S. coupling, practically effective\citep{Riggs2006} \\
-			L,B & D,V & Works well for high purity columns\citep{Skogestad2007} \\
-		\end{tabular}
-\end{table*}
- The challenge is that the combinatorial space for control configurations is large.\citep{Shinskey1984} If temperature control is used to control composition, sensors could theoretically be placed on any stage in a distillation column. If two level controllers and one temperature controller are used, there are $36N$ potential pairings, where $N$ is the number of stages.\footnotemark It is common for pilot plant columns to have 30 or more stages, so there are usually over 1000 potential pairings making brute force testing of all pairings infeasible.
- \footnotetext{This is calculated by considering that there are four potential flow pairings (LV, DB, DV, LB) and five potential ratio pairings (double ratio, L/D-B, L/D-V, L/D-B, L-V/B, D-V/B) giving nine pairings. With single point temperature control, there are $4N$ pairings (two potential flows and two potential flows in ratio with feed paired with $N$ potential stages). This gives in total potential $9*4*N=36N$ pairings.}
+% \subsection{Choosing controller pairings} 
+% \begin{table*}[t]
+% 	\centering
+% 	\caption{Comparison of control configurations for distillation columns. The following abbreviations are used for flows: L is reflux, V is vapor boilup, D is distillate and B is bottoms. S.S. means steady state.}
+% 	\label{table:distillation_configurations}
+% 		\begin{tabular}{ c c c }
+% 			Configuration & Inputs for Level Control & Notes\\
+% 			\hline
+% 			L,V & D,B & Not good for high reflux ratios\citep{Skogestad2007}   \\
+% 			D,B & L,V & Works at low relative volatility\citep{Finco1989} \\
+% 			D,V & L,B & Large S.S. coupling, practically effective\citep{Riggs2006} \\
+% 			L,B & D,V & Works well for high purity columns\citep{Skogestad2007} \\
+% 		\end{tabular}
+% \end{table*}
+%  The challenge is that the combinatorial space for control configurations is large.\citep{Shinskey1984} If temperature control is used to control composition, sensors could theoretically be placed on any stage in a distillation column. If two level controllers and one temperature controller are used, there are $36N$ potential pairings, where $N$ is the number of stages.\footnotemark It is common for pilot plant columns to have 30 or more stages, so there are usually over 1000 potential pairings making brute force testing of all pairings infeasible.
+%  \footnotetext{This is calculated by considering that there are four potential flow pairings (LV, DB, DV, LB) and five potential ratio pairings (double ratio, L/D-B, L/D-V, L/D-B, L-V/B, D-V/B) giving nine pairings. With single point temperature control, there are $4N$ pairings (two potential flows and two potential flows in ratio with feed paired with $N$ potential stages). This gives in total potential $9*4*N=36N$ pairings.}
 
-Therefore, engineers have attempted to predict the best pairings based on small amounts of data. Traditionally, the relative gain array (RGA) has been suggested to choose control pairings.\citep{Shinskey1984,DeWal2001,Skogestad2007} For a two-input two-output MIMO system, the RGA is defined by Equation \ref{eq:RGA} and \ref{eq:lambda}.
+% Therefore, engineers have attempted to predict the best pairings based on small amounts of data. Traditionally, the relative gain array (RGA) has been suggested to choose control pairings.\citep{Shinskey1984,DeWal2001,Skogestad2007} For a two-input two-output MIMO system, the RGA is defined by Equation \ref{eq:RGA} and \ref{eq:lambda}.
 
-\begin{equation} \label{eq:RGA}
-	RGA = \begin{pmatrix} \lambda_{11} & \lambda_{12} \\ \lambda_{21} & \lambda_{22} \end{pmatrix}
-\end{equation}
-\begin{equation} \label{eq:lambda}
-	\lambda_{11} = \frac{(\Delta y_1/\Delta u_1)_{u_2}}{(\Delta y_1/\Delta u_1)_{y_2}}
-\end{equation}
+% \begin{equation} \label{eq:RGA}
+% 	RGA = \begin{pmatrix} \lambda_{11} & \lambda_{12} \\ \lambda_{21} & \lambda_{22} \end{pmatrix}
+% \end{equation}
+% \begin{equation} \label{eq:lambda}
+% 	\lambda_{11} = \frac{(\Delta y_1/\Delta u_1)_{u_2}}{(\Delta y_1/\Delta u_1)_{y_2}}
+% \end{equation}
 
-The diagonal of the RGA represents the pairings. An input $u_1$ is paired with an output $y_1$, and another input $u_2$ is paired with output $y_2$. The parameter $\lambda_{11}$ is the ratio of the process gain without control to the process gain with control.\citep{Riggs2006} That is, the numerator represents how much $y_1$ changes when input 1 changes ($\Delta u_1$) while keeping input 2 constant (i.e., the second loop is left open).  The denominator represents how much $y_1$ changes when input 1 changes and the second loop is closed. Note that all other $\lambda$ values can be determined once $\lambda_{11}$ is specified for a 2x2 system.\citep{Riggs2006}
+% The diagonal of the RGA represents the pairings. An input $u_1$ is paired with an output $y_1$, and another input $u_2$ is paired with output $y_2$. The parameter $\lambda_{11}$ is the ratio of the process gain without control to the process gain with control.\citep{Riggs2006} That is, the numerator represents how much $y_1$ changes when input 1 changes ($\Delta u_1$) while keeping input 2 constant (i.e., the second loop is left open).  The denominator represents how much $y_1$ changes when input 1 changes and the second loop is closed. Note that all other $\lambda$ values can be determined once $\lambda_{11}$ is specified for a 2x2 system.\citep{Riggs2006}
 
-%\begin{figure*}[bt]
-%  \includegraphics[width=\textwidth, keepaspectratio]{gfx/Chapter05/two_by_two_control_loop}
-%  \caption{A block diagram of a 2x2 control system. $G$ are process transfer functions representing the conversion of an input to an output in Laplace space.}
-%  \label{two_by_two_control_loop}
-%\end{figure*}
+% %\begin{figure*}[bt]
+% %  \includegraphics[width=\textwidth, keepaspectratio]{gfx/Chapter05/two_by_two_control_loop}
+% %  \caption{A block diagram of a 2x2 control system. $G$ are process transfer functions representing the conversion of an input to an output in Laplace space.}
+% %  \label{two_by_two_control_loop}
+% %\end{figure*}
 
-\begin{table*}[bt]
-  \caption{Significance of RGA values. Reproduced from Shinskey.\citep{Shinskey1984}} 
-  \begin{tabular}{c l}
-    \centering
-    $\lambda_{ij}$ & Significance \\
-    \hline
+% \begin{table*}[bt]
+%   \caption{Significance of RGA values. Reproduced from Shinskey.\citep{Shinskey1984}} 
+%   \begin{tabular}{c l}
+%     \centering
+%     $\lambda_{ij}$ & Significance \\
+%     \hline
     
-    <0 & Conditionally stable - do not close loop \\
-    0 & Control depends on other loop(s) \\
-    0-1 & Interaction extends period and raises gain \\
-    1.0 & No interaction with other loops \\
-    >1  & Interaction reduces control effectiveness \\
-    $\infty$ & Loops are completely dependent \\
-  \end{tabular}
-  \label{significance_of_rga}
-\end{table*}
+%     <0 & Conditionally stable - do not close loop \\
+%     0 & Control depends on other loop(s) \\
+%     0-1 & Interaction extends period and raises gain \\
+%     1.0 & No interaction with other loops \\
+%     >1  & Interaction reduces control effectiveness \\
+%     $\infty$ & Loops are completely dependent \\
+%   \end{tabular}
+%   \label{significance_of_rga}
+% \end{table*}
 
-As shown in Table \ref{significance_of_rga}, Shinskey lists six different bands for the RGA, each with a different physical interpretation.\citep{Shinskey1984} A $\lambda_{11}$ value of 1.0 indicates there is no coupling between the two loops and is highly desirable.   Negative values mean that the system is only stable if the first loop is left open and the second is closed; this is because the second loop causes a response in the wrong direction. $\lambda_{11}$ values between zero and one can be tolerated, with preference for values closer to one. Large values represent significant coupling, with the extreme of infinity meaning the loops are completely dependent. This extreme case occurs when the two variables being controlled are necessarily dependent, such as steam temperature and pressure. It is important to note that interpretations for systems larger than 2x2 are not clear.
+% As shown in Table \ref{significance_of_rga}, Shinskey lists six different bands for the RGA, each with a different physical interpretation.\citep{Shinskey1984} A $\lambda_{11}$ value of 1.0 indicates there is no coupling between the two loops and is highly desirable.   Negative values mean that the system is only stable if the first loop is left open and the second is closed; this is because the second loop causes a response in the wrong direction. $\lambda_{11}$ values between zero and one can be tolerated, with preference for values closer to one. Large values represent significant coupling, with the extreme of infinity meaning the loops are completely dependent. This extreme case occurs when the two variables being controlled are necessarily dependent, such as steam temperature and pressure. It is important to note that interpretations for systems larger than 2x2 are not clear.
 
-The advantage of the RGA is that it only requires steady-state gains. These can be calculated from a simple open-loop pulse experiment or, if the plant is stable and close to steady-state, closed-loop plant data.\citep{Pensar1993} However, analyzing the steady-state behavior of a distillation column is usually not sufficient. Distillation columns are inherently dynamic, and a configuration that appears robust from steady-state analysis could be unstable in practice. Conversely, configurations that appear impossible at steady-state are often possible in the dynamic regime. 
+% The advantage of the RGA is that it only requires steady-state gains. These can be calculated from a simple open-loop pulse experiment or, if the plant is stable and close to steady-state, closed-loop plant data.\citep{Pensar1993} However, analyzing the steady-state behavior of a distillation column is usually not sufficient. Distillation columns are inherently dynamic, and a configuration that appears robust from steady-state analysis could be unstable in practice. Conversely, configurations that appear impossible at steady-state are often possible in the dynamic regime. 
 
 
-For example, Finco and Luyben completed a rigorous dynamic study on the optimal control configuration for a propylene/propane column and found that the unconventional D-B configuration worked most effectively.\citep{Finco1989} Steady-state simulations would suggest that the D-B configuration is not feasible because an overall mass balance on the column necessitates that only D or B can be fixed at a given feed rate (i.e., $F = D + B$).\citep{Skogestad2007} This is evidenced by an infinite value of $\lambda_{11}$ for this configuration. However, in practice, Finco found that operators in an actual plant were implicitly using the D-B configuration and that, in general, high purity columns with components that have low relative volatilities (i.e., components with similar boiling points) are best controlled by the D-B configuration.\citep{Finco1989}
+% For example, Finco and Luyben completed a rigorous dynamic study on the optimal control configuration for a propylene/propane column and found that the unconventional D-B configuration worked most effectively.\citep{Finco1989} Steady-state simulations would suggest that the D-B configuration is not feasible because an overall mass balance on the column necessitates that only D or B can be fixed at a given feed rate (i.e., $F = D + B$).\citep{Skogestad2007} This is evidenced by an infinite value of $\lambda_{11}$ for this configuration. However, in practice, Finco found that operators in an actual plant were implicitly using the D-B configuration and that, in general, high purity columns with components that have low relative volatilities (i.e., components with similar boiling points) are best controlled by the D-B configuration.\citep{Finco1989}
 
-These results suggest that dynamic analysis should be used in favor of steady-state analysis. McAvoy developed the dynamic relative gain array (DRGA), which uses a dynamic transfer function model to take into account the performance of the dynamic response.\citep{Riggs2006}\footnotemark The original DRGA sweeps across all frequencies of the transfer function model to find the dynamic response to different types of disturbances. A more recent method works with any dynamic model.\citep{McAvoy2003} It designs a simple optimal controller using the linear quadratic regulator and then uses partial derivatives of the closed-loop model to find the DRGA. When applied to an ill-conditioned 2x2 system and a nonlinear 4x4 system, the method was able to find the best pairings, whereas the RGA chose the incorrect pairings. 
-\footnotetext{The Cambridge University archives do not contain this paper, and the British Library Interloan Exchange has been shut down due to COVID-19. Therefore, descriptions in other papers and textbooks are relied upon for this summary.}
+% These results suggest that dynamic analysis should be used in favor of steady-state analysis. McAvoy developed the dynamic relative gain array (DRGA), which uses a dynamic transfer function model to take into account the performance of the dynamic response.\citep{Riggs2006}\footnotemark The original DRGA sweeps across all frequencies of the transfer function model to find the dynamic response to different types of disturbances. A more recent method works with any dynamic model.\citep{McAvoy2003} It designs a simple optimal controller using the linear quadratic regulator and then uses partial derivatives of the closed-loop model to find the DRGA. When applied to an ill-conditioned 2x2 system and a nonlinear 4x4 system, the method was able to find the best pairings, whereas the RGA chose the incorrect pairings. 
+% \footnotetext{The Cambridge University archives do not contain this paper, and the British Library Interloan Exchange has been shut down due to COVID-19. Therefore, descriptions in other papers and textbooks are relied upon for this summary.}
 
 
 %\begin{itemize}
@@ -105,19 +105,20 @@ These results suggest that dynamic analysis should be used in favor of steady-st
 %
 %Out of all the methods available, branch and bound is most promising due to its generality. What I"m not sure about is if we can use it here....could I reimplement that method myself and use it on flow chemistry distillation?
 
-In this work, one control configuration is assumed for a distillation column, but in future work, one of the above heuristics will be used to select a controller configuration prior to the following step of controller tuning.
+% In this work, one control configuration is assumed for a distillation column, but in future work, one of the above heuristics will be used to select a controller configuration prior to the following step of controller tuning.
 
 \subsection{Tuning decentralized controllers}
-In addition to selecting control pairings, each of the decentralized PID controllers needs to be tuned. Tuning involves identifying the three parameters of the PID equation, $K^P$, $\tau_I$ and $\tau_D$:
+Each of the decentralized PID controllers needs to be tuned. Tuning involves identifying the three parameters of the PID equation, $K^P$, $\tau_I$ and $\tau_D$:
 
 \begin{equation}
     \label{eq:PID_defining_equation}
     u(t) = K^P e(t) + \frac{1}{\tau_I}\int_0^t e(t')dt' + \tau_D \frac{de(t)}{dt}
 \end{equation}
 where $u(t)$ is the controller output that is feed into the actuator (e.g., a valve) and $e(t)$ is the error at time $t$.
- The parameters in Equation \ref{eq:PID_defining_equation} have intuitive explanations, which is one of the key advantages of PID control. $K^P$ is the proportional constant because it causes the actuator input to increase proportionally to the error. Proportional control gives fast responses to disturbances (e.g., an increase in flowrate upstream of a distillation column) but will always result in the controlled variable being offset from the setpoint. $\tau_I$ changes the amount of integral control, which helps remove steady-state offset.  Finally, $\tau_D$ varies the amount of derivative control, which helps prevent overshoot of the setpoint. Precisely, overshoot is the the maximum error after the value of the controlled variable has crossed the setpoint value. The goal of tuning is to maximize the speed of the dynamic response to disturbances while minimizing the magnitude of overshoot and offset. 
+The parameters in Equation \ref{eq:PID_defining_equation} have intuitive explanations, which is one of the key advantages of PID control. $K^P$ is the proportional constant because it causes the actuator input to increase proportionally to the error. Proportional control gives fast responses to disturbances (e.g., an increase in flowrate upstream of a distillation column) but will always result in the controlled variable being offset from the setpoint. $\tau_I$ changes the amount of integral control, which helps remove steady-state offset.  Finally, $\tau_D$ varies the amount of derivative control, which helps prevent overshoot of the setpoint. Precisely, overshoot is the the maximum error after the value of the controlled variable has crossed the setpoint value. The goal of tuning is to maximize the speed of the dynamic response to disturbances while minimizing the magnitude of overshoot and offset. 
     
 As noted by several authors, though Equation \ref{eq:PID_defining_equation} is the textbook definition for a PID controller, the actual implementation of PID can vary significantly between different hardware manufacturers.\citep{ODwyer2009, KiamHeongAng2005}  O'Dwyer identifies nine different classes of PID algorithms used by industrial controllers.\citep{ODwyer2009} For example, some controllers include a low-pass filter on the derivative term to prevent drastic changes in error response. Algorithms used to tune PID controllers often assume a particular form of the PID equation, which is important to consider when choosing an algorithm for tuning a PID controller.  
+
 Here, the literature on PID tuning is divided into three areas: heuristic tuning, Internal Model Control (IMC) tuning, and optimization based tuning. This is not an exhaustive list, but instead a survey of the most commonly used techniques as well as those with potential to be fully automated.  
 
 \subsubsection{Heuristic tuning}
@@ -136,7 +137,7 @@ A wide range of heuristic methods have been created based on the experience of o
 	\end{tabular}
 \end{table}
 
-The advantages of Z-N and its refinements\citep{Hang1991} are that they do not require a process model or any complex calculations. They can be easily implemented by an operator online, which perhaps explains their popularity.\citep{KiamHeongAng2005} However, it is often undesirable to introduce oscillations into a chemical process, which, if taken too far, could result in a loss of control (i.e., an unstable or runaway process). Relay feedback is an alternative method of obtaining $K_u$ and $P_u$, which only introduces small oscillations into the process.\citep{Shen1994} A relay is introduced into the control loop (i.e., an on-off switch).  As shown in Figure \ref{relay_tuning}, the following process is executed: 
+The advantages of Z-N and its refinements\citep{Hang1991} are that they do not require a process model. They can be easily implemented by an operator online, which perhaps explains their popularity.\citep{KiamHeongAng2005} However, it is often undesirable to introduce oscillations into a chemical process, which, if taken too far, could result in a loss of control (i.e., an unstable or runaway process). Relay feedback is an alternative method of obtaining $K_u$ and $P_u$, which only introduces small oscillations into the process.\citep{Shen1994} A relay is introduced into the control loop (i.e., an on-off switch).  As shown in Figure \ref{relay_tuning}, the following process is executed: 
 \begin{enumerate}
     \item A small step change is made in the input, u.
     \item The output y in monitored, and when it begins to rise, the input is changed to the negative of the step value.
@@ -151,7 +152,7 @@ The advantages of Z-N and its refinements\citep{Hang1991} are that they do not r
   \label{relay_tuning}
 \end{figure}
 
-Z-N and relay feedback methods are designed for SISO controllers in an independent environment. For decentralized MIMO control, previous work has shown that the Z-N rules in Table 1 give extremely aggressive tuning that causes oscillations when multiple controllers are introduced.\citep{Riggs2006} To compensate for this issue, Luyben introduced the BLT tuning method, which calculates a detuning factor $F$ to reduce the proportional gain of each controller.\citep{Luyben1986} $F$ depends on the number of loops being tuned, and Luyben's empirical simulations suggested that more nonlinearities in a system required higher values of $F$ (i.e., more detuning).
+Z-N and relay feedback methods are designed for SISO controllers in an independent environment. For decentralized MIMO control, previous work has shown that the Z-N rules in Table 1 give extremely aggressive tuning that causes oscillations when multiple controllers are introduced \cite{Riggs2006}. To compensate for this issue, Luyben introduced the BLT tuning method, which calculates a detuning factor $F$ to reduce the proportional gain of each controller \cite{Luyben1986}. $F$ depends on the number of loops being tuned, and Luyben's empirical simulations suggested that more nonlinearities in a system required higher values of $F$ (i.e., more detuning).
 
 While heuristic methods are simple, they unfortunately often only work well for one type of process. Z-N, for example, works well for processes that can be explained by certain integral plus deadtime models.\citep{ODwyer2009} However, for  processes with strong nonlinearities, Z-N fails.\citep{Hang1991} This means that a different heuristic is needed for each type of process, and furthermore, the process type needs to be correctly identified. As a result there has been an explosion of tuning rules over the last thirty years, so large handbooks are needed to reference the rules.\citep{ODwyer2009} To compensate for the weaknesses of heuristic tuning, researchers have turned to other approaches.
  
