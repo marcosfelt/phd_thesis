@@ -33,11 +33,11 @@ Unfortunately, the vapor-liquid equilibrium experiments required to parameterize
 
 To reduce the time required for parameterizing thermodynamic models for predicting activity coefficients, there is a large body of research focused on directly predicting the parameters from molecular structures. This work ranges from simple counting of functional groups \cite{Fredenslund1975} to density functional theory \cite{ Klamt2010} and machine learning \cite{Urata2002, Nami2011,  Jirasek2020}.  However, these prediction approaches often only cover a small subset of all mixture types (e.g., only hydrocarbons) or require significant calculation times. Thus, there is a need for a general, fast and accurate method for predicting activity coefficients \textit{a priori}.
 
-In this chapter, I introduce \textit{DeepGamma}, a deep learning model for fast predictions of activity coefficients directly from molecular structures.  I leverage  message passing neural networks (MPNN) to reproduce the results of quantum simulations for predicting activity coefficients without computational expense. Specifically, this model decreases the time required for calculations by a factor of 1900. This work focuses on predicting activity coefficients of binary mixtures as a first proof of concept. 
+In this chapter, I introduce \textit{DeepGamma}, a deep learning model for fast predictions of activity coefficients directly from molecular structures.  I leverage message passing neural networks (MPNN) to reproduce the results of quantum simulations for predicting activity coefficients without computational expense. Specifically, this model decreases the time required for calculations by a factor of 1900. In the following section, I briefly review methods for predictive thermodynamics before discussing the methodology and results.
 
 \section{Background}
 
-I classify existing methods for predicting activity coefficients into three categories: group-contribution methods, quantum chemistry based methods and machine learning methods. 
+I classify existing methods for predictive thermodynamics into three categories: group-contribution methods, quantum chemistry based methods and machine learning methods. 
 
 \subsubsection{Group Contribution Methods}
 
@@ -101,15 +101,14 @@ While UNIFAC provides fast predictions, the accuracy of the model is limited by 
 
 \subsubsection{Quantum Chemistry}
 
-The second set of methods are quantum chemistry methods. These simulations often use a combination of molecular dynamics and density functional theory (DFT) calculations to predict activity coefficients for each mixture component \cite{Constantinescu2005}. COSMO-RS is one of the most reliable computational methods for liquid-phase thermodynamic predictions \cite{Klamt1995, Klamt2010}. It relies on the theory of screening charges, which states that every element of a surface of a dissolved solute must be complemented by an opposite charge in the solvent. The charge surface around a solute is divided into infinitesimally small pieces, which are then integrated to find the charge density. This charge density can then be used to calculate activity coefficients. The charge density is calculated via rigorous DFT calculations or a much faster quantitative structure-property relationship based on a database of over 65,000 pre-calculated compounds. COSMO-RS and a related method named COSMO-SAC have been applied in calculations of VLE \cite{Constantinescu2005}, liquid-liquid equilibrium (LLE) \cite{Dechambre2014} and vapor-liquid-liquid-equilibrium (VLLE) curves \cite{Kundu2011}.
+The second set of methods are quantum chemistry methods. These simulations often use a combination of molecular dynamics and density functional theory (DFT) calculations to predict activity coefficients for each mixture component \cite{Constantinescu2005}. COSMO-RS is one of the most reliable computational methods for liquid-phase thermodynamic predictions \cite{Klamt1995, Klamt2010}. It relies on the theory of screening charges, which states that every element of a surface of a dissolved solute must be complemented by an opposite charge in the solvent. The charge surface around a solute is divided into infinitesimally small pieces, which are then integrated to find the charge density. This charge density can then be used to calculate activity coefficients. The charge density is calculated via rigorous DFT calculations. COSMO-RS and a related method named COSMO-SAC have been applied in calculations of VLE \cite{Constantinescu2005}, liquid-liquid equilibrium (LLE) \cite{Dechambre2014} and vapor-liquid-liquid-equilibrium (VLLE) curves \cite{Kundu2011}.
 
-The downside of COSMO methods is that they are often not accurate for polar compounds \cite{Constantinescu2005, Kundu2011}. This is often due to the lack of theory for the hydrogen bonding present in these systems \cite{Kundu2011}. Another challenging aspect of COSMO-RS is the computational intensity of DFT calculations for new mixtures, though this can be somewhat alleviated by a less accurate method for predictions of charge surfaces from molecular structures \cite{Loschen2012}. 
+The downside of COSMO methods is that they are often not accurate for polar compounds \cite{Constantinescu2005, Kundu2011}. This is often due to the lack of theory for the hydrogen bonding present in these systems \cite{Kundu2011}. Another challenging aspect of COSMO-RS is the computational intensity of DFT calculations for new mixtures. 
 
 \subsubsection{Machine Learning}
 
 There has been significant work on directly predicting infinite dilution activity coefficients from molecular structures and closely related free solvation energies using simple neural networks\cite{Urata2002, RamirezBeltran2009, Nami2011, Behrooz2017}, matrix completion\cite{Jirasek2020} and  graph neural networks \cite{Vermeire2021, Felton2022, SanchezMedina2022, Qin2022, Rittig2022}. However, the limitation of these works is their lack of thermodynamic consistency and other guarantees that come with rigorously derived equations of state. To overcome this problem, recent work has attempted to predict EoS parameters \cite{Abbasi2020, Madani2021, Abdallahelhadj2022, Winter2022}, which can be in turn used to predict thermodynamic outcomes.
  
-
 \section{Methods}
 \subsection{Models}
 
@@ -156,7 +155,7 @@ Note that we predict the natural logarithm of the activity coefficient since the
     \label{fig:mnae_distribution}
 \end{figure}
 
-We found empirically that the activity coefficient curves fit well to a fourth order polynomial model. While this  polynomial form does not necessarily ensure Gibbs-Duheim thermodynamic consistency\footnote{The Gibbs-Duheim equation relates changes in chemical potential to changes in temperature and pressure. $\sum_{i=1}^I N_i d\mu_i$ = -SdT + VdP. At equilibrium, the right hand side becomes zero, so traditional thermodynamic models like NRTL obey the equation $\sum_{i=1}^I N_i d\mu_i=0$}, it should work well for the sole purpose of vapor liquid equilibrium activity coefficients (not liquid-liquid equilibrium for example). Therefore, we fitted fourth order polynomials to the activity coefficient data and used the D-MPNN to predict the coefficients of the polynomial model:
+I found empirically that the activity coefficient curves fit well to a fourth order polynomial model. While this  polynomial form does not necessarily ensure Gibbs-Duheim thermodynamic consistency\footnote{The Gibbs-Duheim equation relates changes in chemical potential to changes in temperature and pressure. $\sum_{i=1}^I N_i d\mu_i$ = -SdT + VdP. At equilibrium, the right hand side becomes zero, so traditional thermodynamic models like NRTL obey the equation $\sum_{i=1}^I N_i d\mu_i=0$}, it should work well for the sole purpose of vapor liquid equilibrium activity coefficients (not liquid-liquid equilibrium for example). Therefore, I fitted fourth order polynomials to the activity coefficient data and used the D-MPNN to predict the coefficients of the polynomial model:
 
 \begin{equation}
     \ln \gamma_i(x_i,T) = \sum_{j=0}^4 c_{ij}(T)x^j
@@ -166,40 +165,39 @@ We found empirically that the activity coefficient curves fit well to a fourth o
      \mathbf{c_{ij}} = R(h_v^T \in G, \mathbf{x}, T)
 \end{equation}
 
-In our results we compare direct prediction of activity coefficients and predicting polynomial coefficients.
+In the results, I compare direct prediction of activity coefficients and predicting polynomial coefficients.
 
 \subsection{Datasets}
 
-Previous work has demonstrated the power of transfer learning for improving predictions of D-MPNNs \cite{Vermeire2021}. We aim to obtain similar results for activity coefficient prediction, relying on two datasets.
+Previous work has demonstrated the power of transfer learning for improving predictions of D-MPNNs \cite{Vermeire2021}. I aim to obtain similar results for activity coefficient prediction, relying on two datasets.
 
 \noindent
-\textbf{Combisolv Solvation Energy Dataset:} Solvation energies describe the change in free energy when a gas molecule of a solute is placed into a solvent. Solvation energies are closely related to activity coefficients at infinite dilution \cite{Moine2017}, so encoder representations learned on this task could be useful for the downstream task of activity coefficient prediction. We utilize the Combisolv dataset, which contains the largest number of solvation energies publicly available to date: one million binary pairs of molecules calculated using COSMO-RS \cite{Vermeire2021}.
+\textbf{Combisolv Solvation Energy Dataset:} Solvation energies describe the change in free energy when a gas molecule of a solute is placed into a solvent. Solvation energies are closely related to activity coefficients at infinite dilution \cite{Moine2017}, so encoder representations learned on this task could be useful for the downstream task of activity coefficient prediction. I utilize the Combisolv dataset, which contains the largest number of solvation energies publicly available to date: one million binary pairs of molecules calculated using COSMO-RS \cite{Vermeire2021}.
 
 \noindent
-\textbf{COSMO-RS Activity Coefficient Dataset:} We executed DFT calculations for over 18 million activity coefficients by taking all the binary pairs of 460 common solvent molecules from a previously published dataset \cite{Amar2019}. The activity coefficients were calculated in 5K temperature increments between the normal boiling points of the each binary pair, and 0.1 mol/mol composition grid was used. All activity coefficients were calculated at atmospheric pressure. COSMOtherm 2020 at the TZVPD fine fidelity level was utilized, and parameters were taken the 2020 COSMObase database \cite{Klamt2010}. These calculations took 41 days on a 24 core machine. 
+\textbf{COSMO-RS Activity Coefficient Dataset:} I executed COSMO-RS calculations for over 18 million activity coefficients by taking all the binary pairs of 460 common solvent molecules from a previously published dataset \cite{Amar2019}. The activity coefficients were calculated in 5K temperature increments between the normal boiling points of the each binary pair, and 0.1 mol/mol composition grid was used. All activity coefficients were calculated at atmospheric pressure. COSMOtherm 2020 at the TZVPD fine fidelity level was utilized, and parameters were taken the 2020 COSMObase database \cite{Klamt2010}. These calculations took 41 days on a 24 core machine. 
 
 \noindent
 \textbf{Aspen Activity Coefficient Dataset:} The third set of data were obtained using the process modeling software, Aspen Plus. This was chosen due to the fact that the thermodynamic data used to simulate processes were obtained from the Dortmund Data Bank (DDB). A total of 2500 components were added to Aspen, from which temperature dependent non-random two liquid model binary parameters of binary VLE systems were retrieved via regression of literature data from Aspen’s VLE-IG databank. VLE systems were retrieved, from which the activity coefficients were calculated at mole fractions of zero to one in increments of 0.1 and 11K temperature increments. 
 
 
-
 \section{Results and Discussion}
 
-\begin{table*}[t]
-\centering
-\caption{Validation and test mean absolute error of DeepGamma (DG) models on the COSMO-RS Activity  Coefficient Dataset. Best results are bolded. TLCB stands for transfer learning, where the encoder from the model trained on the Combisolv dataset is frozen and only the feedforward network is tuned. DGP stands for models which predict polynomial coefficients instead of activity coefficients directly. Time is training time in hours.}
-% \renewcommand{\arraystretch}{1.2}
-\label{cosmo_rs_results}
-\begin{tabular}{lccllllllllll}
-& & \multicolumn{2}{c}{Valid CONT} &  \multicolumn{2}{c}{Valid  INDP}  &  \multicolumn{2}{c}{Valid MIX}  &\multicolumn{2}{c}{Test MIX} &  \multicolumn{2}{c}{Test  INDP} \\
-& Training (h) & $\ln\gamma_1$ & $\ln\gamma_2$ & $\ln\gamma_1$ & $\ln\gamma_2$ & $\ln\gamma_1$ & $\ln\gamma_2$ & $\ln\gamma_1$ & $\ln\gamma_2$ & $\ln\gamma_1$ & $\ln\gamma_2$ \\
-\hline 
-\textbf{DG}  &     62           & \textbf{0.02 }                               & \textbf{0.02  }                              & \textbf{0.07}                                & \textbf{0.07}                                & \textbf{0.07 }                               & \textbf{0.07  }                              &\textbf{ 0.06  }                              & \textbf{0.06  }                              & \textbf{0.06   }                             & \textbf{0.05 }                               \\
-DG-TLCB &  36    & 0.04                                & 0.04                                & 0.09                                & 0.09                                & 0.08                                & 0.08                                & 0.07                                & 0.07                                & 0.07                                & 0.07                                \\
-DGP &    6.2      & 0.10                                & 0.29                                & 0.16                                & 0.36                                & 0.14                                & 0.33                                & 0.14                                & 0.28                                & 0.13                                & 0.28                                \\
-DGP-TLCB & 3.5 & 0.10                                & 0.29                                & 0.16                                & 0.36                                & 0.14                                & 0.33                                & 0.14                                & 0.28                                & 0.13                                & 0.28                               
-\end{tabular}
-\end{table*}
+\begin{sidewaystable}
+    \centering
+    \caption{Validation and test mean absolute error of DeepGamma (DG) models on the COSMO-RS Activity  Coefficient Dataset. Best results are bolded. TLCB stands for transfer learning, where the encoder from the model trained on the Combisolv dataset is frozen and only the feedforward network is tuned. DGP stands for models which predict polynomial coefficients instead of activity coefficients directly. Time is training time in hours.}
+    % \renewcommand{\arraystretch}{1.2}
+    \label{cosmo_rs_results}
+    \begin{tabular}{lccllllllllll}
+        & & \multicolumn{2}{c}{Valid CONT} &  \multicolumn{2}{c}{Valid  INDP}  &  \multicolumn{2}{c}{Valid MIX}  &\multicolumn{2}{c}{Test MIX} &  \multicolumn{2}{c}{Test  INDP} \\
+        & Training (h) & $\ln\gamma_1$ & $\ln\gamma_2$ & $\ln\gamma_1$ & $\ln\gamma_2$ & $\ln\gamma_1$ & $\ln\gamma_2$ & $\ln\gamma_1$ & $\ln\gamma_2$ & $\ln\gamma_1$ & $\ln\gamma_2$ \\
+        \hline 
+        \textbf{DG}  &     62           & \textbf{0.02 }                               & \textbf{0.02  }                              & \textbf{0.07}                                & \textbf{0.07}                                & \textbf{0.07 }                               & \textbf{0.07  }                              &\textbf{ 0.06  }                              & \textbf{0.06  }                              & \textbf{0.06   }                             & \textbf{0.05 }                               \\
+        DG-TLCB &  36    & 0.04                                & 0.04                                & 0.09                                & 0.09                                & 0.08                                & 0.08                                & 0.07                                & 0.07                                & 0.07                                & 0.07                                \\
+        DGP &    6.2      & 0.10                                & 0.29                                & 0.16                                & 0.36                                & 0.14                                & 0.33                                & 0.14                                & 0.28                                & 0.13                                & 0.28                                \\
+        DGP-TLCB & 3.5 & 0.10                                & 0.29                                & 0.16                                & 0.36                                & 0.14                                & 0.33                                & 0.14                                & 0.28                                & 0.13                                & 0.28                               
+    \end{tabular}
+\end{sidewaystable}
 
 \textit{DeepGamma} is rapidly trained to reproduce results of COSMO-RS for activity coefficient prediction. It takes 2.5 days to train our best performing model, and predictions on more than 1M activity coefficients takes less than 30 minutes on a modern GPU. This is significant because generating the original data required over one month, representing a 1900x speed up.
 
