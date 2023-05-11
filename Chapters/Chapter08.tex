@@ -77,7 +77,7 @@ where $p_i^{sat}(T_j)$ and $\rho_{i}^{l}(T_j, P_j)$ are the saturation vapor pre
 
 \begin{figure}
     \centering
-    \includegraphics[width=\textwidth]{figures/deepsaft_regression.png}
+    \includegraphics[width=\textwidth]{gfx/Chapter08/deepsaft_regression.png}
     \caption{Building a dataset for ML-SAFT: (a) A workflow was developed to automatically regress PCP-SAFT parameters to pure component experimental data. A machine learning model (PaiNN) trained on  a combination of DFT and experimental data was used to predict the dipole moments of the experimental dataset, and the other parameters were initialized using standard values. (b-c) Example regression of PCP-SAFT to vapor pressure and density data for 2-ethoxyethanol using the Levenberg-Marquandt algorithm. The dashed line in the density plot represents liquid density.}
     \label{fig:ML-SAFT_regression}
 \end{figure}
@@ -259,8 +259,9 @@ I hypothesized that transfer learning could be used to improve the accuracy of t
 The results of the pre-training approach are shown in Table \ref{tab:scores_tl}. On the test set, MPNN-TL outperforms the MPNN giving more accurate predictions of vapor pressure that are on par with the RF. Similarly, the MPNN makes more accurate predictions of density than both the standard MPNN and RF. These results demonstrate that using simulation data can improve the accuracy of neural networks by broadening the scope of molecule data seen during their training. 
 
 \begin{table}
-	\caption{Comparison of thermodynamic predictions using PCP-SAFT parameters predicted by MPNN model with and without transfer learning and the random forest. The best score for each thermodynamic quantity  is marked in bold. $n$ is the number of molecules in the test set that each method can predict.}
-	\begin{center}
+    \label{tab:scores_tl}
+    \caption{Comparison of thermodynamic predictions using PCP-SAFT parameters predicted by MPNN model with and without transfer learning and the random forest. The best score for each thermodynamic quantity  is marked in bold. $n$ is the number of molecules in the test set that each method can predict.}
+    \begin{center}
             \begin{tabular}{lrrr|r}
                 & MPNN & MPNN-TL & RF & Regressed \\
                 \hline
@@ -268,7 +269,7 @@ The results of the pre-training approach are shown in Table \ref{tab:scores_tl}.
                 \%AAD $p_{sat}$ & 69.73 & 50.63 & \textbf{38.55} & 4.47 \\
                 \%AAD $\rho^{L}$ & 13.86 & \textbf{5.56} & 8.64 & 0.80 \\
             \end{tabular}
-	\end{center}
+    \end{center}
 \end{table}
 
 \section{Conclusion}

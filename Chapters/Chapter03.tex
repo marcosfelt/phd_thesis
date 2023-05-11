@@ -233,15 +233,16 @@ where $k_{l, \\ref}$ is the constant at the reference temperature $T_{ref}$ of $
  
 \subsubsection{Data-driven benchmarks}
 
-As shown in \ref{fig:benchmarks}B, the second benchmark is the optimisation of a Pd-catalysed C-N cross coupling reaction. The C-N benchmark represents a Pd-catalyzed cross coupling between aryl triflate and aniline \cite{Baumgartner2019}. This is a five dimensional optimisation of temperature, residence time, base equivalents, catalyst and base. The catalyst choices are t-BuXPhos, t-BuBrettPhos, AlPhos. The bases are triethylamine (TEA); 1,1,3,3-tetramethylguanidine (TMG); 2-tert-butyl-1,1,3,3-tetramethylguanidine (BTMG); and 1,8-Diazabicyclo[5.4.0]undec-7-ene (DBU). The categorical variables (catalyst and base) contain descriptors that are pre-calculated using COSMOQuick computational fluid thermodynamics program \cite{Loschen2012}. The descriptor are the $\sigma$-moments, which are interpretable and general descriptors for any molecule \cite{Zissimos2002}. We use the first two $\sigma$-moments which correspond with area and polarizability respectively.
+As shown in \ref{fig:benchmarks_cn_summit}B, the second benchmark is the optimisation of a Pd-catalysed C-N cross coupling reaction. The C-N benchmark represents a Pd-catalyzed cross coupling between aryl triflate and aniline \cite{Baumgartner2019}. This is a five dimensional optimisation of temperature, residence time, base equivalents, catalyst and base. The catalyst choices are t-BuXPhos, t-BuBrettPhos, AlPhos. The bases are triethylamine (TEA); 1,1,3,3-tetramethylguanidine (TMG); 2-tert-butyl-1,1,3,3-tetramethylguanidine (BTMG); and 1,8-Diazabicyclo[5.4.0]undec-7-ene (DBU). The categorical variables (catalyst and base) contain descriptors that are pre-calculated using COSMOQuick computational fluid thermodynamics program \cite{Loschen2012}. The descriptor are the $\sigma$-moments, which are interpretable and general descriptors for any molecule \cite{Zissimos2002}. We use the first two $\sigma$-moments which correspond with area and polarizability respectively.
 
-The yield is determined using a Bayesian Neural Network (BNN) that is trained on the experimental data from Baumgartner et al.\cite{Baumgartner2019} The BNN is implemented in PyTorch \cite{Paszke2019} using the BLITZ library \cite{Esposito2020}. The total dataset contains 96 experiments, where 86 are used for training and 10 for test. The model is trained using 10-fold cross validation. As shown in \ref{fig:cn_training}, a mean absolute error of 0.08 is achieved on the test set.
+The yield is determined using a Bayesian Neural Network (BNN) that is trained on the experimental data from Baumgartner et al.\cite{Baumgartner2019} The BNN is implemented in PyTorch \cite{Paszke2019} using the BLITZ library \cite{Esposito2020}. The total dataset contains 96 experiments, where 86 are used for training and 10 for test. The model is trained using 10-fold cross validation. A mean absolute error of 0.08 is achieved on the test set.
 
 
 \begin{figure}[p]
     \centering
     \includegraphics[width=0.9\textwidth]{gfx/Chapter03/c_n_benchmarks_thesis_2.png}
     \caption{Optimisation of a C-N cross coupling between aniline (\textbf{1.11}) and aryl triflate (\textbf{1.12}).\cite{Baumgartner2019} The strategies must select one of three Buchwald catalysts and one of four organic bases for each experiment. Additionally, strategies must select the temperature, residence time, and base equivalents. The objectives are to maximise yield and minimise cost.n}
+    \label{fig:benchmarks_cn_summit}
 \end{figure}
 
 
@@ -285,21 +286,20 @@ Thereby, they proposed the Deep Reaction optimiser (DRO), a recurrent neural net
 
 Some strategies are not compatible with multi-objective domains by default. As shown in Figure \ref{fig:transforms}a, multi-objective transforms aim to convert multi-objective optimization problems into single objective optimization problems. This makes a wider range of strategies amenable to multi-objective problems. These transforms are often called achievement scalarisation functions (ASFs).
 
-% \begin{figure}
-%     \subfigure[]{
-%         \centering
-%         \includegraphics[width=0.5\linewidth]{gfx/Chapter03/custom_asf.png}
+\begin{figure}
+    \subfloat[]{
+        \centering
+        \includegraphics[width=0.5\linewidth]{gfx/Chapter03/custom_asf.png}
         
-%     }
-%     \subfigure[]{
-%         \centering
-%         \includegraphics[width=0.5\linewidth]{gfx/Chapter03/categorical_transform.png}
+    }
+    \subfloat[]{
+        \centering
+        \includegraphics[width=0.5\linewidth]{gfx/Chapter03/categorical_transform.png}
 
-%     }
-
-%     \caption{(a) Schematic of achievement scalarisation functions which transform multi-objective optimization problems into single objective problems. (b) Schematic of the categorical transform, which use descriptors to represent a categorical domain in continuous space.}
-%     \label{fig:transforms}
-% \end{figure}
+    }
+    \caption{(a) Schematic of achievement scalarisation functions which transform multi-objective optimization problems into single objective problems. (b) Schematic of the categorical transform, which use descriptors to represent a categorical domain in continuous space.}
+    \label{fig:transforms}
+\end{figure}
 
 Chimera is a hierarchical ASF developed by Hase et al. \cite{Hase2018b, Hase2020a}. Hierarchical means that the objectives are weighted, so the ASF will prioritise one objective over another. The main hyperparameters are the tolerances, which are values for each objective in $[0,1]$ that set how much each objective is weighted. A smaller tolerance indicates that the objective will be weighted more, while a larger tolerance indicates that the objective will be weighted less. The original paper does not give a clear mechanism for setting the tolerances, and the tolerances in the examples are tuned to the specific benchmarks used in the paper. To reflect what might be seen in practice, where the best optimal tolerances are not known in advance, we choose to round values for the tolerances and test four different combinations shown in Table \ref{tab:chimera_tolerances}. In this way, I aim to see if there was significant difference between different tolerance settings. In Figure \ref{fig:chimera_comparsion}, I show Chimera with different tolerances on the $S_NAr$ benchmark.
 

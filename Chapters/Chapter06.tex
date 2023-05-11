@@ -26,7 +26,6 @@ In this chapter, I use multifidelity Bayesian optimization to accelerate control
 As noted in chapter \ref{ch:rl_tuning}, controller tuning involves identifying the three parameters of the PID equation, $K^P$, $\tau_I$ and $\tau_D$:
 
 \begin{equation}
-    \label{eq:PID_defining_equation}
     u(t) = K^P e(t) + \frac{1}{\tau_I}\int_0^t e(t')dt' + \tau_D \frac{de(t)}{dt}
 \end{equation}
 where $u(t)$ is the controller output that is feed into the actuator (e.g., a valve) and $e(t)$ is the error at time $t$. In thiw work, we only use PI controllers, so $\tau_D=0$.
@@ -355,7 +354,7 @@ We created a simulation of a distillation column that can be aligned to experime
 
 To initialize  the simulation, only the component material balances and pressure balances were solved. The constant molal overflow assumption was used, which states that there is constant liquid flow in the stripping and rectifying section respectively as well as constant vapor flow. 
 
-Given the initialization, the full steady state simulation was then solved and used to generate the nominal values for steady state parameter estimation to the experimental data. The parameters estimated were the Murphree efficiencies and reboiler and condenser duties. While the condenser duty during dynamic simulation was fixed at the value from steady state parameter estimation, the reboiler duty was a manipulated variable; therefore, the steady-state estimated value of the reboiler duty served as an initial condition. The objective of the parameter estimation was to minimize the $L_1$ error between the simulation and experimental temperatures on stages 10, 22 and 35, as these stages were shown to be sensitive to changes in the parameters (see \ref{sec:sensitivity}). Therefore, the parameter estimation problem was formulated as:
+Given the initialization, the full steady state simulation was then solved and used to generate the nominal values for steady state parameter estimation to the experimental data. The parameters estimated were the Murphree efficiencies and reboiler and condenser duties. While the condenser duty during dynamic simulation was fixed at the value from steady state parameter estimation, the reboiler duty was a manipulated variable; therefore, the steady-state estimated value of the reboiler duty served as an initial condition. The objective of the parameter estimation was to minimize the $L_1$ error between the simulation and experimental temperatures on stages 10, 22 and 35, as these stages were shown to be sensitive to changes in the parameters. Therefore, the parameter estimation problem was formulated as:
 %  The $l_1$ norm was chosen due to its improved  handling of outliers \cite{Safdarnejad2016}.
 \begin{subequations}
     \begin{align}
@@ -388,22 +387,23 @@ where $\mathbf X$ are the state variables in Table X  and $\boldsymbol \theta = 
     \label{fig:estimated}
 \end{figure}
 
-We used an average of the experimental stage temperatures over nine hours of steady state experimental data for parameter estimation. The resulting steady-state simulation after parameter estimation is shown in Figure \ref{fig:estimated}, which aligns well to the experimental temperature profile.  In Figure \ref{fig:validation}a, we show that using the estimated parameters with settings from a different day of experiments gives good alignment between simulation and experiment.  An example closed-loop dynamic simulation is shown in Figure Xb, which demonstrates that the dynamic simulation aligns closely to the experimental dynamics. 
+We used an average of the experimental stage temperatures over nine hours of steady state experimental data for parameter estimation. The resulting steady-state simulation after parameter estimation is shown in Figure \ref{fig:estimated}, which aligns well to the experimental temperature profile.  
+% In Figure \ref{fig:validation}a, we show that using the estimated parameters with settings from a different day of experiments gives good alignment between simulation and experiment.  An example closed-loop dynamic simulation is shown in Figure Xb, which demonstrates that the dynamic simulation aligns closely to the experimental dynamics. 
 
-\begin{figure}
-    \subfloat[]{
-        \centering
-        \includegraphics[clip,width=\textwidth]{gfx/Chapter06/2021_11_18_steady_state_temperature.png}
-    }
+% \begin{figure}
+%     \subfloat[]{
+%         \centering
+%         \includegraphics[clip,width=\textwidth]{gfx/Chapter06/2021_11_18_steady_state_temperature.png}
+%     }
 
-    \subfloat[]{
-        \centering
-        \includegraphics[clip,width=\textwidth]{gfx/Chapter06/2021_11_18_steady_state_temperature.png}
-        \subcaption{}
-    }
-    \caption{Caption}
-    \label{fig:validation}
-\end{figure}
+%     \subfloat[]{
+%         \centering
+%         \includegraphics[clip,width=\textwidth]{gfx/Chapter06/2021_11_18_steady_state_temperature.png}
+%         \subcaption{}
+%     }
+%     \caption{Caption}
+%     \label{fig:validation}
+% \end{figure}
 
 \section{Results}
 
