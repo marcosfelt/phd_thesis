@@ -109,21 +109,21 @@ STBO HS has variable performance relying heavily on the initial conditions it is
 
 Performance of MTBO can be greatly improved using \textit{multiple} auxiliary tasks. As shown in Figure \ref{fig:baumgartner_suzuki_reizman_suzuki_all_cotraining_optimization}a, when Suzuki B1 is optimized with Suzuki R1-R4 as auxiliary tasks, the optimal conditions are always found by MTBO in fewer than five experiments. Both P1-L1 and P2-L1 are considered optimal for this reaction, and MTBO selects these two catalysts in over 80 \% of experiments during twenty repeats, when compared to \textless{} 50 \% frequency for STBO - this is highlighted in Figure \ref{fig:baumgartner_suzuki_reizman_suzuki_all_cotraining_optimization}b. As MTBO utilizes optimal regions of chemical space that have been identified in previous tasks with similar reactivity, this allows the strategy to identify new (and better performing) optimal reaction conditions faster.
 
-% \begin{figure}
-%     \centering
-%     \begin{subfigure}
-%         % [c]{0.49\textwidth}
-%         \centering
-%         \includegraphics[width=0.8\linewidth]{gfx/Chapter04/baumgartner_suzuki_reizman_suzuki_all_cotraining_optimization.png}
-%     \end{subfigure} 
-%     \begin{subfigure}
-%         % [c]{0.49\textwidth}
-%         \centering
-%         \includegraphics[width=0.8\linewidth]{gfx/Chapter04/baumgartner_suzuki_reizman_suzuki_all_cotraining_optimization_catalyst_best.png}
-%     \end{subfigure}
-%     \caption{ A comparison of the performance of single-task Bayesian Optimization (STBO), STBO head start (STBO HS), and multi-task Bayesian Optimization (MTBO) of Suzuki B1 and all of Suzuki R1-R4 as auxiliary tasks. (a)  The average best yield with a 95 \% confidence interval over 20 repeats is shown.  (b) Frequency of selection of each catalyst in Scheme 1 by STBO and MTBO.}
-%     \label{fig:baumgartner_suzuki_reizman_suzuki_all_cotraining_optimization}
-% \end{figure}
+\begin{figure}
+    \centering
+    \subfloat[]{
+        \centering
+        \includegraphics[width=0.8\linewidth]{gfx/Chapter04/baumgartner_suzuki_reizman_suzuki_all_cotraining_optimization.png}
+    }
+
+    \subfloat[]{
+        \centering
+        \includegraphics[width=0.8\linewidth]{gfx/Chapter04/baumgartner_suzuki_reizman_suzuki_all_cotraining_optimization_catalyst_best.png}
+    }
+
+    \caption{ A comparison of the performance of single-task Bayesian Optimization (STBO), STBO head start (STBO HS), and multi-task Bayesian Optimization (MTBO) of Suzuki B1 and all of Suzuki R1-R4 as auxiliary tasks. (a)  The average best yield with a 95 \% confidence interval over 20 repeats is shown.  (b) Frequency of selection of each catalyst in Scheme 1 by STBO and MTBO.}
+    \label{fig:baumgartner_suzuki_reizman_suzuki_all_cotraining_optimization}
+\end{figure}
 
 Here, STBO HS also performs well, suggesting that the optimal conditions from the auxiliary task are highly transferable to the new task. The success of STBO HS, however, shows that the similarity between tasks matters significantly for transfer learning.  
 

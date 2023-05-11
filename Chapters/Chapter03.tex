@@ -125,22 +125,22 @@ The $S_NAr$ benchmark is a reaction between 2,4-difluoronitrobenzene \textbf{1.5
 \end{equation}
 
 
-% \begin{figure}
-%     \centering
-%     \subfigure[]{
-%         \centering
-%         \includegraphics[width=0.5\textwidth]{gfx/Chapter03/flow_snar}
-%         \subcaption{}
-%     }
-%     \subfigure[]{
-%         \centering
-%         \includegraphics[width=0.5\textwidth]{gfx/Chapter03/pareto_front_snar.png}
-%         \subcaption{}
-%     }
-%     \caption{(a) Schematic of the virtual flow chemistry reactor used in the benchmark. (b) optimization landscape of S$_N$Ar benchmark as determined by running NSGA-II for 100 generations with a population size of 100.}
-%     \label{fig:snar}
+\begin{figure}
+    \centering
+    \subfloat[]{
+        \centering
+        \includegraphics[width=0.5\textwidth]{gfx/Chapter03/flow_snar}
+        % \subcaption{}
+    }
+    \subfloat[]{
+        \centering
+        \includegraphics[width=0.5\textwidth]{gfx/Chapter03/pareto_front_snar.png}
+        % \subcaption{}
+    }
+    \caption{(a) Schematic of the virtual flow chemistry reactor used in the benchmark. (b) optimization landscape of S$_N$Ar benchmark as determined by running NSGA-II for 100 generations with a population size of 100.}
+    \label{fig:snar}
 
-% \end{figure}
+\end{figure}
 
 I use hypervolume as a performance metric, which measures the volume in any number dimensions dominated by the Pareto front \cite{Emmerich2016}. To calculate hypervolume, a reference is needed. I use the Nadir point as a reference (i.e., negative of the edges of the Pareto front), which is estimated by running the NSGA-II optimization algorithm \cite{Deb2002} on the S$_N$Ar benchmark for 100 generations with a population size of 100. As shown in \ref{fig:snar}b, the Pareto front  extends over a wide range of space time yields (2500-12 000) and a narrow range of E-factors (9.5-10.75). The Nadir point is estimated as (-2957, 10.7), given that the STY is negated to account for hypervolume assuming minimisation.
 
