@@ -60,7 +60,8 @@
 
  The cost is determined using data from chemical suppliers, as shown in \ref{tab:cn_benchmark_prices_1} and \ref{tab:cn_benchmark_prices_2}. For the bases, we use data supplied by Baumgartner et al.\cite{Baumgartner2019}, and all other data is determined by us.
  
-\begin{table}[]
+\begin{sidewaystable}[]
+\caption{Chemicals used in C-N Benchmark.}
 \begin{tabular}{ccccc}
 \textbf{Abbreviation}             & \textbf{MW (g/mol)} & \textbf{Density (g/mL)} & \textbf{CAS Number} & \textbf{Supplier} \\
 \hline
@@ -77,11 +78,11 @@ MTBD          & 153.22 & 1.067 & 84030-20-6   & Enamine BB             \\
 BTTP          & 312.43 & 1.022 & 161118-67-8  & Millipore-Sigma        \\
 P2Et          & 339.4  & 1.02  & 165535-45-5  & Millipore-Sigma       
 \end{tabular}
-\caption{Chemicals used in C-N Benchmark.}
 \label{tab:cn_benchmark_prices_1}
-\end{table}
+\end{sidewaystable}
 
-\begin{table}[]
+\begin{sidewaystable}[]
+\caption{Prices of compounds used in C-N benchmark.}
 \begin{tabular}{ccccc}
 \textbf{Abbreviation} & \textbf{Mass Available (g)} & \textbf{Volume Availability (mL)} & \textbf{Price} & \textbf{Price /mmol} \\
 \hline
@@ -98,9 +99,9 @@ MTBD          & 9.37     & 65.3     & \$511.00   & \$7.83   \\
 BTTP          & 25       & 81.8     & \$572.00   & \$6.99   \\
 P2Et          & 5        & 15       & \$601.00   & \$40.00 
 \end{tabular}
-\caption{Prices of compounds used in C-N benchmark.}
+
 \label{tab:cn_benchmark_prices_2}
-\end{table}
+\end{sidewaystable}
 
 \ref{fig:cn_pareto_fronts} displays the pareto fronts of the best performing run from each combination of strategy and transform, while \ref{tab:cn_benchmark} enumerates the results of the tests of the C-N benchmark. Note that for the Custom multi-objective transform, the following expression was minimized: $-yield+cost$.
 
@@ -111,7 +112,7 @@ P2Et          & 5        & 15       & \$601.00   & \$40.00
     \label{fig:cn_pareto_fronts}
 \end{figure}
 
-\begin{table}[]
+\begin{sidewwaystable}[]
     \centering
     \begin{tabular}{lllllll}
         \textbf{Strategy} & \textbf{Transform} & \textbf{Yield tol.} & \textbf{Cost tol. }& \textbf{Hypervolume} & \textbf{Time (s) }  & \textbf{Repeats}                \\
@@ -141,7 +142,7 @@ P2Et          & 5        & 15       & \$601.00   & \$40.00
     \end{tabular}
     \caption{Results of tests of strategies and transforms available in Summit on the CN benchmark. Each strategy and transform combination was run with twenty repeats and results are shown with the standard deviation. tol. stands for the tolerance used in Chimera where applicable, time is is the average time per iteration for a new suggestion from the strategy.}
     \label{tab:cn_benchmark}
-\end{table}
+\end{sidewwaystable}
 
 \section{Multi-task benchmarks additional data}
 

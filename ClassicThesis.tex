@@ -30,7 +30,7 @@
 \documentclass[ twoside,openright,titlepage,numbers=noenddot,headinclude,%1headlines,% letterpaper a4paper
                 footinclude=true,cleardoublepage=empty,abstractoff, % <--- obsolete, remove (todo)
                 BCOR=5mm,paper=a4,fontsize=11pt,%11pt,a4paper,%
-                ngerman,american,%
+                american,%
                 ]{scrreprt}
 
 %********************************************************************
@@ -73,7 +73,8 @@
 \include{FrontBackmatter/Titleback}
 \cleardoublepage\include{FrontBackmatter/Dedication}
 %\cleardoublepage\include{FrontBackmatter/Foreword}
-\cleardoublepage\include{FrontBackmatter/Abstract}
+\cleardoublepage\include{FrontBackmatter/Declaration}
+\include{FrontBackmatter/Abstract}
 \cleardoublepage\include{FrontBackmatter/Publications}
 \cleardoublepage\include{FrontBackmatter/Acknowledgments}
 \pagestyle{scrheadings}
@@ -86,18 +87,15 @@
 
 \include{Chapters/Chapter01}
 \include{Chapters/Chapter02}
-\cleardoublepage
 
 \part{Reaction Optimization}
 \include{Chapters/Chapter03}
-\cleardoublepage
 \include{Chapters/Chapter04}
-\cleardoublepage
+
 
 \part{Controller Tuning} 
 \include{Chapters/Chapter05}
 \include{Chapters/Chapter06}
-\cleardoublepage
 
 \part{Predictive Thermodynamics}
 \include{Chapters/Chapter07}
@@ -119,8 +117,6 @@
 %*******************************************************
 \cleardoublepage
 \include{FrontBackmatter/Bibliography}
-\cleardoublepage
-\include{FrontBackmatter/Declaration}
 \cleardoublepage
 \include{FrontBackmatter/Colophon}
 % ********************************************************************
