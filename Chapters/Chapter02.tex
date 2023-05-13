@@ -12,7 +12,7 @@ In this chapter, I first review transfer learning and then the introduce two typ
 
 \section{Transfer Learning}
 
-The key idea behind transfer learning is to improve the inductive bias of a machine learning model \cite{Zhuang2021}. Inductive bias is the inherent assumptions the model makes about the data it is being trained on. Transfer learning creates a better inductive bias for a model using data from a relevant dataset. When effective, transfer learning can enable models to learn from smaller datasets and generalize to unseen examples more effectively. 
+The key idea behind transfer learning is to improve the inductive bias of a machine learning model \cite{Zhuang2021}. Inductive bias is the inherent set of assumptions the model makes about the data it is being trained on. Transfer learning creates a better inductive bias for a model using data from a relevant dataset. When effective, transfer learning can enable models to learn from smaller datasets and generalize to unseen examples more effectively. 
 
 In transfer learning, there is a source domain and target domain. The source domain often, but not always, contains more data, while the target domain contains a smaller dataset for the primary task. Two of the most well-known examples of transfer learning are pretrained computer vision models and natural language models. Computer vision deep neural networks such as ResNet \cite{He2016} often are pretrained on large classification datasets containing more than one million images such as Imagenet (i.e., source domain) \cite{Russakovsky2015}, and subsequently can learn to classify new objects on new datsets with as little as thirty images (target domain). Early layers in pretrained neural networks learn the fundamentals of computer vision such as identifying lines and shapes, and later layers can recognize more semantically complex concepts such as faces. This inductive bias learned from the large source dataset enables the neural network to learn from a small number of examples.  Similarly, the revolution of large language models (e.g., the General Pretrained Transformers, GPT, models \cite{Radford2018, Brown2020}) currently happening is spurred by large-scale unsupervised pre-training. In this approach, the source data is a large corpus of text, often extracted from the internet. The neural network is trained to predict the next (or a randomly selected \cite{Delvin2019}) word or paragraph. While conceptually simple, this task forces the model to learn the semantics of language and even some aspects of logic. As a result, when prompted with a new task in a target domain, the model can quickly adapt with a small number of examples.
 
@@ -33,11 +33,11 @@ In this case, the aim is to adjust gradient based optimization to train a model 
 
 \section{Bayesian optimization}
 
-Bayesian optimization aims to solve the optimization problem.
+I use Bayesian optimization in both Part I and II. Bayesian optimization aims to solve the optimization problem.
 \begin{equation}
     \max_x y(x)
 \end{equation}
-where $y(x)$ is the underlying function that are observed via experiments. Bayesian optimization (BO) achieves this optimization by first training a surrogate probabilistic model to represent the underlying function and, then, optimizing an acquisition function informed by this model to choose next experiments. Typically,  the probabilistic model is a Gaussian Process (GP). 
+where $y(x)$ is the underlying function that are observed via time-consuming or costly experiments. Bayesian optimization (BO) is designed to optimize $y$ with as few experiments as possible. It does this by first training a surrogate probabilistic model to represent the underlying function and, then, optimizing an acquisition function informed by this model to choose next experiments. Typically, the probabilistic model is a Gaussian Process (GP). 
 
 \subsection{Gaussian Processes}
 
@@ -108,7 +108,7 @@ where $\xi_{obs} f(x)$ and $\xi_{obs}\sim f(x)$ are samples from the posterior o
 
 \subsection{Transfer learning for Bayesian optimization}
 
-The most common approach to transfer learning in BO is improving probabilistic model  by leveraging information for auxiliary tasks. I will review two methods for improving  Gaussian processes: multi-task BO and multi-fidelity BO.
+The most common approach to transfer learning in BO is improving the probabilistic model by leveraging information for auxiliary tasks. I will review two methods for improving  Gaussian processes: multi-task BO and multi-fidelity BO.
 
 One of the potential ways to accelerate Bayesian optimization is multi-task Bayesian optimization (MTBO). MTBO was originally developed to speed up hyperparameter tuning of machine learning models (e.g., choosing learning rates and batch sizes to maximize model accuracy) \cite{Swersky2013}. Using only the hyperparameters and resulting model accuracy scores of a previously trained machine learning model (which I call Task A),  MTBO decreased by up to 50\% the the number of experiments needed to find optimal hyperparameters for a new machine learning model (which I call Task B).  The data from Task A helped the model better predict Task B, even with only a few experiments for Task B.
 
@@ -116,9 +116,11 @@ Multi-task Bayesian optimization (MTBO) uses a multi-task probabilistic model in
 
 One of the challenges faced in applying MTBO to big data uses cases has been its lack of scalability. This in mainly due to the $O(n^3)$ cost of using GPs with exact inference. Several different approaches have been taken to solving this problem including training a vanilla neural network on the tasks and feeding the output to a Bayesian linear regression model \cite{Perrone2018} and using the auxiliary tasks to create a learned feature representation in a compressed space \cite{Hakhamaneshi2021}. These methods have retained the performance of multi-task BO while minimizing the computational cost of its deployment. However, in this thesis, all applications of MTBO have less than 1000 points and in many cases, less than 100. This makes multi-task GPs with exact inference more tractable.
 
-Another direction has been to apply the machinery of multi-task GPs to multifidelity BO, which aims to leverage data from a cheap but less accurate data source to help with optimizing a more expensive function \cite{Huang2006, Forrester2007}. This technique has been applied in a wide range of scenarios including parameter estimation of physics models using data from multiple experiments and simulations \cite{Perdikaris2016}; optimizing battery electrode structure using data from both cheap and expensive multitscale differential equation models \cite{Pan2017, Folch2023}, and optimizing composition of alloys using a mix of DFT fidelities \cite{Tran2020}.
+Another direction has been to apply the machinery of multi-task GPs to multifidelity BO, which aims to leverage data from a cheap but less accurate data source to help with optimizing a more expensive function \cite{Huang2006, Forrester2007}. This technique has been applied in a wide range of scenarios including parameter estimation of physics models using data from multiple experiments and simulations \cite{Perdikaris2016}; optimizing battery electrode structure using data from both cheap and expensive multitscale differential equation models \cite{Pan2017, Folch2023}, and optimizing composition of alloys using a mix of DFT fidelities \cite{Tran2020}. I explore this idea in chapter \ref{ch:mfbo}.
 
 \section{Molecular Property Prediction}
+
+In addition to Bayesian optimization, I use molecular property prediction techinques in Part II.
 
 \subsection{Molecular Parameterization}
 
@@ -179,8 +181,8 @@ Most transfer learning work for molecular property prediction centers around pre
 
 The self-supervised approaches generally try to improve the representations learned by MPNNs using unlabeled data. Since there are large databases of existing molecules (e.g., ZINC with 1B+ molecules \cite{Irwin2020}), a large-scale pre-training task similar to those used for language modeling can be constructed. For example, Hu et al. masked missing atom nodes from molecular graphs and created a task of predicting the missing nodes \cite{Hu2020Pretrain}. By combining this pre-training task with a supervised pre-training on molecular properties, they obtained state-of-the-art results at the time of publication on some benchmark tasks. While self-supervised approaches are promising, they do not always result in t
 
-Supervised approaches usually train a full network on previous data, fix the message passing encoder and only train the feed forward network on subsequent data. For example, Vermeire et al used such an approach to improve predictions of solvation free energies by first training on a large database of calculations from the thermodynamic programme COSMO-RS and subsequently fine-tuning on experimental data \cite{Vermeire2021}. 
+Supervised approaches usually train a full network on previous data, fix the message passing encoder and only train the feed forward network on subsequent data. For example, Vermeire et al used such an approach to improve predictions of solvation free energies by first pretraining on a large database of calculations from the thermodynamic programme COSMO-RS and subsequently fine-tuning on experimental data \cite{Vermeire2021}. 
 
 \section{Conclusion}
 
-In this thesis transfer learning is examined in two modes: multi-task learning and pre-training. These general strategies are overlaid on the machine learning approaches of Bayesian optimization and molecular property prediction using deep learning. 
+In this thesis, transfer learning is examined in two modes: multi-task learning and pre-training. These general strategies are overlaid on the machine learning approaches of Bayesian optimization and molecular property prediction using deep learning. 
