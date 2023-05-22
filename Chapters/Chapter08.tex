@@ -71,6 +71,7 @@ where $p_i^{sat}(T_j)$ and $\rho_{i}^{l}(T_j, P_j)$ are the saturation vapor pre
         % $\mu$ & $0.0 \leq \mu \leq 10.0$ & $mu_{pred}$ \\
         $\epsilon_{AB}$ & $0.0 \leq \epsilon_{AB} \leq 4000.0$ & 2400 \\
         $\kappa_{AB}$ & $0.0 \leq \kappa_{AB} \leq 0.01$ & 0.0 \\
+        \hline
     \end{tabular}
 \end{table}
 
@@ -101,7 +102,8 @@ We created two heuristics for improving regression of association parameters. Fi
          \hline
          QM9 & DFT & DFT & 134k & \cite{Ramakrishnan2014}\\
          CRC & Exp. & RDKit\cite{Wang2020} & 482 & \cite{CRC2014} \\
-         SEPP & DFT & DFT & 1106 & See Section \ref{sec:baselines}
+         SEPP & DFT & DFT & 1106 & See Section \ref{sec:baselines} \\
+         \hline
     \end{tabular}
 
     \label{tab:painn_data}
@@ -109,7 +111,7 @@ We created two heuristics for improving regression of association parameters. Fi
 
 \subsubsection{COSMO-RS data generation}
 
-In addition to the Dortmund data bank dataset, I generated a set of PCP-SAFT parameters utilizing pseudo experimental data from the fluid-phase thermodynamics program COSMO-RS.\cite{Klamt2010} Specifically, I generated vapor pressure and density data for 3488 molecules that were already in available 2020 version of the COSMO-RS database. I then regressed PCP-SAFT parameters to these COSMO-RS datasets using the same methods described above. This resulted in 2680 parameters sets available for training.
+In addition to the Dortmund data bank dataset, I generated a set of PCP-SAFT parameters utilizing pseudo experimental data from the fluid-phase thermodynamics program COSMO-RS \cite{Klamt2010}. Specifically, I generated vapor pressure and density data for 3488 molecules that were already in available 2020 version of the COSMO-RS database. I then regressed PCP-SAFT parameters to these COSMO-RS datasets using the same methods described above. This resulted in 2680 parameters sets available for training.
 
 \subsection{ML-SAFT machine learning models}\label{subsec:ML-SAFT_model}
 
@@ -134,7 +136,7 @@ To evaluate ML-SAFT models and the baseline predictive PCP-SAFT methods, a set o
 \begin{figure}
     \centering
     \includegraphics[width=\textwidth]{gfx/Chapter08/cluster_split.png}
-    \caption{Data splitting for ML-SAFT datasets. (a) Schematic of the workflow for stratified splitting of the ML-SAFT dataset. UMAP\cite{McInnes2018} is used for dimensionality reduction of 2048 bit ECFP fingerprints followed by k-means clustering\cite{MacQueen1967} and cluster splitting using stratified shuffle split in scikit-learn.\cite{scikit-learn} (b) 2D visualization of the clustering using UMAP. (c) The frequency of the top five functional groups in each split are shown. The different functional groups are well balanced between splits.}
+    \caption{Data splitting for ML-SAFT datasets. (a) Schematic of the workflow for stratified splitting of the ML-SAFT dataset. UMAP \cite{McInnes2018} is used for dimensionality reduction of 2048 bit ECFP fingerprints followed by k-means clustering \cite{MacQueen1967} and cluster splitting using stratified shuffle split in scikit-learn \cite{scikit-learn}. (b) 2D visualization of the clustering using UMAP. (c) The frequency of the top five functional groups in each split are shown. The different functional groups are well balanced between splits.}
     \label{fig:splitting}
 \end{figure}
 
@@ -176,6 +178,7 @@ To evaluate the accuracy of ML models trained to predict the regressed PCP-SAFT 
         	$\sigma$ & 0.28 & 0.34 & 0.35 & \textbf{0.26} \\
         	$\epsilon/k$ & 39.3 & 39.3 & 42.7 & \textbf{31.3} \\
         	$\epsilon_{AB}$ & 362 & 476 & 478 & \textbf{215} \\
+                \hline
         \end{tabular}
 	\end{center}
 \end{table}
@@ -193,6 +196,7 @@ predict.}
         	$n$ & 81 & 81 & 81 & 81 & 81 \\
         	\%AAD $p_{sat}$ & 354 & 53.0 & 69.7 & \textbf{38.6} & 4.47 \\
         	\%AAD $\rho^{L}$ & 11.3 & 9.76 & 13.9 & \textbf{8.64} & 0.800 \\
+                \hline
         \end{tabular}
 	\end{center}
 \end{table}
@@ -209,7 +213,7 @@ I also experimented with several methods to adapt neural network training to PCP
 
 \subsection{Comparison to existing predictive PCP-SAFT methods}
 
-We compared ML-SAFT to predictions from the QM method SEPP\cite{Kaminski2020} and the group contribution from Sauer et al \cite{Sauer2014}.  Please note that the number of test molecules reduces to 72 as SEPP could not provide predictions to 11 molecules due to its inability to predict halogens. When comparing to SEPP, the RF produces more accurate vapor pressure predictions, while SEPP leads to more accurate density predictions, as shown in Table \ref{tab:sepp}. However, SEPP has a significant associated computational cost that can extend into days, including conformer generation, two DFT calculations, and a COSMO calculation. In contrast, ML-SAFT methods immediately predict the PCP-SAFT parameters from a SMILES string in milliseconds for each molecule while still maintaining a competitive predictive accuracy.  
+We compared ML-SAFT to predictions from the QM method SEPP \cite{Kaminski2020} and the group contribution from Sauer et al \cite{Sauer2014}.  Please note that the number of test molecules reduces to 72 as SEPP could not provide predictions to 11 molecules due to its inability to predict halogens. When comparing to SEPP, the RF produces more accurate vapor pressure predictions, while SEPP leads to more accurate density predictions, as shown in Table \ref{tab:sepp}. However, SEPP has a significant associated computational cost that can extend into days, including conformer generation, two DFT calculations, and a COSMO calculation. In contrast, ML-SAFT methods immediately predict the PCP-SAFT parameters from a SMILES string in milliseconds for each molecule while still maintaining a competitive predictive accuracy.  
 
 
 \begin{table}
@@ -222,6 +226,7 @@ We compared ML-SAFT to predictions from the QM method SEPP\cite{Kaminski2020} an
             $n$ & 72 & 72 & 72 & 72 & 72 & 72 \\
             \%AAD $p_{sat}$ & 372 & 49.2 & 67.8 & \textbf{39.5} & 111 & 4.51 \\
             \%AAD $\rho^{L}$ & 11.7 & 9.54 & 13.3 & 8.88 &\textbf{5.10} & 0.82 \\
+            \hline
         \end{tabular}
 	\end{center}
 \end{table}
@@ -240,13 +245,14 @@ Comparison with the group contribution method was impaired by the need to conver
 			$n$ & 13 & 13 & 13 & 13 & 13 & 13 \\
 			\%AAD $p_{sat}$ & 132 & 41.1 & 65.7 & \textbf{39.6} & 118 & 3.28 \\
 			\%AAD $\rho^{L}$ & 13.2 & \textbf{9.98} & 15.8 & 12.2 & 10.8 & 2.98 \\
+                \hline
 		\end{tabular}
 	\end{center}
 \end{table}
 
 \subsection{Improving MPNN predictions using transfer learning}
 
-I hypothesized that transfer learning could be used to improve the accuracy of the MPNN predictions. As noted in the methods, I used COSMO-RS\cite{Klamt1995, Klamt2010} to generate pseudo experimental data which I the processed through the same regression and training pipeline as the Dortmund data to produce a trained MPNN. I subsequently fixed the message passing encoder of the MPNN and only trained the feedforward readout network; this model I called MPNN-TL. As shown in Figure \ref{fig:cosmo_dortmund}, a subset of the molecules (289) are in both the COSMO-RS and Dortmund databank\footnotemark, and there is good correlation between the PCP-SAFT parameters regressed from both datasets. This suggests that the data regressed from COSMO-RS simulations could be a good pretraining task. 
+I hypothesized that transfer learning could be used to improve the accuracy of the MPNN predictions. As noted in the methods, I used COSMO-RS \cite{Klamt1995, Klamt2010} to generate pseudo experimental data which I the processed through the same regression and training pipeline as the Dortmund data to produce a trained MPNN. I subsequently fixed the message passing encoder of the MPNN and only trained the feedforward readout network; this model I called MPNN-TL. As shown in Figure \ref{fig:cosmo_dortmund}, a subset of the molecules (289) are in both the COSMO-RS and Dortmund databank\footnotemark, and there is good correlation between the PCP-SAFT parameters regressed from both datasets. This suggests that the data regressed from COSMO-RS simulations could be a good pretraining task. 
 \footnotetext{The molecules that were in both the Dortmund database and COSMO-RS database were removed from the COSMO-RS training set to prevent inflating test set performance.}
 
 \begin{figure}
@@ -268,11 +274,12 @@ The results of the pre-training approach are shown in Table \ref{tab:scores_tl}.
                 $n$ & 81 & 81 & 81 & 81 \\
                 \%AAD $p_{sat}$ & 69.73 & 50.63 & \textbf{38.55} & 4.47 \\
                 \%AAD $\rho^{L}$ & 13.86 & \textbf{5.56} & 8.64 & 0.80 \\
+                \hline
             \end{tabular}
     \end{center}
 \end{table}
 
-\section{Conclusion}
+\section{Conclusions}
 
 In this chapter, I proposed ML-SAFT, a machine learning framework for prediction of PCP-SAFT parameters directly from molecular structures. I developed the largest database of PCP-SAFT parameters (988 molecules) derived from the Dortmund databank. ML-SAFT trained on this dataset accurately predicted the regressed PCP-SAFT parameters, and these predicted PCP-SAFT parameters could be in turn used for accurate predictions of thermodynamic quantities. Random forests had the highest accuracy for the regressed PCP-SAFT parameters and the thermodynamic predictions overall.
 

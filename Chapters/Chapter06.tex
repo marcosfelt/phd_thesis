@@ -6,11 +6,11 @@
 \label{sec:intro}
 Laboratory unit operations such as reactors and distillation columns  are often subjected to many processes in a short window of time. For each new process, the control systems of these unit operations need to be re-tuned, which can be a time and labor intensive endeavor. As an example, in the distillation laboratories at BASF, operators often spend days attempting to find the best tuning parameters for a new distillation column setup, which is unacceptable given the short timelines of operating a testing laboratory. While it is possible to use model predictive control, decentralized PID controllers are often used due to their robustness and simplicity. In this chapter, I aim to develop a fast method for tuning controllers and apply this method laboratory distillation columns.
 
-As noted in \ref{ch:rl_tuning}, there are a wide variety of existing tuning protocols ranging from heuristics such as Ziegler Nichols \cite{Ziegler1942} and its refinements \cite{Hang1991} to tuning using analytical equations from models via methods such as  Internal Model Control \cite{Copeland2010}. However, extending these to multi-input multi-output systems has been challenging, often requiring additional optimizations \cite{Nandong2013, Nandong2015}. Optimization-based methods have shown promise \cite{Pajares2019, Sumana2010, Rajapandiyan2012, Behroozsarand2012}, but these methods have been difficult to apply in practice due to the large number of iterations they require. Recently, Bayesian optimization (BO) has shown promise for tuning controllers \cite{NeumannBrosig2020, Fiducioso2019, Khosravi2020, Konig2020, Fujimoto2022, Brunzema2022, Khosravi2022}, but this method still often requires tens to hundreds of iterations, making it too materially expensive for laboratory chemical processes.
+As noted in Chapter \ref{ch:rl_tuning}, there are a wide variety of existing tuning protocols ranging from heuristics such as Ziegler Nichols \cite{Ziegler1942} and its refinements \cite{Hang1991} to tuning using analytical equations from models via methods such as  Internal Model Control \cite{Copeland2010}. However, extending these to multi-input multi-output systems has been challenging, often requiring additional optimizations \cite{Nandong2013, Nandong2015}. Optimization-based methods have shown promise \cite{Pajares2019, Sumana2010, Rajapandiyan2012, Behroozsarand2012}, but these methods have been difficult to apply in practice due to the large number of iterations they require. Recently, Bayesian optimization (BO) has shown promise for tuning controllers \cite{NeumannBrosig2020, Fiducioso2019, Khosravi2020, Konig2020, Fujimoto2022, Brunzema2022, Khosravi2022}, but this method still often requires tens to hundreds of iterations, making it too materially expensive for laboratory chemical processes.
 
 One approach to reduce the number of iterations required for BO is multifidelity Bayesian optimization (MFBO). MFBO leverages data from an auxiliary simulation or data source that is faster or cheaper to evaluate. Early examples of this approach include Kennedy et al. who used low fidelity approximations of an oil rig simulation to reduce the number of calls to a slower simulator \cite{Kennedy2000}. More recently, a multifidelity Bayesian optimization approaches have developed to accelerate the tuning of hyperparameters for machine learning models, design of batteries and optimization of airplane rotors. Readers should refer to chapter \ref{ch:background} for review of multifidelity and transfer learning in Bayesian optimization.
 
-In this chapter, I use multifidelity Bayesian optimization to accelerate controller tuning. Specifically, I develop a dynamic simulation of a distillation column that is only a low fidelity approximation of the original distillation experiment. I then use the multifidelity Bayesian optimizaiton algorithm to reduce the number of iterations required to find optimal controller parameters. 
+In this chapter, I use multifidelity Bayesian optimization to accelerate controller tuning. Specifically, I develop a dynamic simulation of a distillation column that is only a low fidelity approximation of the original distillation experiment. I then use the multifidelity Bayesian optimization algorithm to reduce the number of iterations required to find optimal controller parameters. 
 
 \begin{figure}
     \centering
@@ -23,7 +23,7 @@ In this chapter, I use multifidelity Bayesian optimization to accelerate control
 
 \subsection{Controller Tuning as an Optimization Problem}
 
-As noted in chapter \ref{ch:rl_tuning}, controller tuning involves identifying the three parameters of the PID equation, $K^P$, $\tau_I$ and $\tau_D$:
+As noted in Chapter \ref{ch:rl_tuning}, controller tuning involves identifying the three parameters of the PID equation, $K^P$, $\tau_I$ and $\tau_D$:
 
 \begin{equation}
     u(t) = K^P e(t) + \frac{1}{\tau_I}\int_0^t e(t')dt' + \tau_D \frac{de(t)}{dt}
@@ -98,6 +98,7 @@ We assumed the pressure drop was constant throughout the simulation, which is re
          $q_{N_F}$ & vapor fraction  in the feed & 1.0 & 1.0 \\
          $z_{N_F}$  & mole fraction of methanol in the feed &  0.5  & 0.5 \\
          $F$ & Feed flow rate &  333 mol/min  & 332 mol/min \\
+         \hline
     \end{tabular}
     \label{tab:parameters}
 \end{table}
@@ -121,6 +122,7 @@ Constant parameters are shown in Table \ref{tab:parameters} and state variables 
          $V_i$  & Vapor flow on stage $i$ \\
          $T_i$  & Temperature on stage $i$ \\
          $T_i$  & Holdup on stage $i$ \\
+         \hline
     \end{tabular}
     
     \label{tab:state_variables}
@@ -173,56 +175,21 @@ Component balances are calculated for all stages including the reobiler and cond
 The  feed stage and the stage above the feed stage are treated separately:
 
 \begin{equation}
- \frac{d(x_{N_F} n_{N_F})}{dt}  = y_{N_F-1}V_{N_F-1} -y_{N_F}V_{N_F} + x_{N_F+1}L_{N_F+1} - x_{N_F}L_{N_F} + q_{N_F}z_FF   
+\begin{split}
+ \frac{d(x_{N_F} n_{N_F})}{dt} =  & y_{N_F-1}V_{N_F-1} -y_{N_F}V_{N_F} + x_{N_F+1}L_{N_F+1} \\ & - x_{N_F}L_{N_F} + q_{N_F}z_FF   
+\end{split}
 \end{equation}
 
 \begin{equation}
-    \frac{d(x_{N_F+1} n_{N_F+1})}{dt} = y_{N_F+2}V_{N_F+2} -y_{N_F+1}V_{N_F+1} + x_{N_F}L_{N_F} - x_{N_F+1}L_{N_F+1} + (1-q_{N_F})z_FF 
+\begin{split}
+    \frac{d(x_{N_F+1} n_{N_F+1})}{dt} =  & y_{N_F+2}V_{N_F+2} -y_{N_F+1}V_{N_F+1} + x_{N_F}L_{N_F} \\ & - x_{N_F+1}L_{N_F+1}  + (1-q_{N_F})z_FF 
+\end{split}
 \end{equation}
 
 
 \subsubsection{Energy Balances}
 
-For liquid enthalpy, we take a mole fraction weighted average of the specific enthalpies. Data is taken from Perry’s Chemical Engineering Handbook.
-
-\begin{equation}
-    h^{L,c}(T,P) = \int_{T_{ref}}^T C_p^c(\tau)d\tau 
-\end{equation}
-
-\begin{equation}
-    h^L(T_i, P_i, x_i) = x_ih^{L,0}(T_i,P_i) + (1-x_i)h^{L,1}(T_i,P_i)
-\end{equation}
-
-\begin{equation}
-    h^L_i := h^L(T_i, P_i,x_i)
-\end{equation}
-
-\begin{equation}
-    h^L_{N_F} := h^L(T_{N_F}, P_{N_F},x_{N_F})
-\end{equation}
-
-
-For vapor enthalpy, we take a mole fraction weighted average of the specific enthalpies. Data is taken from Perry’s Chemical Engineering Handbook.
-
-\begin{equation}
-    h^{V,c}(T,P) = H^{vap, c}(T_{ref}) + 4R(T-T_{ref})
-\end{equation}
-
-\begin{equation}
-    h^V(T_i, P_i, x_i) = x_i h^{V,0}(T_i,P_i) + (1-x_i) h^{V,1}(T_i,P_i)
-\end{equation}
-
-
-\begin{equation}
-    h^V_i := h^V(T_i, P_i,x_i)
-\end{equation}
-
-\begin{equation}
-    h^V_{N_F} := h^V(T_{N_F}, P_{N_F},x_{N_F})
-\end{equation}
-
-    
-We assume that vapor holdup is negligible and therefore only consider the liquid holdup. Given these definitions, the enthalpy balances on the trays, reboiler and condenser are:
+In calculating energy balances, we assume that vapor holdup is negligible and therefore only consider the liquid holdup. Given these definitions, the energy balances on the trays, reboiler and condenser are:
 
 \begin{equation}
     \frac{d(n_ih^L_i)}{dt} =  h^L_{i+1}L_{i+1}-h^L_iL_i+h^V_{i-1}V_{i-1}-h^V_iV_i
@@ -240,13 +207,58 @@ We assume that vapor holdup is negligible and therefore only consider the liquid
 Stage energy balance for all stages except the feed stage and  one above the feed stage:
 
 \begin{equation}
-    \frac{d(n_{N_F}h^L_{N_F})}{dt} = h^L_{N_F+1}L_{N_F+1}-h^L_{N_F}L_{N_F} + h^V_{N_F-1}V_{N_F-1}-h^V_{N_F}V_{N_F} + q_{N_F}F h^L_{N_F}
+\begin{split}
+    \frac{d(n_{N_F}h^L_{N_F})}{dt} = & h^L_{N_F+1}L_{N_F+1}-h^L_{N_F}L_{N_F} + h^V_{N_F-1}V_{N_F-1}-h^V_{N_F}V_{N_F} \\ &  + q_{N_F}F h^L_{N_F}
+\end{split}
 \end{equation}
 
 where $q_{N_F}$ is the vapor fraction of the feed.
 
 \begin{equation}
-    \frac{d(n_{N_F+1}h^L_{N_F+1})}{dt} = h^L_{N_F+2}L_{N_F+2}-h^L_{N_F+1}L_{N_F+1} +h^V_{N_F} V_{N_F}-h^V_{N_F+1} V_{N_F+1} + (1-q_{N_F})Fh^V_{N_F}
+\begin{split}
+    \frac{d(n_{N_F+1}h^L_{N_F+1})}{dt} = & h^L_{N_F+2}L_{N_F+2}-h^L_{N_F+1}L_{N_F+1} +h^V_{N_F} V_{N_F}-\\ &h^V_{N_F+1} V_{N_F+1} + (1-q_{N_F})Fh^V_{N_F}
+\end{split}
+\end{equation}
+
+For liquid enthalpy $h^{L,c}$ of each component, we take a mole fraction weighted average of the specific enthalpies calculated by integrating a constant heat capacity from a reference temperature $T_{ref}$ of normal boiling point of each component $c$. Data is taken from Perry’s Chemical Engineering Handbook \cite{Perrys2018}.
+
+
+\begin{equation}
+    h^L(T_i, P_i, x_i) = x_ih^{L,0}(T_i,P_i) + (1-x_i)h^{L,1}(T_i,P_i)
+\end{equation}
+
+\begin{equation}
+    h^{L,c}(T,P) = \int_{T_{ref}}^T C_p^c(\tau)d\tau 
+\end{equation}
+
+The enthalpy of the liquid on stage $i$ is then:
+\begin{equation}
+    h^L_i := h^L(T_i, P_i,x_i)
+\end{equation}
+
+\begin{equation}
+    h^L_{N_F} := h^L(T_{N_F}, P_{N_F},x_{N_F})
+\end{equation}
+
+For vapor enthalpy,  a similar approach is taken except that the heat capacity is assumed to be based on an ideal gas formulation using the heat of vaporization as a reference. Data is taken from Perry’s Chemical Engineering Handbook \cite{Perrys2018}.
+
+
+\begin{equation}
+    h^V(T_i, P_i, x_i) = x_i h^{V,0}(T_i,P_i) + (1-x_i) h^{V,1}(T_i,P_i)
+\end{equation}
+
+
+\begin{equation}
+    h^{V,c}(T,P) = H^{vap, c}(T_{ref}) + 4R(T-T_{ref})
+\end{equation}
+
+
+\begin{equation}
+    h^V_i := h^V(T_i, P_i,x_i)
+\end{equation}
+
+\begin{equation}
+    h^V_{N_F} := h^V(T_{N_F}, P_{N_F},x_{N_F})
 \end{equation}
 
 
@@ -254,12 +266,23 @@ where $q_{N_F}$ is the vapor fraction of the feed.
 
 We use the NRTL model for calculating the activity coefficients, though a variety of models could be used. The NRTL parameters for methanol-water are shown in Table X.
 
+\begin{table}[]
+    \centering
+    \begin{tabular}{ccc}
+         & Methanol & Water
+         $\tau_{12}$ & -0.693 \\
+         & 
+    \end{tabular}
+    \caption{Caption}
+    \label{tab:my_label}
+\end{table}
+
 \begin{equation}
     \ln \gamma_{i,0} = x_2^2\biggl [\tau_{21} \biggl (\frac{G_{21}}{x_1+x_2G_{21}}\biggr)^2 + \frac{\tau_{12}G_{12}}{(x_2 + x_1 G_{12})^2} \biggr ]
 \end{equation}
 
 \begin{equation}
-     \ln \gamma_{i,0} = x_1^2\biggl [\tau_{12} \biggl (\frac{G_{12}}{x_2+x_1G_{12}}\biggr)^2 + \frac{\tau_{21}G_{21}}{(x_1 + x_2 G_{21})^2} \biggr ]   
+     \ln \gamma_{i,1} = x_1^2\biggl [\tau_{12} \biggl (\frac{G_{12}}{x_2+x_1G_{12}}\biggr)^2 + \frac{\tau_{21}G_{21}}{(x_1 + x_2 G_{21})^2} \biggr ]   
 \end{equation}
 
 \subsubsection{Pressure Balance}
@@ -267,7 +290,7 @@ We use the NRTL model for calculating the activity coefficients, though a variet
 Vapor pressure is calculated using Antoine’s equation with coefficients taken from NIST. 
 
 \begin{equation}
-    \log P_{i,k}^{sat} = A_k + \frac{B_k}{T_i + C_k}
+    \log P_{i,k}^{sat}(T_i) = A_k + \frac{B_k}{T_i + C_k}
 \end{equation}
 
 For trays ($i=1\dots N$), modified Raoult’s Law is used with Murphree efficiencies to account for deviations from equilibrium.
@@ -334,7 +357,7 @@ Since the simulation is in molar flowrates, we need to convert from volumetric f
 \end{equation}
 
 
-where $\rho(T_i,x_i)$ is the volumetric density, calculated by a weighted average of the volumetric density of both components. Volumetric density come from Perry’s.
+where $\rho(T_i,x_i)$ is the volumetric density, calculated by a weighted average of the volumetric density of both components. Volumetric density come from Perry’s Chemical Engineering Handbook \cite{Perrys2018}.
 
 \begin{equation}
     \rho(T_i, x_i) = x_i\rho^0(T_i, x_i) + (1-x_i)\rho^1(T_i, x_i)
@@ -343,7 +366,7 @@ where $\rho(T_i,x_i)$ is the volumetric density, calculated by a weighted averag
 
 \subsection{Parameter estimation to align simulations to experiments}
 
-We created a simulation of a distillation column that can be aligned to experiments using a small amount of steady state data. The distillation simulation was built in Python using GEKKO \cite{Beal2018}, and the differential algebraic equation model used for the simulations is fully detailed in \ref{sec:distillation_model}. To align the simulation to experiments, a three step procedure, illustrated in Figure \ref{fig:simulation_workflow}, was followed: initialization, steady state solution with parameter estimation and dynamic simulation. All simulations were solved with the APOPT nonlinear programming solver to a tolerance $10^{-9}$ and relative tolerance $10^{-9}$.
+We created a simulation of a distillation column that can be aligned to experiments using a small amount of steady state data. The distillation simulation was built in Python using GEKKO \cite{Beal2018}, and the differential algebraic equation model used for the simulations is fully detailed in Section \ref{sec:distillation_model}. To align the simulation to experiments, a three step procedure, illustrated in Figure \ref{fig:simulation_workflow}, was followed: initialization, steady state solution with parameter estimation and dynamic simulation. All simulations were solved with the APOPT nonlinear programming solver to a tolerance $10^{-9}$ and relative tolerance $10^{-9}$.
 
 \begin{figure}
     \centering
@@ -366,6 +389,7 @@ where $\mathbf X$ are the state variables in Table X  and $\boldsymbol \theta = 
 % \{\mathbf x, \mathbf y, \mathbf T, \mathbf L, \mathbf n\}$ 
 \begin{table}[]
     \centering
+    \caption{Parameters of the distillation column model estimated using experimental data. Estimates of the reboiler and condenser duties were made using the nominal values from the steady-state simulation.}
     \begin{tabular}{cccc}
         \textbf{Parameter} & \textbf{Description} & \textbf{Initial Guess} & \textbf{Estimated Value}  \\
         \hline
@@ -374,9 +398,10 @@ where $\mathbf X$ are the state variables in Table X  and $\boldsymbol \theta = 
          % $\Delta P_{rect}$ & \thead{Pressure drop \\ in rectifying section} &  $\Delta P_{tot}/N$ \\ 
          % $\Delta P_{strip}$ & \thead{Pressure drop \\ in stripping section} &  $\Delta P_{tot}/N$ \\ 
          $ Q_{reb}$ & Reboiler duty at steady state &  0.245 kW  & 0.259 kW  \\
-         $ Q_{cond}$ & Condenser duty at steady state &  -0.239 kW  & -0.253 kW
+         $ Q_{cond}$ & Condenser duty at steady state &  -0.239 kW  & -0.253 kW \\
+         \hline
     \end{tabular}
-    \caption{Parameters of the distillation column model estimated using experimental data. Estimates of the reboiler and condenser duties were made using the nominal values from the steady-state simulation, which in turn were guessed by plugging the flowrates and temperatures from the initialization into equations B.21 and B.22 with the derivatives set to 0.}
+
     \label{tab:param_estimation}
 \end{table}
 
