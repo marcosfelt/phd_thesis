@@ -115,12 +115,12 @@ In the subsequent sections, I describe the benchmarks and strategies used in thi
 
 \subsubsection{Mechanistic Benchmarks}
 
-The $S_NAr$ benchmark is a reaction between 2,4-difluoronitrobenzene \textbf{1.5} and pyrrolidine \textbf{1.6} to afford the desired products \textbf{1.7} with \textbf{1.8} and \textbf{1.9} as undesired side-products \cite{Hone2017}. Here, the aim is to optimise the reaction in a virtual self-optimising flow setup, as shown in Figure \ref{fig:snar}a. Formally, the optimization problem can be stated as simultaneously maximising space time yield ($STY$) and minimizing the E-factor ($E$). The decision variables (i.e,. the reaction conditions) are the temperature (40-120 $^{\circ}$C), residence time (0.5-2 minutes), equivalents of \textbf{1.6} (1.0-5.0) and concentration of difluoronitrobenzene (0.1-0.5M). As noted in Equation \ref{snar_formal}, this is achieved by adjusting the residence time $\tau$, inlet concentration of \textbf{1.5} $C_{1.5,i}$, equivalents of pyrrolidine $n_{1.6}$, and reactor temperature, $T$.
+The $S_NAr$ benchmark is a reaction between 2,4-difluoronitrobenzene \textbf{1.5} and pyrrolidine \textbf{1.6} to afford the desired products \textbf{1.7} with \textbf{1.8} and \textbf{1.9} as undesired side-products \cite{Hone2017}. Here, the aim is to optimise the reaction in a virtual self-optimising flow setup, as shown in Figure \ref{fig:snar}a. Formally, the optimization problem can be stated as simultaneously maximising space time yield ($STY$) and minimizing the E-factor ($E$). The decision variables (i.e,. the reaction conditions) are the temperature (40-120 $^{\circ}$C), residence time (0.5-2 minutes), equivalents of \textbf{1.6} (1.0-5.0) and concentration of difluoronitrobenzene (0.1-0.5M). As noted in Equation \ref{snar_formal}, this is achieved by adjusting the residence time $\tau$, inlet concentration of \textbf{1.5} $C_{3.5,i}$, equivalents of pyrrolidine $n_{3.6}$, and reactor temperature, $T$.
 \begin{equation}
 	\label{snar_formal}
 	\begin{gathered}
 		\min_{X}{(-STY, E)} \\
-		\text{where}\;\; X = [\tau,C_{1.5,i},n_{1.6}, T]
+		\text{where}\;\; X = [\tau,C_{3.5,i},n_{3.6}, T]
 	\end{gathered}
 \end{equation}
 
@@ -155,25 +155,25 @@ I now show the equations used to calculate the objective values for given a set 
 
 \begin{equation}
     \label{sty}
-	STY = \frac{M_{1.7} C_{1.7}}{\tau}
+	STY = \frac{M_{3.7} C_{3.7}}{\tau}
 \end{equation}
 \begin{equation}
     \label{e_factor}
 	\begin{split}
 	 E & = \frac{m_{waste}}{\tau V} \\ 
-	   & = \frac{Q_{tot}\rho_{eth} + \frac{1}{1000}\sum_{n=1, i \neq 3}^5 M_nC_nQ_{tot}}{\frac{1}{1000}M_{1.7}C_{1.7}Q_{tot}}		
+	   & = \frac{Q_{tot}\rho_{eth} + \frac{1}{1000}\sum_{n=1, i \neq 3}^5 M_nC_nQ_{tot}}{\frac{1}{1000}M_{3.7}C_{3.7}Q_{tot}}		
 	\end{split}
 \end{equation}
 where $M_n$ is the molar weight in g/mol of species $n$; $Q_{eth}$ and $\rho_{eth}$ are the volumetric flowrate the density of ethanol respectively; and $Q_{tot}$ is the total volumetric flowrate. The volume of the reactor is assumed to be 5 mL. The inlet concentration of \textbf{2} is calculated:
 \begin{equation}
-    C_{1.6,i} = n_{1.6} C_{1.5,i}
+    C_{3.6,i} = n_{3.6} C_{3.5,i}
 \end{equation}
 is the equivalents of pyrrolidine. Since the total flowrate $Q_{tot}$ is $\frac{V}{\tau}$, then flowrates of the pumps from reservoir $n$ are calculated:
 \begin{equation}
-    Q_1 = \frac{C_{1.5,i}}{C_{1,0}}Q_{tot}
+    Q_1 = \frac{C_{3.5,i}}{C_{1,0}}Q_{tot}
 \end{equation}
 \begin{equation}
-    Q_2 = \frac{C_{1.6,i}}{C_{2,0}}Q_{tot}
+    Q_2 = \frac{C_{3.6,i}}{C_{2,0}}Q_{tot}
 \end{equation}
 where $C_{1,0}=1 M$ and $C_{2,0}=2 M$ are the reservoir concentrations of \textbf{1} and \textbf{2} respectively. To calculate the outlet concentrations of the products, the standard equation for a constant density plug flow reactor is used:
 \begin{equation}
@@ -183,21 +183,21 @@ where $C_{1,0}=1 M$ and $C_{2,0}=2 M$ are the reservoir concentrations of \textb
 where $C_n$ and $r_n$ are the concentration and reaction rate of species $n$, respectively. Hone et al. determined the reaction rates to be first order with kinetic constants $k_l$ (see Table \ref{table:snar_parameters}) in each species \cite{Hone2017}:
 \begin{equation}
     \label{equation:r_1}
-	r_{1} = -(k_1+k_2)C_{1.5}C_{1.6}	
+	r_{1} = -(k_1+k_2)C_{3.5}C_{3.6}	
 \end{equation}
 \begin{equation}
-	r_2 = -(k_1+k_2)C_{1.5}C_{1.6}-k_3C_{1.6}C_{1.7}-k_4C_{1.6}C_{1.8}
+	r_2 = -(k_1+k_2)C_{3.5}C_{3.6}-k_3C_{3.6}C_{3.7}-k_4C_{3.6}C_{3.8}
 \end{equation}
 \begin{equation}
-	r_3 = k_1C_{1.5}C_{1.6}-k_3C_{1.6}C_{1.7}
+	r_3 = k_1C_{3.5}C_{3.6}-k_3C_{3.6}C_{3.7}
 \end{equation}
 \begin{equation}
-	r_4 = k_1C_{1.5}C_{1.6}-k_4C_{1.6}C_{1.8}
+	r_4 = k_1C_{3.5}C_{3.6}-k_4C_{3.6}C_{3.8}
 	\label{equation:r_4}
 \end{equation}
 \begin{equation}
 	\label{last_snar_rxn_rate}
-	r_5 = k_3C_{1.6}C_{1.7} + k_4C_{1.6}C_{1.8}
+	r_5 = k_3C_{3.6}C_{3.7} + k_4C_{3.6}C_{3.8}
 \end{equation}
 
 \begin{table}[tb]
