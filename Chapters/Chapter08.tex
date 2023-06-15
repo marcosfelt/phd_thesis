@@ -265,7 +265,6 @@ I hypothesized that transfer learning could be used to improve the accuracy of t
 The results of the pre-training approach are shown in Table \ref{tab:scores_tl}. On the test set, MPNN-TL outperforms the MPNN giving more accurate predictions of vapor pressure that are on par with the RF. Similarly, the MPNN makes more accurate predictions of density than both the standard MPNN and RF. These results demonstrate that using simulation data can improve the accuracy of neural networks by broadening the scope of molecule data seen during their training. 
 
 \begin{table}
-    \label{tab:scores_tl}
     \caption{Comparison of thermodynamic predictions using PCP-SAFT parameters predicted by MPNN model with and without transfer learning and the random forest. The best score for each thermodynamic quantity  is marked in bold. $n$ is the number of molecules in the test set that each method can predict.}
     \begin{center}
             \begin{tabular}{lrrr|r}
@@ -277,6 +276,7 @@ The results of the pre-training approach are shown in Table \ref{tab:scores_tl}.
                 \hline
             \end{tabular}
     \end{center}
+    \label{tab:scores_tl}
 \end{table}
 
 \section{Conclusions}
