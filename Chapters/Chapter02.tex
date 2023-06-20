@@ -16,7 +16,7 @@ The key idea behind transfer learning is to improve the inductive bias of a mach
 
 In transfer learning, there is a source domain and target domain. The source domain often, but not always, contains more data, while the target domain contains a smaller dataset for the primary task. Two of the most well-known examples of transfer learning are pretrained computer vision models and natural language models. Computer vision deep neural networks such as ResNet \cite{He2016} often are pretrained on large classification datasets containing more than one million images such as Imagenet (i.e., source domain) \cite{Russakovsky2015}, and subsequently can learn to classify new objects on new datsets with as little as thirty images (target domain). Early layers in pretrained neural networks learn the fundamentals of computer vision such as identifying lines and shapes, and later layers can recognize more semantically complex concepts such as faces. This inductive bias learned from the large source dataset enables the neural network to learn from a small number of examples.  Similarly, the revolution of large language models (e.g., the General Pretrained Transformers, GPT, models \cite{Radford2018, Brown2020}) currently happening is spurred by large-scale unsupervised pre-training. In this approach, the source data is a large corpus of text, often extracted from the internet. The neural network is trained to predict the next (or a randomly selected \cite{Delvin2019}) word or paragraph. While conceptually simple, this task forces the model to learn the semantics of language and even some aspects of logic. As a result, when prompted with a new task in a target domain, the model can quickly adapt with a small number of examples.
 
-The challenge of using transfer learning in process development is the lack of large source datasets. Therefore, there is a need for approaches that can leverage sparse and limited data. Two approaches that are promising in this direction are multi-task learning and meta-learning.
+The challenge of using transfer learning in process development is the lack of large source experimental datasets. Therefore, there is a need for approaches that can leverage sparse and limited data. Three approaches that are promising in this direction are multi-task learning, multifidelity learning and meta-learning.
 
 \subsection{Multi-task Learning}
 
@@ -28,12 +28,17 @@ There has also been work examining how multi-task learning can be used for chemi
 
 Recent work has applied multi-task learning to process development related tasks. Schweidtmann et al. used a multi-task graph neural network to predict the ignition quality of fuels used in combustion engines \cite{Schweidtmann2020}. They found that the multi-task model gave better performance than training individual models for each property. Similar results have been found in property prediction for polymers \cite{Gurnani2023}.
 
+\subsection{Multifidelity learning}
+
+Another transfer learning technique is multifidelity learning, which aims to leverage data from a cheap but less accurate data source to help with predicting a more expensive task. The distinction between multifidelity and multi-task learning is often due to the data sources rather than the modeling techniques. In multifidelity modeling, the source task often has significantly more data than the target task. Often, the source task is a simulation, while the target task is an experiment. 
+
+For example, Greenman et al recently used multifdielity modeling to improve predictions of optical properties of molecules \cite{Greenman2022}. They first trained a model on data from QM calculations and then used the predictions of the DFT trained model as input to a model solely trained on a limited set of experimental data. Including the predictions of the model trained on QM calculations significantly improved performance of the model. Similar approaches have been applied in a wide range of scenarios including parameter estimation of physics models using data from multiple experiments and simulations;\cite{Perdikaris2016} optimizing battery electrode structure using data from both cheap and expensive multitscale differential equation models \cite{Pan2017}, and optimizing composition of alloys using a mix of DFT fidelities \cite{Tran2020}. In Chapter \ref{ch:mfbo}, I explore how multifidelity modeling can be used in the context of controller tuning.
+
 \subsection{Meta-learning}
 
-Informally, meta-learning is the process of learning how to learn. The difference in this approach is the training process explicitly includes a loss function that aims to create fast learning. Most existing approaches rely primarily on learning metrics for better classification, but a recent set of methods based on optimization are more relevant to process development. 
-In this case, the aim is to adjust gradient based optimization to train a model such that minimizing the loss will require the minimium number of steps. There are a wide variety of techniques in this family including model agnostic meta-learning (MAML) \cite{Finn2017}, REPTILE \cite{Nichols2018} and PLATIPUS \cite{Finn2018}. While I do not explore meta-learning in this thesis, it is a promising direction for future exploration.
+Informally, meta-learning is the process of learning how to learn. The difference in this approach is the training process explicitly includes a loss function that aims to create fast learning. Most existing approaches rely primarily on learning metrics for better classification, but a recent set of methods based on optimization are more relevant to process development.  In this case, the aim is to adjust gradient based optimization to train a model such that minimizing the loss will require the minimium number of steps. There are a wide variety of techniques in this family including model agnostic meta-learning (MAML) \cite{Finn2017}, REPTILE \cite{Nichols2018} and Platipus \cite{Finn2018}. While I do not explore meta-learning in this thesis, it is a promising direction for future work in accelerating process development.
 
-\subsection{Multifidelity learning}
+
 
 \section{Bayesian optimization}
 
@@ -192,4 +197,4 @@ Supervised approaches usually train a full network on previous data, fix the mes
 
 \section{Conclusions}
 
-In this thesis, transfer learning is examined in two modes: multi-task learning and pre-training. These general strategies are overlaid on the machine learning approaches of Bayesian optimization and molecular property prediction using deep learning. 
+In this thesis, transfer learning is examined in two modes: multi-task learning, multifidelty learning and pre-training. These general strategies are overlaid on the machine learning approaches of Bayesian optimization and molecular property prediction using deep learning. 
