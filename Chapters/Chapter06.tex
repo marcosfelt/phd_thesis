@@ -129,22 +129,13 @@ Constant parameters are shown in Table \ref{tab:parameters} and state variables 
 \end{table}
 
 \subsubsection{Material Balances}
-Material balances are calculated for all stages including the reobiler and condenser.
+Material balances are calculated for all stages as follows:
 
 \begin{equation}
-\frac{dn_i}{dt} = L_{i+1}-L_i + V_{i-1}-V_i \; \forall i=1 \dots N_F-1, N_F+2 \dots N+1
+\frac{dn_i}{dt} = L_{i+1}-L_i + V_{i-1}-V_i \;\; \forall i=1 \dots N_F-1, N_F+2 \dots N+1
 \end{equation}
 
-\begin{equation}
-   \frac{dn_0}{dt} = L_1 - L_0 - V_0 
-\end{equation}
-
-
-\begin{equation}
-    \frac{dn_{N+1}}{dt} = V_{N}-(L_{N+1} + D)    
-\end{equation}
-
-The  feed stage and the stage above the feed stage are treated separately:
+Note that the feed stage and the stage above the feed stage are treated separately:
 
 \begin{equation}
     \frac{dn_{N_F}}{dt} = L_{N_F+1}-L_{N_F} + V_{N_F-1}-V_{N_F} + q_{N_F}F   
@@ -154,57 +145,73 @@ The  feed stage and the stage above the feed stage are treated separately:
    \frac{dn_{N_F+1}}{dt} = L_{N_F+2}-L_{N_F+1} + V_{N_F}-V_{N_F+1} + (1-q_{N_F})F 
 \end{equation}
 
+where $q_i$ is the liquid fraction of the feed stream.
+
+The material balance for the sump:
+
+\begin{equation}
+    \frac{dn_1}{dt} = L_2 - L_1 + V_0 - V_1
+\end{equation}
+
+We assume that the holdup in the thermosyphone reboiler is constant over time, and that all liquid flowing into the reboiler is vaporized. Therefore, the liquid flow into the reboiler is equal to the vapor flow out of the reboiler $V_0$, resulting in the following balance at the bottom of the sump:
+\begin{equation}
+    L_0 = V_0 + B
+\end{equation}
+
+The condenser and reflux drum are lumped and consider as one unit.
+
+\begin{equation}
+    \frac{dn_{N+2}}{dt} = V_{N+1}-(L_{N+2} + D)    
+\end{equation}
+
 
 \subsubsection{Component Balances}
 
-Component balances are calculated for all stages including the reobiler and condenser.
-
+Component balances are calculated for all trays:
 \begin{equation}
-   \frac{d(x_{i} n_{i})}{dt}= y_{i-1}V_{i-1} -y_iV_i + x_{i+1}L_{i+1} - x_{i}L_i 
-\end{equation}
-
-\begin{equation}
-    \frac{d(x_{N+1} n_{N+1})}{dt}  = y_NV_N - y_{N+1}V_{N+1} - x_{N+1}(L_{N+1} + D) 
-\end{equation}
-
-
-\begin{equation}
-     \frac{d(x_{0} n_{0})}{dt} = L_1(x_1-x_0) + V_0(x_0-y_0) 
+   \frac{d(x_{i} n_{i})}{dt}= L_{i+1} x_{i+1} - L_i x_{i} + V_{i-1} y_{i-1} -V_i y_i  \;\; \forall i=1 \dots N_F-1, N_F+2 \dots N+1
 \end{equation}
 
 The  feed stage and the stage above the feed stage are treated separately:
 
 \begin{equation}
 \begin{split}
- \frac{d(x_{N_F} n_{N_F})}{dt} =  & y_{N_F-1}V_{N_F-1} -y_{N_F}V_{N_F} + x_{N_F+1}L_{N_F+1} \\ & - x_{N_F}L_{N_F} + q_{N_F}z_FF   
+ \frac{d(x_{N_F} n_{N_F})}{dt} =  &  x_{N_F+1}L_{N_F+1}  - x_{N_F}L_{N_F} +  y_{N_F-1}V_{N_F-1} \\ & -y_{N_F}V_{N_F} + q_{N_F}z_FF   
 \end{split}
 \end{equation}
 
 \begin{equation}
 \begin{split}
-    \frac{d(x_{N_F+1} n_{N_F+1})}{dt} =  & y_{N_F+2}V_{N_F+2} -y_{N_F+1}V_{N_F+1} + x_{N_F}L_{N_F} \\ & - x_{N_F+1}L_{N_F+1}  + (1-q_{N_F})z_FF 
+    \frac{d(x_{N_F+1} n_{N_F+1})}{dt} =  & x_{N_F}L_{N_F} - x_{N_F+1}L_{N_F+1} +  y_{N_F+2}V_{N_F+2}   \\ & -y_{N_F+1}V_{N_F+1}  + (1-q_{N_F})z_FF 
 \end{split}
 \end{equation}
 
-
-\subsubsection{Energy Balances}
-
-In calculating energy balances, we assume that vapor holdup is negligible and therefore only consider the liquid holdup. Given these definitions, the energy balances on the trays, reboiler and condenser are:
+Given the previously stated assumption of a total reboiler, the composition of the liquid and vapor in the reboiler are the same:
 
 \begin{equation}
-    \frac{d(n_ih^L_i)}{dt} =  h^L_{i+1}L_{i+1}-h^L_iL_i+h^V_{i-1}V_{i-1}-h^V_iV_i
+    x_0 = y_0
 \end{equation}
+
+The component balance around the sump is as follows:
 
 \begin{equation}
-    \frac{d(n_0h^L_0)}{dt} = h^L_1L_1 - h^L_0L_0 - h^V_0V_0 + Q_{reb}
+    \frac{d(x_{0} n_{0})}{dt} = L_2 x_2 - L_1 x_1 + V_0 y_0 - V_1 y_1
 \end{equation}
 
+The component balance around the condenser is as follows:
+\begin{equation}
+    \frac{d(x_{N+2} n_{N+2})}{dt}  = V_{N+1} y_{N+1} - x_{N+2} (L_{N+2} + D)
+\end{equation}
+
+\subsubsection{Energy Balances}\label{sec:energy_balances}
+
+In calculating energy balances, we assume that vapor holdup is negligible and therefore only consider the liquid holdup. Energy balances are calculated using the liquid and vapor enthalpy, as detailed subsequently. For the trays:
 
 \begin{equation}
-    \frac{d(n_{N+1}h^L_{N+1})}{dt} = h^V_NV_{N}-h^L_{N+1}(L_{N+1} + D) + Q_{cond}
+    \frac{d(n_ih^L_i)}{dt} =  h^L_{i+1}L_{i+1}-h^L_iL_i+h^V_{i-1}V_{i-1}-h^V_iV_i + Q_i  \;\; \forall i=1 \dots N_F-1, N_F+2 \dots N+1
 \end{equation}
 
-Stage energy balance for all stages except the feed stage and  one above the feed stage:
+For the feed stage and the stage above the feed stage:
 
 \begin{equation}
 \begin{split}
@@ -212,7 +219,6 @@ Stage energy balance for all stages except the feed stage and  one above the fee
 \end{split}
 \end{equation}
 
-where $q_{N_F}$ is the vapor fraction of the feed.
 
 \begin{equation}
 \begin{split}
@@ -220,8 +226,29 @@ where $q_{N_F}$ is the vapor fraction of the feed.
 \end{split}
 \end{equation}
 
-For liquid enthalpy $h^{L,c}$ of each component, we take a mole fraction weighted average of the specific enthalpies calculated by integrating a constant heat capacity from a reference temperature $T_{ref}$ of normal boiling point of each component $c$. Data is taken from Perry’s Chemical Engineering Handbook \cite{Perrys2018}.
+ The energy balances for the reboiler and sump respectively are:
 
+\begin{equation}
+    \frac{d(n_0h^L_0)}{dt} = V_0(h^L_{1} - h^V_0) + Q_0
+\end{equation}
+
+\begin{equation}
+    \frac{d(n_1h^L_1)}{dt} = L_2 h^L_2 - L_1 h^L_1 + V_0 h^V_0 - L_1 h^L_1 + Q_1  
+\end{equation}
+
+The energy balance for the condenser is as follows:
+
+\begin{equation}
+    \frac{d(n_{N+2}h^L_{N+2})}{dt} = h^V_{N+1} V_{N+1}-h^L_{N+2}(L_{N+2} + D) + Q_{N+2}
+\end{equation}
+
+Additionally, we include a heat exchange which subcools the liquid from the condenser:
+
+\begin{equation}
+    n_{subcool}\frac{d h^L_{reflux}}{dt} = L_{N+2}(h^L_{N+2} - h^L_{reflux}) + Q_{subcool}
+\end{equation}
+
+For liquid enthalpy $h^{L,c}$ of each component, we take a mole fraction weighted average of the specific enthalpies calculated by integrating a constant heat capacity from a reference temperature $T_{ref}$ of normal boiling point of each component $c$. Data is taken from Perry’s Chemical Engineering Handbook \cite{Perrys2018}.
 
 \begin{equation}
     h^L(T_i, P_i, x_i) = x_ih^{L,0}(T_i,P_i) + (1-x_i)h^{L,1}(T_i,P_i)
@@ -242,7 +269,6 @@ The enthalpy of the liquid on stage $i$ is then:
 
 For vapor enthalpy,  a similar approach is taken except that the heat capacity is assumed to be based on an ideal gas formulation using the heat of vaporization as a reference. Data is taken from Perry’s Chemical Engineering Handbook \cite{Perrys2018}.
 
-
 \begin{equation}
     h^V(T_i, P_i, x_i) = x_i h^{V,0}(T_i,P_i) + (1-x_i) h^{V,1}(T_i,P_i)
 \end{equation}
@@ -251,7 +277,6 @@ For vapor enthalpy,  a similar approach is taken except that the heat capacity i
 \begin{equation}
     h^{V,c}(T,P) = H^{vap, c}(T_{ref}) + 4R(T-T_{ref})
 \end{equation}
-
 
 \begin{equation}
     h^V_i := h^V(T_i, P_i,x_i)
@@ -347,7 +372,7 @@ Diehl lumps all the constants into an estimatable parameter $W_{tray}$:
     W_{tray} = \frac{2}{3}w\sqrt{2g}A^{-3/2}
 \end{equation}
 
-Based on measurements from BASF, we assume the diameter of the weir $w$ is 8 mm and the height of the weir $h$ is 10 mm. We take $h = 1\cdot10^{-2} m$ and $A=\pi w^2/4 = \pi(8 \cdot 10^{-3})^2/4 = 5.024 \cdot 10^{-5} m^2$, and g is the gravity of Earth. Therefore $W_{tray}^{init}=120149 \; m^{-3/2}s^{-1}$. $n^v_{ref}=Ah=5.024 \cdot 10^{-7} m^3$.  We can use this initial estimate for $W_{tray}$ and then refine via dynamic parameter estimation.
+Based on measurements from BASF, we assume the diameter of the weir $w$ is 8 mm and the height of the weir $h$ is 10 mm. We take $h = 1\cdot10^{-2} m$ and $A=\pi w^2/4 = \pi(8 \cdot 10^{-3})^2/4 = 5.024 \cdot 10^{-5} m^2$, and g is the gravity of Earth. Therefore $W_{tray}^{init}=120149 \; m^{-3/2}s^{-1}$. $n^v_{ref}=Ah=5.024 \cdot 10^{-7} m^3$. 
 
 Since the simulation is in molar flowrates, we need to convert from volumetric flowrates to molar flowrates:
 
@@ -362,8 +387,7 @@ where $\rho(T_i,x_i)$ is the volumetric density, calculated by a weighted averag
     \rho(T_i, x_i) = x_i\rho^0(T_i, x_i) + (1-x_i)\rho^1(T_i, x_i)
 \end{equation}
 
-
-\subsection{Parameter estimation to align simulations to experiments}
+\subsection{Solving and aligning model using GEKKO}
 
 We created a simulation of a distillation column that can be aligned to experiments using a small amount of steady state data. The distillation simulation was built in Python using GEKKO \cite{Beal2018}, and the differential algebraic equation model used for the simulations is fully detailed in Section \ref{sec:distillation_model}. To align the simulation to experiments, a three step procedure, illustrated in Figure \ref{fig:simulation_workflow}, was followed: initialization, steady state solution with parameter estimation and dynamic simulation. All simulations were solved with the APOPT nonlinear programming solver to a tolerance $10^{-9}$ and relative tolerance $10^{-9}$.
 
@@ -376,7 +400,7 @@ We created a simulation of a distillation column that can be aligned to experime
 
 To initialize  the simulation, only the component material balances and pressure balances were solved. The constant molal overflow assumption was used, which states that there is constant liquid flow in the stripping and rectifying section respectively as well as constant vapor flow. 
 
-Given the initialization, the full steady state simulation was then solved and used to generate the nominal values for steady state parameter estimation to the experimental data. The parameters estimated were the Murphree efficiencies and reboiler and condenser duties. While the condenser duty during dynamic simulation was fixed at the value from steady state parameter estimation, the reboiler duty was a manipulated variable; therefore, the steady-state estimated value of the reboiler duty served as an initial condition. The objective of the parameter estimation was to minimize the $L_1$ error between the simulation and experimental temperatures on stages 10, 22 and 35, as these stages were shown to be sensitive to changes in the parameters. Therefore, the parameter estimation problem was formulated as:
+Given the initialization, the full steady state simulation was then solved and used to generate the nominal values for steady state parameter estimation to the experimental data. The full list of estimated parameters can be found in Table \ref{tab:param_estimation}. Note that, while the condenser duty during dynamic simulation was fixed at the value from steady state parameter estimation, the reboiler duty was a manipulated variable; therefore, the steady-state estimated value of the reboiler duty served as an initial condition. The objective of the parameter estimation was to minimize the $L_1$ error between the simulation and experimental temperatures on stages 10, 22 and 35, as these stages were shown to be sensitive to changes in the parameters. Therefore, the parameter estimation problem was formulated as:
 %  The $l_1$ norm was chosen due to its improved  handling of outliers \cite{Safdarnejad2016}.
 \begin{subequations}
     \begin{align}
@@ -384,7 +408,7 @@ Given the initialization, the full steady state simulation was then solved and u
         s.t. \;\; 0 = \mathbf f(\mathbf X, \boldsymbol \theta)
     \end{align}
 \end{subequations}
-where $\mathbf X$ are the state variables in Table X  and $\boldsymbol \theta = \{\boldsymbol \theta_{est}, \boldsymbol \theta_{const} \}$.  $\boldsymbol \theta_{est}$ are the parameters to be estimated in Table \ref{tab:param_estimation} and $\boldsymbol \theta_{const}$ are the constant parameters in Table \ref{tab:parameters}. $\mathbf f$ is the system of equations represented by equations B.2-B.11, B.20-B.24, B.28-B.29, and B.36 with all derviatives set equal to zero. 
+where $\mathbf X$ are the state variables in Table X  and $\boldsymbol \theta = \{\boldsymbol \theta_{est}, \boldsymbol \theta_{const} \}$.  $\boldsymbol \theta_{est}$ are the parameters to be estimated in Table \ref{tab:param_estimation} and $\boldsymbol \theta_{const}$ are the constant parameters in Table \ref{tab:parameters}. $\mathbf f$ is the system of equations represented by equations in section \ref{sec:distillation_model} with all derviatives set equal to zero. 
 % \{\mathbf x, \mathbf y, \mathbf T, \mathbf L, \mathbf n\}$ 
 \begin{sidewaystable}[]
     \centering
@@ -392,26 +416,20 @@ where $\mathbf X$ are the state variables in Table X  and $\boldsymbol \theta = 
     \begin{tabular}{cccc}
         \textbf{Parameter} & \textbf{Description} & \textbf{Initial Guess} & \textbf{Estimated Value}  \\
         \hline
-         $\alpha_{strip}$ & Murphree efficiency in stripping section &  0.5 & 0.22 \\ 
-         $\alpha_{rect}$ & Murphree efficiency in rectifying section & 0.5 & 1.0 \\
-         % $\Delta P_{rect}$ & \thead{Pressure drop \\ in rectifying section} &  $\Delta P_{tot}/N$ \\ 
-         % $\Delta P_{strip}$ & \thead{Pressure drop \\ in stripping section} &  $\Delta P_{tot}/N$ \\ 
-         $ Q_{reb}$ & Reboiler duty at steady state &  0.245 kW  & 0.259 kW  \\
-         $ Q_{cond}$ & Condenser duty at steady state &  -0.239 kW  & -0.253 kW \\
+         $\alpha_{strip}$ & Murphree efficiency in stripping section &  0.5 & 0.48 \\ 
+         $\alpha_{rect}$ & Murphree efficiency in rectifying section & 0.5 & 0.1 \\
+         $\Delta P_{rect}$ & Pressure drop in rectifying section &  $\Delta P_{tot}/N$ & 0.96 mbar \\ 
+         $\Delta P_{strip}$ & Pressure drop in stripping section &  $\Delta P_{tot}/N$ & 0.96 mbar \\ 
+         $ Q_{reb}$ & Reboiler duty at steady state &  0.25 kW  & 0.267 kW  \\
+         $ T_{cond}$ & Condenser temperature at steady state &  333 K  & 333 K\\
+         $ Q_{subcool}$ & Subcooling heat exchanger duty & -0.25  kW & -0.41 kW \\
          \hline
     \end{tabular}
-
     \label{tab:param_estimation}
 \end{sidewaystable}
 
-\begin{figure}
-    \centering
-    \includegraphics[width=\textwidth]{gfx/Chapter06/2021_11_17_steady_state_estimated.png}
-    \caption{Steady state simulation after parameter estimation of a separation of 50/50 methanol-water separation in a distillation column with 80 bubble cap trays. \textbf{Top left}: Composition profile of the column with liquid composition in solid lines and vapor composition in dotted lines. \textbf{Top right}: Temperature profile of the simulation and experiments. \textbf{Bottom left}: Flow profile in column. \textbf{Bottom right}: Pressure profile in column.  }
-    \label{fig:estimated}
-\end{figure}
+We used the steady state simulation as the initialization for dynamic simulation. The simulation was stepped forward in thirty second intervals using a sequential approach. 
 
-We used an average of the experimental stage temperatures over nine hours of steady state experimental data for parameter estimation. The resulting steady-state simulation after parameter estimation is shown in Figure \ref{fig:estimated}, which aligns well to the experimental temperature profile.  
 % In Figure \ref{fig:validation}a, we show that using the estimated parameters with settings from a different day of experiments gives good alignment between simulation and experiment.  An example closed-loop dynamic simulation is shown in Figure Xb, which demonstrates that the dynamic simulation aligns closely to the experimental dynamics. 
 
 % \begin{figure}
@@ -431,12 +449,31 @@ We used an average of the experimental stage temperatures over nine hours of ste
 
 \section{Results}
 
-To be completed.
+
 \subsection{Distillation simulation correlates with experiments}
 
+In order to build a simulation that could be used for examining the effectiveness of multifidelity BO for controller tuning, we aligned our simulation to experimental data collected at BASF. The resulting steady-state simulation after parameter estimation is shown in Figure \ref{fig:estimated}, which aligns well to the experimental temperature profile. We used an average of the experimental stage temperatures over nine hours of steady state experimental data for parameter estimation. 
+
+The simulated steady state temperature profile aligns well with the experimentally measured temperatures. In particular, the simulation is able to capture the rapid change in temperature between stage 10 and 20. However, the temperature of the middle section of the column is signficantly lower than the experimentally measured values. This discrepancy could be due to a number of missing phenomena in the simulation including the heaters in the real column used to prevent heat loss from the column. These heaters could potentially increase the temperature of the internals of the column in a nonlinear fashion throughout the column. 
+
 % Figure 3: Steady state simulation
+\begin{figure}
+    \centering
+    \includegraphics[width=\textwidth]{gfx/Chapter06/2021_11_17_steady_state_estimated.png}
+    \caption{Steady state simulation after parameter estimation of a separation of 50/50 methanol-water separation in a distillation column with 80 bubble cap trays. \textbf{Top left}: Composition profile of the column with liquid composition in solid lines and vapor composition in dotted lines. \textbf{Top right}: Temperature profile of the simulation and experiments. \textbf{Bottom left}: Flow profile in column. \textbf{Bottom right}: Pressure profile in column.}
+    \label{fig:estimated}
+\end{figure}
+
+While, the steady state simulation, we found that the dynamic simulation did not fully capture all aspects of the experiments. In particular, the frequency response of the simulation upon a step in reflux rate did not reflect the oscillations seen in the actual experiments. Achieving a perfect match between the experimentallly measured values and simulation is difficult, especially when the expermemtns are measured in closed-loop. 
 
 % Figure 4: Dynamic simulation
+\begin{figure}
+    \centering
+    \includegraphics[width=\textwidth]{gfx/Chapter06/2021_11_17_closed_loop_dynamic.png}
+    \caption{Dynamic simulation after parameter estimation of a separation of 50/50 methanol-water separation in a distillation column with 80 bubble cap trays. \textbf{Top left}: Liquid composition over time. \textbf{Top right}: Temperature over time. \textbf{Bottom left}: Flow over time \textbf{Bottom right}: Holdups in condenser and reobiler.}
+    \label{fig:dynamic_nominal}
+\end{figure}
+
 
 \subsection{MFBO accelerates controller tuning}
 
