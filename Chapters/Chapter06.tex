@@ -28,7 +28,7 @@ As noted in Chapter \ref{ch:rl_tuning}, controller tuning involves identifying t
 \begin{equation}
     u(t) = K^P e(t) + \frac{1}{\tau_I}\int_0^t e(t')dt' + \tau_D \frac{de(t)}{dt}
 \end{equation}
-where $u(t)$ is the controller output that is feed into the actuator (e.g., a valve) and $e(t)$ is the error at time $t$. In thiw work, we only use PI controllers, so $\tau_D=0$.
+where $u(t)$ is the controller output that is feed into the actuator (e.g., a valve) and $e(t)$ is the error at time $t$. In this work, we only use PI controllers, so $\tau_D=0$.
 
 I formulate the problem of controller design and tuning as an optimization problem. The aim is to find a set of controller parameters that will achieve desired behavior. I define good controller behavior as minimizing the integral absolute error (IAE) for each controlled variable
 % and minimizing total controller movement (CM):
@@ -49,11 +49,11 @@ where $y_{sp}$ is the setpoint,  $\hat y$  is the value of  the variable, T is t
 
 \subsection{Multi-Objective and Multifidelity Bayesian Optimization for Controller Tuning}
 
-We solved the controller tuning problem using Bayesian optimization. As a baseline algorithm, we used multi-objective Bayesian optimization. We trained an independent GP to predict each controller objective (IAE, CM) given the relevant controller parameters.  Since our problem is multi-objective, we used a multi-objective acquisition function, namely the q Noisy Expected Hypervolume Improvement (qNEHVI) \cite{Balandat2020}. This acquisition function has a balance of computational efficiency and fidelity resulting in an ability to find the Pareto front of trade-offs between objectives quickly. 
+We solved the controller tuning problem using Bayesian optimization. As a baseline algorithm, we used multi-objective Bayesian optimization. We trained an independent GP to predict each controller objective (IAE) given the relevant controller parameters.  Since our problem is multi-objective, we used a multi-objective acquisition function, namely the q Noisy Expected Hypervolume Improvement (qNEHVI) \cite{Balandat2020}. This acquisition function has a balance of computational efficiency and fidelity resulting in an ability to find the Pareto front of trade-offs between objectives quickly. 
 
 We also desired to see if simulations could accelerate controller tuning. We developed a differential equation simulation of a distillation column that was aligned to experimental data using both steady state and dynamic parameter estimation. To leverage the simulation, we used a multi-task GP that could be trained on both the less abundant high fidelity experimental data and the more abundant low fidelity simulation data. We hoped that the multi-task GP could learn the correlation between the simulation and the experimental data and thus make better predictions on the experiments with less data.
 
-In practice, we optimized the high fidelity task when selecting  a new set of controller parameters ton run an experiment in the laboratory. Then, while waiting for the laboratory results, we used optimize the lower fidelity task using the differential equation simulation with the most recently estimated parameters. 
+In practice, we optimized the high fidelity task when selecting  a new set of controller parameters ton run an experiment in the laboratory. Then, while waiting for the laboratory results, we optimized the lower fidelity task using the differential equation simulation with the most recently estimated parameters. 
 
 
 \subsection{Distillation Simulation}\label{sec:distillation_model}
@@ -68,7 +68,6 @@ Our goal in simulating a distillation columns was to find a balance between mode
     \caption{Depiction of a distillation column with $N$ trays, feed at stage $N_F$, and reboiler and condenser as stage 0 and $N+1$ respectively.}
     \label{fig:column}
 \end{figure}
-
 
 
 % The following are parameters of the model, determined by the experimental scenario or estimated via parameter estimation (see the next section).
@@ -485,7 +484,9 @@ While, the steady state simulation, we found that the dynamic simulation did not
 % (just manipulated and controlled variables)
 
 
-\subsection{Ablation studies}
+\subsection{Attempting to accelerate controller tuning using transfer learning}
+
+I hypthesized that 
 
 % Figure 9: Separate input features vs shared
 
