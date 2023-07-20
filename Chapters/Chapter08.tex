@@ -16,7 +16,7 @@ I introduce ML-SAFT, a framework for creating machine learning models that predi
 \begin{figure}
     \centering
     \includegraphics[width=\textwidth]{gfx/Chapter08/mlsaft_workflow.png}
-    \caption{ML-SAFT is a deep learning model for predicting PCP-SAFT parameters directly from molecular structures. PCP-SAFT parameters predicted by ML-SAFT can be used in any PCP-SAFT implementation. Shown schematically is a density prediction.}
+    \caption{ML-SAFT is a framework for predicting PCP-SAFT parameters directly from molecular structures. PCP-SAFT parameters predicted by ML-SAFT models can be used in any PCP-SAFT implementation. Shown schematically is a density prediction.}
     \label{fig:ML-SAFT_workflow}
 \end{figure}
 
@@ -25,15 +25,75 @@ I note that Habicht et al. \cite{Habicht2023} recently developed a feed forward 
 
 \section{Methods}
 
+
 \subsection{The PCP-SAFT equation of state}
 
 The goal of ML-SAFT is to predict the six pure component parameters of PCP-SAFT: $\sigma$, the hard sphere diameter; $m$, the number of segments in a chain of a component; $\epsilon/k$, the depth of the well; $\mu$, the dipole moment; and $\epsilon_{AB}$ and $\kappa_{AB}$, the association parameters. I use the implementation of PCP-SAFT in FeO$_{s}$ \cite{Rehner2023}.
+
+% The Perturbed-chain statistical associating theory (PC-SAFT) EoSequation of state is derived in terms of the specific Hemholtz free energy \cite{Gross2001}. Given the Hemholtz free energy, other thermodynamic variables such as the pressure and fugacity coefficient can be derived. TIn the formulation of PC-SAFT, the Hemholtz free energy is calculated with respect to a   a reference a hard chain (hc) non-interacting fluid. Terms are added for dispersion (disp), association (assc) and dipole moments (dip):
+% \begin{equation}
+%     \frac{a}{kT} = \frac{a^{hc}}{kT} +  \frac{a^{disp}}{kT}  + \frac{a^{assc}}{kT} + \frac{a^{dip}}{kT}
+%     \label{eq:pcsaft_hemholtz}
+% \end{equation}
+% For convenience, Equation \ref{eq:pcsaft_hemholtz} can be rewritten in terms of the compressibilty $Z=Pv/RT=a/kT$.
+% \begin{equation}
+%     Z = Z^{hc}+Z^{disp}+Z^{assc}+Z^{dip}
+% \end{equation}
+
+% PC-SAFT has four parameters that are regressed to experiments:  $\sigma$, the the cutoff soft repulsion in the hard chain;,$m$, number of segments in a chain of a component; $\epsilon/k$, the depth of the well; and $\mu$, the dipole moment. These are the four parameters that we predict in this paper, and in the following, we illustrate where each of these parameters is used in PC-SAFT EoS.
+
+% To derive the hard chain term $Z^{hc}$, first define  a step function for the describe the pair potential energy:
+% \begin{equation}
+%     u(r) = \begin{cases} 
+%         \infty & r < (\sigma - s_1) \\
+%         3\epsilon & (\sigma - s_1) \leq r < \sigma \\
+%         -\epsilon & \sigma \leq r < \lambda \sigma \\ 
+%         0 & r\geq \lambda \sigma  
+%     \end{cases}
+% \end{equation}
+% where $\epsilon$ is the depth of the well, $\sigma$ controls the cutoff for soft repulsion and $\lambda$ is the reduced well depth.  Therefore, the compressibility term for hard chain reference can be written as:
+% \begin{equation}
+%     Z^{hc} = \tilde m Z^{hs}- \sum_i x_i(m_i-1)\rho \frac{\partial \ln g_{ii}^{hs}}{\partial \rho}
+% \end{equation}
+% \begin{equation}
+%     \tilde m = \sum_i x_i m_i
+% \end{equation}
+% where $m$ is the number of segments in a chain of component $i$ and $\rho$ is the number density of the molecules. $Z^{hs}$ is the hard-sphere compressibility and $g^{hs}$ is the radial distribution for segments in the hard sphere reference.  
+% \begin{equation}
+%     Z^{hs} = \frac{\xi_3}{1-\xi_3} + \frac{3\xi_1\xi_2}{\xi_0(1-\xi_3)^2} + \frac{3\xi^3-\xi_3\xi_2^3}{\xi_0(1-\xi_3)^3}
+% \end{equation}
+% \begin{equation}
+%     g_{ij}^{hs} = \frac{1}{1-\xi_3} + \biggl(\frac{d_id_j}{d_i + d_j}\biggr)\frac{3\xi_2}{1-\xi_3}+\biggl(\frac{d_id_j}{d_i + d_j}\biggr)^2\frac{2\xi_2^2}{(1-\xi_3)^3}
+% \end{equation}
+% \begin{equation}
+%     \xi_n = \frac{\pi}{6} \rho \sum_i x_im_i d_i^n \;\; n\in \{ 0, 1, 2, 3,\}
+% \end{equation}
+% \begin{equation}
+%     d(T) = \int_0^{\sigma} \biggl[1 - \exp \biggl(-\frac{u(r)}{kT} \biggr)\biggr]dr
+% \end{equation}
+% To derive the pertubation due dispersion $Z^{disp}$, a second order Hemholtz formulation is used:
+% \begin{equation}
+%     \frac{a^{disp}}{kTN} = \frac{a_1}{kT} +  \frac{a_2}{kT}
+% \end{equation}
+% \begin{equation}
+%     {Z^{disp} = Z_1 + Z_2}
+% \end{equation}
+% The two terms are derived using results from Gross and Sadowski.\cite{Gross2001}
+
+% To derive the associative term $Z^{assc}$...
+
+% To derive the polar term $Z^{dip}$,
+
+
+% has strong performance for predicting fluid-phase equilibria of a variety of mixtures. Four parameters need to be predicted for any pure component and 2 extra parameters for mixtures. If we can predict parameters, EoS ensures thermodynamic consistency.
+
+
 
 \subsection{Baseline predictive PCP-SAFT methods}\label{sec:baselines}
 
 There are several methods in the literature for predicting PCP-SAFT parameters. As comparisons to ML-SAFT, I evaluated two state-of-the-art methods that use QM and a group contribution method respectively.
 
-As a QM method, the Segment-Based Equation of State Parameter Prediction (SEPP) \cite{Kaminski2020} was applied. All SEPP calculations were carried out by Lukas Ra{\ss}pe-Lange. SEPP obtains $m$, $\sigma$, and $\epsilon/k$ from a multilinear model that uses DFT-calculated features as input, while the dipole moment $\mu$ is obtained directly from QM calculations. An analysis of the surface charge density from COSMO \cite{Klamt1995} was utilized to calculate the associating parameters $\epsilon_{AB}$ and $\kappa_{AB}$. The strongest associating site was used although SEPP can take into account all binary associating interactions. This simplification was made to ensure that the predicted parameters could be used with most PCP-SAFT implementations. Since the multilinear model in SEPP was only fit to alkanes and polar compounds with oxygen and nitrogen, it is not valid for halogens, which are abundant in my dataset.
+As a QM method, the Segment-Based Equation of State Parameter Prediction (SEPP) was applied \cite{Kaminski2020}. All SEPP calculations were carried out by Lukas Ra{\ss}pe-Lange. SEPP obtains $m$, $\sigma$, and $\epsilon/k$ from a multilinear model that uses DFT-calculated features as input, while the dipole moment $\mu$ is obtained directly from QM calculations. An analysis of the surface charge density from COSMO was utilized to calculate the associating parameters $\epsilon_{AB}$ and $\kappa_{AB}$ \cite{Klamt1995}. The strongest associating site was used although SEPP can take into account all binary associating interactions. This simplification was made to ensure that the predicted parameters could be used with most PCP-SAFT implementations. Since the multilinear model in SEPP was only fit to alkanes and polar compounds with oxygen and nitrogen, it is not valid for halogens, which are abundant in my dataset.
 
 I used the homosegmented group contribution method from Sauer et al \cite{Sauer2014} as implemented in FeO$_{s}$ \cite{Rehner2023}. For compounds that do not already have groups identified by Sauer et al., I used the group identification from the python package thermo \cite{thermopython} with a modified version of the SMARTS strings from Ruggeri and Takahama (see Supplementary Material) \cite{Ruggeri2016}.
 
@@ -127,16 +187,16 @@ where $w_i^{A}$ is weight for molecule $i$ with association status $A$ and $n_A$
 
 \subsection{Pretraining of MPNNs}
 
-I also explored using pretraining to improve the quality of predictions from PCP-SAFT. Specifically, I pretrained the MPNN architecture on the PCP-SAFT parameters regressed to COSMO-RS data. Then, I frozen the message passing encoder and only trained the feed forward portion of the MPNN on the regressed parameters from Dortmund. I refer to this strategy as MPNN-TL.
+I also explored using pretraining to improve the quality of predictions from PCP-SAFT. Specifically, I pretrained the MPNN architecture on the PCP-SAFT parameters regressed to COSMO-RS data. Then, I froze the message passing encoder and only trained the feed forward portion of the MPNN on the regressed parameters from Dortmund. I refer to this strategy as MPNN-TL.
 
 \subsection{Evaluation of predictive PCP-SAFT methods}
 
-To evaluate ML-SAFT models and the baseline predictive PCP-SAFT methods, a set of 81 molecules was held out from training any models and only used for testing. These molecules were selected since the majority could be predicted by SEPP and also had regressed parameters. I then split the remaining 905 molecules into training and validation (5 \%) sets using a clustering procedure. Specifically, ECFP fingerprints with 2048 bits were generated using RDKit, and the k-means clustering algorithm \cite{MacQueen1967} was run on five dimensional projections of these fingerprints from UMAP \cite{McInnes2018}. I found three clusters to most effectively model the data, as shown in Figure \ref{fig:splitting}a. Upon manual inspection, I found that the clusters represented chemically interpretable classes of molecules such as alkanes and aromatics. Finally, the molecules were assigned to the training and validation sets so that cluster proportions in each split matched the cluster proportions in the overall dataset using the Stratified Shuffle Split method in scikit-learn \cite{scikit-learn}. This ensured that each split had a balanced set of molecules. As shown in Figure \ref{fig:splitting}c, the functional groups in the train and validation splits were balanced. 
+To evaluate ML-SAFT models and the baseline predictive PCP-SAFT methods, a set of 81 molecules was held out from training any models and only used for testing. These molecules were selected since the majority could be predicted by SEPP and also had regressed parameters. I then split the remaining 905 molecules into training and validation (5 \%) sets using a clustering procedure. Specifically, ECFP fingerprints with 2048 bits were generated using RDKit, and the k-means clustering algorithm \cite{MacQueen1967} was run on five dimensional projections of these fingerprints from the dimensionality reduction tool UMAP \cite{McInnes2018}. I found three clusters to most effectively model the data, as shown in Figure \ref{fig:splitting}a. Upon manual inspection, I found that the clusters represented chemically interpretable classes of molecules such as alkanes and aromatics. Finally, the molecules were assigned to the training and validation sets so that cluster proportions in each split matched the cluster proportions in the overall dataset using the Stratified Shuffle Split method in scikit-learn \cite{scikit-learn}. As shown in Figure \ref{fig:splitting}c, this ensured that each split in the training and validation set had a balanced set of molecules. Note that the test set had a different distribution due to the limitations of the baseline methods used for comparison.
 
 \begin{figure}
     \centering
     \includegraphics[width=\textwidth]{gfx/Chapter08/cluster_split.png}
-    \caption{Data splitting for ML-SAFT datasets. (a) Schematic of the workflow for stratified splitting of the ML-SAFT dataset. UMAP \cite{McInnes2018} is used for dimensionality reduction of 2048 bit ECFP fingerprints followed by k-means clustering \cite{MacQueen1967} and cluster splitting using stratified shuffle split in scikit-learn \cite{scikit-learn}. (b) 2D visualization of the clustering using UMAP. (c) The frequency of the top five functional groups in each split are shown. The different functional groups are well balanced between splits.}
+    \caption{Data splitting for ML-SAFT datasets. (a) Schematic of the workflow for stratified splitting of the ML-SAFT dataset. UMAP \cite{McInnes2018} is used for dimensionality reduction of 2048 bit ECFP fingerprints followed by k-means clustering \cite{MacQueen1967} and cluster splitting using stratified shuffle split in scikit-learn \cite{scikit-learn}. (b) 2D visualization of the clustering using UMAP. (c) The frequency of the top five functional groups in each split are shown.}
     \label{fig:splitting}
 \end{figure}
 

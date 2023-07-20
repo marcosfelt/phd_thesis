@@ -8,14 +8,14 @@ Laboratory unit operations such as reactors and distillation columns  are often 
 
 As noted in Chapter \ref{ch:rl_tuning}, there are a wide variety of existing tuning protocols ranging from heuristics such as Ziegler Nichols \cite{Ziegler1942} and its refinements \cite{Hang1991} to tuning using analytical equations from models via methods such as  Internal Model Control \cite{Copeland2010}. However, extending these to multi-input multi-output systems has been challenging, often requiring additional optimizations \cite{Nandong2013, Nandong2015}. Optimization-based methods have shown promise \cite{Pajares2019, Sumana2010, Rajapandiyan2012, Behroozsarand2012}, but these methods have been difficult to apply in practice due to the large number of iterations they require. Recently, Bayesian optimization (BO) has shown promise for tuning controllers \cite{NeumannBrosig2020, Fiducioso2019, Khosravi2020, Konig2020, Fujimoto2022, Brunzema2022, Khosravi2022}, but this method still often requires tens to hundreds of iterations, making it too materially expensive for laboratory chemical processes.
 
-One approach to reduce the number of iterations required for BO is multifidelity Bayesian optimization (MFBO). MFBO leverages data from an auxiliary simulation or data source that is faster or cheaper to evaluate. Early examples of this approach include Kennedy et al. who used low fidelity approximations of an oil rig simulation to reduce the number of calls to a slower simulator \cite{Kennedy2000}. More recently, a multifidelity Bayesian optimization approaches have developed to accelerate the tuning of hyperparameters for machine learning models, design of batteries and optimization of airplane rotors. Readers should refer to Chapter \ref{ch:background} for review of multifidelity and transfer learning in Bayesian optimization.
+One approach to reduce the number of iterations required for BO is multifidelity Bayesian optimization (MFBO). MFBO leverages data from an auxiliary simulation or data source that is faster or cheaper to evaluate. Early examples of this approach include Kennedy et al. who used low fidelity approximations of an oil rig simulation to reduce the number of calls to a slower simulator \cite{Kennedy2000}. More recently , multifidelity Bayesian optimization approaches have developed to accelerate the tuning of hyperparameters for machine learning models \cite{pmlr-v70-kandasamy17a}, design of batteries \cite{Folch2023} and optimization of airplane rotors \cite{Pan2017}. Readers should refer to Chapter \ref{ch:background} for review of multifidelity and transfer learning in Bayesian optimization.
 
-In this chapter, I use Bayesian optimization to accelerate controller tuning. Specifically, I develop a dynamic simulation of a distillation column that is low fidelity approximation of the original distillation experiment. I then introduce a novel BO strategy called ControlBO designed specifically for tuning control systems and explore whether multifidelity BO can acceelerate controller tuning.
+In this chapter, I use Bayesian optimization to accelerate controller tuning. Specifically, I develop a dynamic simulation of a distillation column that is low fidelity approximation of the original distillation experiment. I then introduce a novel BO strategy called ControlBO designed specifically for tuning control systems and explore whether multifidelity BO can accelerate controller tuning.
 
 \begin{figure}
     \centering
     \includegraphics[width=0.8\textwidth]{gfx/Chapter06/tuning_workflow.png}
-    \caption{Three step workflow for distillation controller design and tuning. }
+    \caption{Three step workflow for distillation controller design and tuning.}
     \label{fig:tuning_workflow}
 \end{figure}
 
@@ -55,20 +55,21 @@ ControlBO is a Bayesian optimization algorithm that aims to identify robust cont
 ControlBO is a multifidelity and multi-objective Bayesian optimization algorithm that aims to solve the following problem:
 
 \begin{equation}
-    \Omega^* = \min_{\Omega} \mathbf f(\Omega, x)
+    \Omega^* = \min_{\Omega} \mathbf f(\Omega, x, \delta)
 \end{equation}
-where $\Omega$ are the controller parameters and $\mathbf f$ is the laboratory 
-controller tuning problem. As a baseline algorithm, I used multi-objective Bayesian optimization. I trained an independent GP to predict each controller objective (IAE) given the relevant controller parameters.  Since our problem is multi-objective, I used a multi-objective acquisition function, namely the q Noisy Expected Hypervolume Improvement (qNEHVI) \cite{Balandat2020}. This acquisition function has a balance of computational efficiency and fidelity resulting in an ability to find the Pareto front of trade-offs between objectives quickly. 
+where $\Omega$ are the controller parameters and $\mathbf f$ is the laboratory controller tuning problem. $\delta$ are disturbance variables that might be stepped by operators or changed by other external factors. Similar to Paulson et al. \cite{Paulson2022}, I use a min max formulation where a GP is trained on both controller parameters $\Omega$ and values of disturbance variables from past tuning experiments. During acquisition function optimization, the disturbance variables are fixed at their maximum value, while the controllers parameters are varied to maximize the acquisition function. Fixing the disturbance variables ensures that robust controller parameters are chosen.
 
-Similar to Paulson et al. \cite{Paulson2022}, I use a min max formulation where a GP is trained on both controller parameters and values of disturbance variables from past tuning experiments. During acquisition function optimization, the disturbance variables are fixed at their maximum value, while the controllers parameters are varied to maximize the acquisition function. Fixing the disturbance variables ensures that robust controller parameters are chosen.
+ControlBO trains an independent multitask GP to predict each controller objective (IAE) and controller movement (CM) given the relevant controller parameters. The multitask GP is trained on both auxiliary simulation data and tuning experiments. This is what makes ControlBO multifidelity.
+
+Since our problem is multi-objective, I used a multi-objective acquisition function, namely the q Expected Hypervolume Improvement (qEHVI) \cite{Balandat2020}. This acquisition function has a balance of computational efficiency and fidelity resulting in an ability to find the Pareto front of trade-offs between objectives quickly. 
 
 I developed a differential equation simulation of a distillation column that was aligned to experimental data using both steady state and dynamic parameter estimation. To leverage the simulation, I used a multi-task GP that could be trained on both the less abundant high fidelity experimental data and the more abundant low fidelity simulation data. I hoped that the multi-task GP could learn the correlation between the simulation and the experimental data and thus make better predictions on the experiments with less data.
 
-Additionally, I found that the simulations often failed with certain controller parameters. Therefore, I trained a classifier to predict the likelihood of a successful simulation, which I expect to also correlate with reasonable experimental parameters. The probability of success predicted by the classifier was multiplied by the qNEHVI acquisition function value to form a chance constrained acquisition function:
+% Additionally, I found that the simulations often failed with certain controller parameters. Therefore, I trained a classifier to predict the likelihood of a successful simulation, which I expect to also correlate with reasonable experimental parameters. The probability of success predicted by the classifier was multiplied by the qNEHVI acquisition function value to form a chance constrained acquisition function:
 
-\begin{equation}
-    \alpha_{cc} = p(h \vert \mathcal D) \alpha_{qNEHVI}
-\end{equation} 
+% \begin{equation}
+%     \alpha_{cc} = p(h \vert \mathcal D) \alpha_{qNEHVI}
+% \end{equation} 
 
 In practice, I optimized the high fidelity task when selecting  a new set of controller parameters ton run an experiment in the laboratory. Then, while waiting for the laboratory results, I optimized the lower fidelity task using the differential equation simulation with the most recently estimated parameters. 
 
@@ -141,7 +142,6 @@ Constant parameters are shown in Table \ref{tab:parameters} and state variables 
          $T_i$  & Holdup on stage $i$ \\
          \hline
     \end{tabular}
-    
     \label{tab:state_variables}
 \end{table}
 
@@ -461,7 +461,7 @@ Given the initialization, the full steady state simulation was then solved and u
         s.t. \;\; 0 = \mathbf g(\mathbf X, \boldsymbol \theta)
     \end{align}
 \end{subequations}
-where $\mathbf X$ are the state variables in Table X  and $\boldsymbol \theta = \{\boldsymbol \theta_{est}, \boldsymbol \theta_{const} \}$.  $\boldsymbol \theta_{est}$ are the parameters to be estimated in Table \ref{tab:param_estimation} and $\boldsymbol \theta_{const}$ are the constant parameters in Table \ref{tab:parameters}. $\Delta P$ is the column pressure drop, and $w_p$ is a weighting for pressure drop objective, set nominally to 100.  $\mathbf f$ is the system of equations represented by equations in section \ref{sec:distillation_model} with all derviatives set equal to zero. 
+where $\mathbf X$ are the state variables in Table X  and $\boldsymbol \theta = \{\boldsymbol \theta_{est}, \boldsymbol \theta_{const} \}$.  $\boldsymbol \theta_{est}$ are the parameters to be estimated in Table \ref{tab:param_estimation} and $\boldsymbol \theta_{const}$. $\Delta P$ is the column pressure drop, and $w_p$ is a weighting for pressure drop objective, set nominally to 100.  $\mathbf f$ is the system of equations represented by equations in section \ref{sec:distillation_model} with all derviatives set equal to zero. 
 % \{\mathbf x, \mathbf y, \mathbf T, \mathbf L, \mathbf n\}$ 
 \begin{sidewaystable}[]
     \centering

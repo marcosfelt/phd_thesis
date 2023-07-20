@@ -15,7 +15,7 @@ This chapter is based on the following paper:
 
 Recent work has shown that Bayesian optimization is a particularly powerful tool for self-optimization applications \cite{Amar2019, Schweidtmann2018, Shields2021}. However, in all previous studies, each optimization begins with no \textit{a priori} information about the chemical landscape for the reaction of interest. This protocol therefore requires initial experimental iterations whereby the algorithm is learning about the experimental design space, without any prior information on where the optimal reaction conditions may be. This initial exploration can be expensive in terms of both cost and time, particularly when there may already be data on the broad chemical transformation of interest from previous optimization campaigns. \textit{General} well-performing reaction conditions can also be identified for particular reaction classes, as highlighted in recent work by Angello \textit{et al.} \cite{Angello2022}, but do not give optimal conditions for specific transformations and cannot account for important parameters such as specific reactor differences, solubility, reaction selectivity, differences in substrate functionality or further adjacent objectives (E-factor, purification, downstream processing etc.). The use of optimization strategies for specific substrates in specific instances is therefore still important for determining optimal yields (or other process outputs).
 
-This chapter shows the first real-world examples of leveraging previous reaction optimization data for unseen chemical transformations using multi-task Bayesian optimization (MTBO). The framework of MTBO, first introduced by Swerksy \textit{et al.} \cite{Swersky2013}, replaces the standard probabilistic model in Bayesian optimization with a multi-task model. As these multi-task models can be trained on data from related tasks,  the model can therefore utilize data from previously conducted similar reactions - both from the laboratory and from the literature. In this work, I first explore and benchmark the use of MTBO in simulated studies and then, in collaboration with experimentalists, exploit the methodology to optimize several pharmaceutically relevant C-H activation reactions using an autonomous flow reactor platform. These experimental case studies were chosen to highlight the effectiveness of MTBO in a late-stage medicinal chemistry or early stage process development context context through efficient material usage. The MTBO algorithm utilized is integrated into the Summit, which was introduced in Chapter \ref{ch:summit}, and represents a powerful data-driven optimization technique that can utilize known reaction data and ultimately lead to savings in material, time and overall cost.
+This chapter shows the first real-world examples of leveraging previous reaction optimization data for unseen chemical transformations using multi-task Bayesian optimization (MTBO). The framework of MTBO, first introduced by Swerksy \textit{et al.} \cite{Swersky2013}, replaces the standard probabilistic model in Bayesian optimization with a multi-task model. As these multi-task models can be trained on data from related tasks,  the model can therefore utilize data from previously conducted similar reactions - both from the laboratory and from the literature. In this work, I first explore and benchmark the use of MTBO in simulated studies and then, in collaboration with experimentalists, exploit the methodology to optimize several pharmaceutically relevant C-H activation reactions using an autonomous flow reactor platform. These experimental case studies were chosen to highlight the effectiveness of MTBO in a late-stage medicinal chemistry or early stage process development context context through efficient material usage. The MTBO algorithm utilized is integrated into Summit, which was introduced in Chapter \ref{ch:summit}, and represents a powerful data-driven optimization technique that can utilize known reaction data and ultimately lead to savings in material, time and overall cost.
 
 \section{Methods}
 
@@ -63,7 +63,7 @@ I examined two literature reports that contain experimental results from Suzuki-
     \label{fig:benchmarks_cn}
 \end{figure}
 
-I leveraged Summit to build the predictive models from the literature reports. I utilized the ExperimentalEmulator feature in Summit, which creates a benchmark based on experimental data. The regressor used was a neural network with one hidden layer of 512 units with a ReLu activation function. A one-hot encoding was used for the pre-catalyst and ligand combinations. The neural networks were trained by five-fold cross validation over 1000 epochs using stochastic gradient descent. See Chapter \ref{ch:benchmarking_appendix} for the parity plots for the benchmarks. 
+I leveraged Summit to build the predictive models from the literature reports. I utilized the ExperimentalEmulator feature in Summit, which creates a benchmark based on experimental data. The regressor used was a neural network with one hidden layer of 512 units with a ReLu activation function. A one-hot encoding was used for the pre-catalyst and ligand combinations. The neural networks were trained by five-fold cross validation over 1000 epochs using stochastic gradient descent. See Appendix \ref{ch:benchmarking_appendix} for the parity plots for the benchmarks. 
 
 \subsection{Flow Reactor Platform}
 
@@ -86,7 +86,7 @@ I first executed \textit{in silico} MTBO studies using model chemical reactions 
 \begin{figure}
     \centering
     \includegraphics[width=0.9\textwidth]{gfx/Chapter04/suzuki_benchmarks_thesis.png}
-    \caption{Reaction schemes for the Suzuki cross coupling benchmarks used in this chapter. The data for training the benchmarks are taken from Baumgartner et al. \cite{Baumgartner2018} and \cite{Reizman2016b}. Optimizing these reactions requires tuning continuous variables catalyst loading, reaction time and temperature as Ill as selecting from a library of Buchwald G3 catalysts \cite{Bruno2013}.}
+    \caption{Reaction schemes for the Suzuki cross coupling benchmarks used in this chapter. The data for training the benchmarks are taken from Baumgartner et al. \cite{Baumgartner2018} and \cite{Reizman2016b}. Optimizing these reactions requires tuning continuous variables catalyst loading, reaction time and temperature as well as selecting from a library of Buchwald G3 catalysts \cite{Bruno2013}.}
     \label{fig:benchmarks_suzuki}
 \end{figure}
 
@@ -110,18 +110,9 @@ STBO HS has variable performance relying heavily on the initial conditions it is
 Performance of MTBO can be greatly improved using \textit{multiple} auxiliary tasks. As shown in Figure \ref{fig:baumgartner_suzuki_reizman_suzuki_all_cotraining_optimization}a, when Suzuki B1 is optimized with Suzuki R1-R4 as auxiliary tasks, the optimal conditions are always found by MTBO in fewer than five experiments. Both P1-L1 and P2-L1 are considered optimal for this reaction, and MTBO selects these two catalysts in over 80 \% of experiments during twenty repeats, when compared to \textless{} 50 \% frequency for STBO - this is highlighted in Figure \ref{fig:baumgartner_suzuki_reizman_suzuki_all_cotraining_optimization}b. As MTBO utilizes optimal regions of chemical space that have been identified in previous tasks with similar reactivity, this allows the strategy to identify new (and better performing) optimal reaction conditions faster.
 
 \begin{figure}
-    \centering
-    \subfloat[]{
-        \centering
-        \includegraphics[width=0.8\linewidth]{gfx/Chapter04/baumgartner_suzuki_reizman_suzuki_all_cotraining_optimization.png}
-    }
+    \includegraphics[width=\textwidth]{gfx/Chapter04/catalyst_optimization.png}
 
-    \subfloat[]{
-        \centering
-        \includegraphics[width=0.8\linewidth]{gfx/Chapter04/baumgartner_suzuki_reizman_suzuki_all_cotraining_optimization_catalyst_best.png}
-    }
-
-    \caption{ A comparison of the performance of single-task Bayesian Optimization (STBO), STBO head start (STBO HS), and multi-task Bayesian Optimization (MTBO) of Suzuki B1 and all of Suzuki R1-R4 as auxiliary tasks. (a)  The average best yield with a 95 \% confidence interval over 20 repeats is shown.  (b) Frequency of selection of each catalyst in Scheme 1 by STBO and MTBO.}
+    \caption{A comparison of the performance of single-task Bayesian Optimization (STBO), STBO head start (STBO HS), and multi-task Bayesian Optimization (MTBO) of Suzuki B1 and all of Suzuki R1-R4 as auxiliary tasks. (a)  The average best yield with a 95 \% confidence interval over 20 repeats is shown.  (b) Frequency of selection of each catalyst in Scheme 1 by STBO and MTBO.}
     \label{fig:baumgartner_suzuki_reizman_suzuki_all_cotraining_optimization}
 \end{figure}
 
@@ -136,7 +127,7 @@ The reaction class that we targeted for our experimental MTBO study was the pall
 \begin{figure}
     \centering
     \includegraphics[width=\textwidth]{gfx/Chapter04/ch_activation_case_studies.png}
-    \caption{ The reaction class of interest for the MTBO study, where the substituted chloroacetanilide, \textbf{15}, reacts to form the corresponding oxindole, \textbf{16}. Pd(OAc)\textsubscript{2} and NEt\textsubscript{3} remain constant in each experiment, but the ligand, solvent, catalyst concentration, residence time and reaction temperature are optimized for each case study. Each experimental case study explored in this work, including the starting material used, the product formed and the API structure that the product is linked to.}
+    \caption{ The reaction class of interest for the MTBO study, where the substituted chloroacetanilide, , reacts to form the corresponding oxindole. Pd(OAc)\textsubscript{2} and NEt\textsubscript{3} remain constant in each experiment, but the ligand, solvent, catalyst concentration, residence time and reaction temperature are optimized for each case study. Each experimental case study explored in this work, including the starting material used, the product formed and the API structure that the product is linked to.}
     \label{fig:ch_activation}
 \end{figure}
 
@@ -146,7 +137,7 @@ For each of these consecutive C-H activation case studies, iteratively fewer exp
 
 \begin{figure}
     \centering
-    \includegraphics[width=\textwidth]{gfx/Chapter04/ch_activation_optimization_curves.png}
+    \includegraphics[width=0.7\textwidth]{gfx/Chapter04/ch_activation_optimization_curves.png}
     \caption{A plot of best yield of the products in each case study against the optimization experimental number in each campaign.}
     \label{fig:optimization_curves}
 \end{figure}
