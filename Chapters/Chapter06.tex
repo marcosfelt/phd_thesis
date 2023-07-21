@@ -529,7 +529,9 @@ While, the steady state simulation, we found that the dynamic simulation did not
 
 \subsection{Optimization of controller parameters}
 
-To analyze the performance of ControlBO, I first used only the single-task model with and without classifiers. Figure \ref{fig:hypervolume_comparison} shows the hypervolume with respect to a fixed reference point during the tuning experiments. Hypervolume is a measure of the volume dominated by the Pareto front; larger hypervolumes correspond with more optimal solutions discovered (i.e., minimal IAE and CM). Note that the disturbance variables were the feed rate and reflux rate, which were stepped randomly during each tuning experiment. This reflects the actual use case where operators might perform steps on various streams and the tuning system needs to be able to accommodate these external changes. ControlBO was able to find better controller parameters over the course of 20 tuning experiments, improving its approximation of the Pareto front. The classifier did not lead any improvement over the normal single-task BO strategy. 
+To analyze the performance of ControlBO, I analyzed the performance of ControlBO wih and without a multifidelity model. Additionally, I observed that some simulations fail, so I evaluatd it was optimal to use all data by setting large objective values for failed simulations ("All Data" or simply ignore these simulations ("Success only").  Figure \ref{fig:hypervolume_comparison} shows the hypervolume with respect to a fixed reference point during the tuning experiments. As noted in Chapter \ref{ch:summit}, hypervolume is a measure of the volume dominated by the Pareto front; larger hypervolumes correspond with more optimal solutions discovered (i.e., minimal IAE and CM). Note that the disturbance variables were the feed rate and reflux rate, which were stepped randomly during each tuning experiment. This reflects the actual use case where operators might perform steps on various streams and the tuning system needs to be able to accommodate these external changes. 
+
+All ControlBO were able to find better controller parameters over the course of 20 tuning experiments, improving its approximation of the Pareto front. Furthermore, using the auxiliary data from simulations resulted in faster optimization with optimal tuning parameters being found within 2-3 tuning experiments compared 5-10 for single fidelity. Furthermore, using data from only successfull simulations improved both the single-fidelity and multifidelity strategies. This indicates that methods that can automatically classifiy success of simulations could improve the performance of ControlBO in the future.
 
 % Figure 5: Hypervolume vs iterations
 \begin{figure}
@@ -539,38 +541,29 @@ To analyze the performance of ControlBO, I first used only the single-task model
     \label{fig:hypervolume_comparison}
 \end{figure}
 
-
-% Figure 7: Pareto front
-% \begin{figure}
-%     \centering
-%     \includegraphics{}
-%     \caption{Caption}
-%     \label{fig:enter-label}
-% \end{figure}
-
-
-% Figure 8: Controller behavior after tuning
-% (just manipulated and controlled variables)
-
-
-\subsection{Transfer learning does not accelerate controller tuning}
-
-Subsequently, I tested whether a multitask model trained on 100 tuning experiments from an auxiliary simulation could improve the speed at which tuning occcurs. The multitask model should have better correlation but it doesn't. The success classifier doesn't help at all. This is likely due to the fact that the model is able to optimize the controller parameters without many changes and can find the best attainable parameters in  a few iterations. In other words, the problem is made easier by the poor quality of the distillation model.
+In Figure \ref{fig:comparison_controlbo}, I create a performance metric to compare the final tuning of each optimization strategy. The metric is as follows:  
 
 \begin{equation}
 \begin{split}
-    Objective = IAE_{sump} + IAE_{condenser} +  & \\ IAE_{composition} +  CM_{sump} + & \\  CM_{condenser} + CM_{composition}
+    Objective = w_1 IAE_{sump} + w_2 IAE_{condenser} +  & \\ w_3 IAE_{composition} +  w_4 CM_{sump} + & \\  w_5 CM_{condenser} + w_6 CM_{composition}
 \end{split}
 \end{equation}
+
+where $w_i$ is a weighting which is the inverse of the maximum value of each objective. The single-fidelity strategy obtains the best overall tuning despite requiring more tuning experiments to achieve this performance. 
 
 \begin{figure}
     \centering
     \includegraphics[width=\textwidth]{gfx/Chapter06/comparison.png}
-    \caption{Comparison of ControlBO with/without multitask model and with/without success classifier.}
+    \caption{Comparison of ControlBO with/without multitask model and with/without using all data.}
     \label{fig:comparison_controlbo}
 \end{figure}
 
+% Subsequently, I tested whether a multitask model trained on 100 tuning experiments from an auxiliary simulation could improve the speed at which tuning occcurs. The multitask model should have better correlation but it doesn't. The success classifier doesn't help at all. This is likely due to the fact that the model is able to optimize the controller parameters without many changes and can find the best attainable parameters in  a few iterations. In other words, the problem is made easier by the poor quality of the distillation model.
+
+
 \section{Conclusion}
 
-Here I compared several appraoches to optimizing control systems distillation columns using Bayesian optimization. I developed a simulation of a distillation column, which I aligned to experiments conducted by BASF. Subsequently, I used this simulation to explore the use of ControlBO, a multifidelity, multiobjecitve Bayesian optimization strategy designed for controller tuning. I found that ControlBO could find optimal tuning parameters within twenty experiments. However,  using ControlBO in multifidelity mode (i.e., with a multitask model) did not significantly improve the performance of the optimization strategy, nor did using a classifier to filter out failing simulations.
+Here, I compared several appraoches to optimizing control systems distillation columns using Bayesian optimization. I developed a simulation of a distillation column, which I aligned to experiments conducted by BASF. Subsequently, I used this simulation to explore the use of ControlBO, a multifidelity, multiobjecitve Bayesian optimization strategy designed for controller tuning. I found that ControlBO could find optimal tuning parameters within twenty experiments. Using ControlBO in multifidelity mode (i.e., with a multitask model) improved the speed of optimization but did not result in better final tuning. Additionally, using only data from successful simulations improved tuning performance.
+
+This work is a first step in the direction of leveraging a combination of simulation and machine learning to accelerate controller tuning. However, There are significant challenges both in developing a robust dynamic simulation of a distillation column and applying Bayesian optimization to controller tuning. My distillation simulation does not take into account dynamic pressure changes, which do occur in actual laboratory distillation columns. While our experimental data suggest that pressure drop changes are small in the specific case study due to the use of a vacuum pump for control, more general application of this approach would require taking into account these pressure dynamics to accurately represent dynamic behavior. Similarly, our Bayesian optimization strategy only uses simple time-domain controller performance metrics, while frequency domain performance metrics might give more transferable results. Additionally, we test only on simulations here, but deployment on a real distillation column would be key to verifying the viability of our approach.
 

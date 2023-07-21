@@ -287,6 +287,7 @@ Normalization of states and actions can improve the performance of an RL algorit
 The distillation model, PID controllers and RL algorithms are implemented in python. The source code can be found on \href{https://github.com/sustainable-processes/distillation_control}{Github}. The RK45 integration method in SciPy is used for solving the distillation column model \cite{2020SciPy-NMeth}, and the python package simple-pid is utilized for modeling PID controllers \cite{Lundberg2019}.The implementation of PPO is taken from the OpenAI spinning up package. The environment implements a step method that takes actions from the RL algorithms (i.e., new controller parameters) and outputs the new state and rewards after stepping forward ten minutes in simulation time. The RL algorithms iteratively call step until the environment determines an episode is terminated. Episodes are terminated at the maximum episode time. Training of a policy with two layers of twelve hidden units required approximately three hours on a machine with 16 parallel workers. The learning rate of the value and policy networks was 1e-4. Other simulation parameters are shown in Table \ref{parameters_table}.
 
 \begin{table}[bt]
+  \caption{Values of parameters used for distillation column simulations. Code Name refers to the name of the variable in the software.}
   \begin{tabular}{cccc}
     Variable & Code Name & Units & Default \\
     \hline
@@ -307,7 +308,7 @@ The distillation model, PID controllers and RL algorithms are implemented in pyt
 	$K^{Process}_{temperature}$ & Kp\_temperature & seconds deg C/kmol & -0.021 \\
 	$\tau^{Process}_{temperature}$ & Taup\_temperature & seconds & 7200 \\
   \end{tabular}
-  \caption{Values of parameters used for distillation column simulations. Code Name refers to the name of the variable in the software.}
+
   \label{parameters_table}
 \end{table}
 
