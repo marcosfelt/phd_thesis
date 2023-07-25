@@ -461,7 +461,7 @@ Given the initialization, the full steady state simulation was then solved and u
         s.t. \;\; 0 = \mathbf g(\mathbf X, \boldsymbol \theta)
     \end{align}
 \end{subequations}
-where $\mathbf X$ are the state variables in Table X  and $\boldsymbol \theta = \{\boldsymbol \theta_{est}, \boldsymbol \theta_{const} \}$.  $\boldsymbol \theta_{est}$ are the parameters to be estimated in Table \ref{tab:param_estimation} and $\boldsymbol \theta_{const}$. $\Delta P$ is the column pressure drop, and $w_p$ is a weighting for pressure drop objective, set nominally to 100.  $\mathbf f$ is the system of equations represented by equations in section \ref{sec:distillation_model} with all derviatives set equal to zero. 
+where $\mathbf X$ are the state variables and $\boldsymbol \theta = \{\boldsymbol \theta_{est}, \boldsymbol \theta_{const} \}$.  $\boldsymbol \theta_{est}$ are the parameters to be estimated in Table \ref{tab:param_estimation} and $\boldsymbol \theta_{const}$. $\Delta P$ is the column pressure drop, and $w_p$ is a weighting for pressure drop objective, set nominally to 100.  $\mathbf f$ is the system of equations represented by equations in section \ref{sec:distillation_model} with all derviatives set equal to zero. 
 % \{\mathbf x, \mathbf y, \mathbf T, \mathbf L, \mathbf n\}$ 
 \begin{sidewaystable}[]
     \centering
@@ -481,7 +481,7 @@ where $\mathbf X$ are the state variables in Table X  and $\boldsymbol \theta = 
     \label{tab:param_estimation}
 \end{sidewaystable}
 
-I used the steady state simulation as the initialization for dynamic simulation. The simulation was stepped forward in thirty second intervals using a sequential approach. 
+I used the steady state simulation as the initialization for dynamic simulation. The simulation was stepped forward in thirty second intervals using a sequential integration approach. 
 
 % In Figure \ref{fig:validation}a, we show that using the estimated parameters with settings from a different day of experiments gives good alignment between simulation and experiment.  An example closed-loop dynamic simulation is shown in Figure Xb, which demonstrates that the dynamic simulation aligns closely to the experimental dynamics. 
 
@@ -522,16 +522,17 @@ While, the steady state simulation, we found that the dynamic simulation did not
 \begin{figure}
     \centering
     \includegraphics[width=\textwidth]{gfx/Chapter06/2021_11_17_closed_loop_dynamic.png}
-    \caption{Dynamic simulation after parameter estimation of a separation of 50/50 methanol-water separation in a distillation column with 80 bubble cap trays. \textbf{Top left}: Liquid composition over time. \textbf{Top right}: Temperature over time. \textbf{Bottom left}: Flow over time \textbf{Bottom right}: Holdups in condenser and reobiler.}
+    \caption{Dynamic simulation after parameter estimation of a separation of 50/50 methanol-water separation in a distillation column with 80 bubble cap trays. \textbf{Top left}: Liquid composition over time. \textbf{Top right}: Temperature over time. \textbf{Bottom left}: Flow over time \textbf{Bottom right}: Holdups in condenser and reboiler.}
     \label{fig:dynamic_nominal}
 \end{figure}
 
 
+
 \subsection{Optimization of controller parameters}
 
-To analyze the performance of ControlBO, I analyzed the performance of ControlBO wih and without a multifidelity model. Additionally, I observed that some simulations fail, so I evaluatd it was optimal to use all data by setting large objective values for failed simulations ("All Data" or simply ignore these simulations ("Success only").  Figure \ref{fig:hypervolume_comparison} shows the hypervolume with respect to a fixed reference point during the tuning experiments. As noted in Chapter \ref{ch:summit}, hypervolume is a measure of the volume dominated by the Pareto front; larger hypervolumes correspond with more optimal solutions discovered (i.e., minimal IAE and CM). Note that the disturbance variables were the feed rate and reflux rate, which were stepped randomly during each tuning experiment. This reflects the actual use case where operators might perform steps on various streams and the tuning system needs to be able to accommodate these external changes. 
+To analyze the performance of ControlBO, I analyzed the performance of ControlBO wih and without a multifidelity model. Additionally, I observed that some simulations fail, so I evaluated it was optimal to use all data by setting large objective values for failed simulations ("All Data" or simply ignore these simulations ("Success only").  Figure \ref{fig:hypervolume_comparison} shows the hypervolume with respect to a fixed reference point during the tuning experiments. As noted in Chapter \ref{ch:summit}, hypervolume is a measure of the volume dominated by the Pareto front; larger hypervolumes correspond with more optimal solutions discovered (i.e., minimal IAE and CM). Note that the disturbance variables were the feed rate and reflux rate, which were stepped randomly during each tuning experiment. This reflects the actual use case where operators might perform steps on various streams and the tuning system needs to be able to accommodate these external changes. 
 
-All ControlBO were able to find better controller parameters over the course of 20 tuning experiments, improving its approximation of the Pareto front. Furthermore, using the auxiliary data from simulations resulted in faster optimization with optimal tuning parameters being found within 2-3 tuning experiments compared 5-10 for single fidelity. Furthermore, using data from only successfull simulations improved both the single-fidelity and multifidelity strategies. This indicates that methods that can automatically classifiy success of simulations could improve the performance of ControlBO in the future.
+All ControlBO variations were able to find better controller parameters over the course of 20 tuning experiments, improving its approximation of the Pareto front. Furthermore, using the auxiliary data from simulations resulted in faster optimization with optimal tuning parameters being found within 2-3 tuning experiments compared 5-10 for single fidelity. Furthermore, using data from only successfull simulations improved both the single-fidelity and multifidelity strategies. This indicates that methods that can automatically classifiy success of simulations could improve the performance of ControlBO in the future.
 
 % Figure 5: Hypervolume vs iterations
 \begin{figure}
@@ -559,6 +560,25 @@ where $w_i$ is a weighting which is the inverse of the maximum value of each obj
 \end{figure}
 
 % Subsequently, I tested whether a multitask model trained on 100 tuning experiments from an auxiliary simulation could improve the speed at which tuning occcurs. The multitask model should have better correlation but it doesn't. The success classifier doesn't help at all. This is likely due to the fact that the model is able to optimize the controller parameters without many changes and can find the best attainable parameters in  a few iterations. In other words, the problem is made easier by the poor quality of the distillation model.
+
+% Controller plots before and after tuning
+
+\section{Why does the multi-task model improve performance}
+
+% Table with MAE and r2 when using single-task vs multitask model
+
+
+\section{Why does using a classifier improve performance?}
+
+% Classifier calibration
+\begin{figure}
+    \centering
+    \includegraphics[width=\textwidth]{gfx/Chapter06/classifier_calibration.png}
+    \caption{Calibration curve of GP classifier trained on 80\% of pretraining data for ControlBO optimization and tested on the remaining 20\%. The correlation of predicted and actual probability of success suggests that classifier is well calibrated.}
+    \label{fig:classifier_calibration}
+\end{figure}
+
+% Comparison of success rate with and without classifier
 
 
 \section{Conclusion}
