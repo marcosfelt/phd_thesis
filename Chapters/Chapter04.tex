@@ -27,7 +27,6 @@ As shown in Figure \ref{fig:multitask_overview}a-b, MTBO changes the probabilist
 \end{equation}
 The task kernel $k^t_{\theta}$ is a $T \times T$ matrix of trainable parameters where $T$ is the number of tasks. These parameters represent the inter-task correlation.
 
-
 \begin{figure}
     \centering
     \includegraphics[width=1.2\textwidth]{gfx/Chapter04/paper_figure_1.png}
@@ -35,15 +34,12 @@ The task kernel $k^t_{\theta}$ is a $T \times T$ matrix of trainable parameters 
     \label{fig:multitask_overview}
 \end{figure}
 
-As a simple illustration of the benefits of multi-task GPs, I created example functions with one input and one output, then trained both a GP and multi-task GP on only three data points. In the multi-task GP case, we also generated 25 data points from an auxiliary task. As shown in Figure \ref{fig:multitask_overview}c, when the main and the auxiliary tasks are similar, the predictions from the multi-task GP (shown as samples from the posterior of the GP) more accurately represent the underlying function than the predictions from the single-task GP. The multi-task GP leverages covariance between the data in the two tasks to improve predictions on the main task, even with limited data for the main task - this is shown formally in the Methods section. As shown in Figure 1d, when the main and the auxiliary tasks are divergent, predictions from the single-task and multi-task GP are highly variable. However, this variability in the multi-task GP is still useful because the BO algorithm will explore to better capture the underlying distribution of the main task.
-
+As a simple illustration of the benefits of multi-task GPs, I created example functions with one input and one output, then trained both a GP and multi-task GP on only three data points. In the multi-task GP case, we also generated 25 data points from an auxiliary task. As shown in Figure \ref{fig:multitask_overview}c, when the main and the auxiliary tasks are similar, the predictions from the multi-task GP (shown as samples from the posterior of the GP) more accurately represent the underlying function than the predictions from the single-task GP. The multi-task GP leverages the covariance between the data in the two tasks to improve predictions on the main task, even with limited data for the main task. As shown in Figure 1\ref{fig:multitask_overview}, when the main and the auxiliary tasks are divergent, predictions from the single-task and multi-task GP are highly variable. However, this variability in the multi-task GP is still useful because the BO algorithm will explore to better capture the underlying distribution of the main task.
 
 \subsection{Benchmarks}
 % Prior to real experimentation, we wanted to understand the performance of MTBO in simulated studies. We examined two literature reports that contain experimental results from Suzuki-Miyaura coupling reactions \cite{Baumgartner2018, Reizman2016b}, and one report with results from a Buchwald-Hartwig cross-coupling[51] (demonstrated in the Supporting Information), building a predictive model for the reaction yield to behave as the ground-truth for simulated optimization studies. Buchwald-Hartwig and Suzuki-Miyaura couplings are ubiquitous in the pharmaceutical and fine chemicals industries as they allow rapid construction of aromatic scaffolds through reactions with few impurities.[52] We therefore chose these reaction classes because of their high value and applicability to real-world scenarios. More details on benchmark training can be found in the Appendix.
 
-I used literature data to benchmark our strategies \textit{in silico}. The challenge is that chemical data is often recorded in unstructured text documents such as journal publications and patents. While there are some conventions, each author is free to express the details of a chemical reaction as they wish. Such unstructured information is not amenable to most machine learning algorithms. Therefore, I designed a custom data extraction workflow that I think is a model for how to apply transfer learning in chemistry.
-
-As shown in Figure \ref{fig:ord_pipeline}, the workflow that converts unstructured data into benchmarks that can be used for comparing various strategies. I leveraged the Open Reaction Database (ORD) format as a common representation of reactions \cite{Kearnes2021}. I wrote converters from spreadsheet formats to ORD. Once the data was transformed into ORD, the data was loaded into local storage on disk. Subsequently, the featurization step turned the ORD schema into a set of features that can be used for training a benchmark or a GP for Bayesian Optimization.  I used one-hot encodings to represent the categorical variables. 
+I used literature data to benchmark our strategies \textit{in silico}. The challenge is that chemical data is often recorded in unstructured text documents such as journal publications and patents. While there are some conventions, each author is free to express the details of a chemical reaction as they wish. Such unstructured information is not amenable to most machine learning algorithms. Therefore, I designed a custom data extraction workflow, shown in Figure \ref{fig:ord_pipeline}, that converts unstructured data into benchmarks that can be used for comparing various strategies. I leveraged the Open Reaction Database (ORD) format as a common representation of reactions \cite{Kearnes2021}. I wrote converters from spreadsheet formats to ORD. Once the data was transformed into ORD, the data was loaded into local storage on disk, and, subsequently, the featurization step turned the ORD schema into a set of features that can be used for training a benchmark or a GP for Bayesian Optimization.
 
 \begin{figure}[t]
     \centering
@@ -52,7 +48,7 @@ As shown in Figure \ref{fig:ord_pipeline}, the workflow that converts unstructur
     \label{fig:ord_pipeline}
 \end{figure}
 
-I examined two literature reports that contain experimental results from Suzuki-Miyaura coupling reactions \cite{Baumgartner2018, Reizman2016b} ,and one report with results from a Buchwald-Hartwig cross-coupling \cite{Baumgartner2019}, building a predictive model for the reaction yield to behave as the ground-truth for simulated optimization studies. Buchwald-Hartwig and Suzuki-Miyaura couplings are ubiquitous in the pharmaceutical and fine chemicals industries as they allow rapid construction of aromatic scaffolds through reactions with few impurities \cite{Brown2016}. I therefore chose these reaction classes because of their high value and applicability to real-world scenarios. The specific reactions used are detailed in Figures \ref{fig:benchmarks_cn} and \ref{fig:benchmarks_suzuki}.
+I examined two literature reports that contain experimental results from Suzuki-Miyaura coupling reactions \cite{Baumgartner2018, Reizman2016b} and one report with results from a Buchwald-Hartwig cross-coupling \cite{Baumgartner2019}. Buchwald-Hartwig and Suzuki-Miyaura couplings are ubiquitous in the pharmaceutical and fine chemicals industries as they allow rapid construction of aromatic scaffolds through reactions with few impurities \cite{Brown2016}. I therefore chose these reaction classes because of their high value and applicability to real-world scenarios. The specific reactions used are detailed in Figures \ref{fig:benchmarks_cn} and \ref{fig:benchmarks_suzuki}.
 
 
 \begin{figure}
@@ -63,7 +59,7 @@ I examined two literature reports that contain experimental results from Suzuki-
     \label{fig:benchmarks_cn}
 \end{figure}
 
-I leveraged Summit to build the predictive models from the literature reports. I utilized the ExperimentalEmulator feature in Summit, which creates a benchmark based on experimental data. The regressor used was a neural network with one hidden layer of 512 units with a ReLu activation function. A one-hot encoding was used for the pre-catalyst and ligand combinations. The neural networks were trained by five-fold cross validation over 1000 epochs using stochastic gradient descent. See Appendix \ref{ch:benchmarking_appendix} for the parity plots for the benchmarks. 
+I leveraged Summit to build the predictive models from the literature reports. I utilized the ExperimentalEmulator feature in Summit (see Chapter \ref{ch:summit}). The regressor used was a neural network with one hidden layer of 512 units with a ReLu activation function. A one-hot encoding was used for the pre-catalyst and ligand combinations. The neural networks were trained by five-fold cross validation over 1000 epochs using stochastic gradient descent. See the Appendix \ref{ch:benchmarking_appendix} for the parity plots for the benchmarks. 
 
 \subsection{Flow Reactor Platform}
 
@@ -81,7 +77,7 @@ Please note that all experimental work was completed by Dr Connor Taylor. The re
 
 \subsection{In Silico Case Studies: Suzuki-Miyaura Couplings}
 
-I first executed \textit{in silico} MTBO studies using model chemical reactions as benchmarks. These models were generated using neural networks trained on literature experimental data that predict reaction yield; more detail on these models can be found in the Methods section. The model `Suzuki B1' was trained using Suzuki cross-coupling data from Baumgartner \textit{et al.} \cite{Baumgartner2018}, while the models `Suzuki R1-4' were trained using data from Reizman \textit{et al.}\cite{Reizman2016a}.  These specific transformations and the variables that affect these models are shown in Figure \ref{fig:benchmarks_suzuki}.
+I first executed \textit{in silico} MTBO studies using model chemical reactions as benchmarks. These models were generated using neural networks trained on literature experimental data that predict reaction yield. The model `Suzuki B1' was trained using Suzuki cross-coupling data from Baumgartner \textit{et al.} \cite{Baumgartner2018}, while the models `Suzuki R1-4' were trained using data from Reizman \textit{et al.}\cite{Reizman2016a}.  These specific transformations and the variables that affect these models are shown in Figure \ref{fig:benchmarks_suzuki}.
 
 \begin{figure}
     \centering
@@ -95,19 +91,29 @@ Four specific case studies are highlighted in Figure \ref{fig:baumgartner_multit
 \begin{figure}
     \centering
     \includegraphics[width=1.2\textwidth]{gfx/Chapter04/baumgartner_suzuki_reizman_suzuki_one_cotraining_optimization.png}
-    \caption{A comparison of the performance of single-task Bayesian optimization (STBO) and multi-task Bayesian optimization (MTBO) of Suzuki B1 with Suzuki R1-R4 as auxiliary tasks. The average best yield with a 95 \% confidence interval over 20 repeats is shown. The label above each plot refers to the auxiliary (Aux.) task based on the names in Scheme 1, where Suzuki is abbreviated to S.}
+    \caption{A comparison of the performance of single-task Bayesian optimization (STBO) and multi-task Bayesian optimization (MTBO) of Suzuki B1 with Suzuki R1-R4 as auxiliary tasks. The average best yield with a 95 \% confidence interval over 20 repeats is shown. The label above each plot refers to the auxiliary (Aux.) task based on the names in Figure \ref{fig:benchmarks_suzuki}, where Suzuki is abbreviated to S.}
     \label{fig:baumgartner_multitask}
 \end{figure}
 
 When leveraging Suzuki R1 as an auxiliary training task, MTBO initially suggested optimal conditions from the training task with P1-L4 (XantPhos). However, these give very low yields (25 \%) which leads to further exploration of the chemical space, resulting in optimal conditions with P1-L1 (XPhos) and a higher yield than STBO. The additional strength shown by MTBO in this case study is the greater speed in obtaining optimal results.
 
-In the second case study, when the auxiliary task is Suzuki R2, MTBO appears to perform poorly - this is likely due to the low reactivity observed in Suzuki R2 and a noisy simulation benchmark (see Figure S8). In this case, the best conditions from the training task also do not perform well on the main task, but the yield is moderate enough that it makes further exploration of the chemical space initially difficult in obtaining a better response. This suggests that MTBO may bias the training data in these circumstances when higher yields are possible but not expected, when given very low-yielding auxiliary tasks. 
+In the second case study, when the auxiliary task is Suzuki R2, MTBO appears to perform poorly, which is likely due to the low reactivity observed in Suzuki R2 and a noisy simulation benchmark. In this case, the best conditions from the training task also do not perform well on the main task, but the yield is moderate enough that it makes further exploration of the chemical space initially difficult in obtaining a better response. This suggests that MTBO may bias the training data in these circumstances when higher yields are possible but not expected, when given very low-yielding auxiliary tasks. 
 
-In the case studies where the auxiliary tasks were Suzuki R3-4, the reactivity of the substrates was much more similar in both the main and the training tasks, leading to similar optimal conditions being found. This means that MTBO achieved better, and much faster, results than STBO in these cases. 
+To further investigate this issue, I plotted a measure of uncertainty calibration of the the single-task and multi-task GPs at each step in the optimization. As shown in Figure  \ref{fig:uncertainty_multitask}, with more data, the single-task GP better calibrated the uncertainty of its predictions with the error on a holdout set of data, while the calibration of the multi-task model worsened. This suggests that the noise of the auxiliary task can have an affect on the uncertainty calibration of the mulit-task model.
 
-STBO HS has variable performance relying heavily on the initial conditions it is started with. Overall, we observe that MTBO is less sensitive to changes in optima than MTBO, but MTBO is more sensitive to getting stuck in local optima that might be far away from the condition used initially. 
+\begin{figure}
+    \centering
+    \includegraphics[width=0.6\textwidth]{gfx/Chapter04/baumgartner_suzuki_reizman_suzuki_case_2_optimization_uncertainty.png}
+    \caption{Spearman's rank correlation coefficient ($\rho$) between standard deviation of predictions and absolute error on holdout set data. A higher value indicates a more calibrated model.}
+    \label{fig:uncertainty_multitask}
+\end{figure}
 
-Performance of MTBO can be greatly improved using \textit{multiple} auxiliary tasks. As shown in Figure \ref{fig:baumgartner_suzuki_reizman_suzuki_all_cotraining_optimization}a, when Suzuki B1 is optimized with Suzuki R1-R4 as auxiliary tasks, the optimal conditions are always found by MTBO in fewer than five experiments. Both P1-L1 and P2-L1 are considered optimal for this reaction, and MTBO selects these two catalysts in over 80 \% of experiments during twenty repeats, when compared to \textless{} 50 \% frequency for STBO - this is highlighted in Figure \ref{fig:baumgartner_suzuki_reizman_suzuki_all_cotraining_optimization}b. As MTBO utilizes optimal regions of chemical space that have been identified in previous tasks with similar reactivity, this allows the strategy to identify new (and better performing) optimal reaction conditions faster.
+
+In the case studies where the auxiliary tasks were Suzuki R3-4, the reactivity of the substrates were much more similar in both the main and the training tasks, leading to similar optimal conditions being found. This means that MTBO achieved better, and much faster, results than STBO in these cases. 
+
+STBO HS has variable performance relying heavily on the initial conditions provided. Overall, we observe that MTBO is less sensitive to changes in optima than MTBO, but MTBO is more sensitive to getting stuck in local optima that might be far away from the condition used initially. 
+
+Performance of MTBO can be improved using \textit{multiple} auxiliary tasks. As shown in Figure \ref{fig:baumgartner_suzuki_reizman_suzuki_all_cotraining_optimization}a, when Suzuki B1 is optimized with Suzuki R1-R4 as auxiliary tasks, the optimal conditions are always found by MTBO in fewer than five experiments. Both P1-L1 and P2-L1 are considered optimal for this reaction, and MTBO selects these two catalysts in over 80 \% of experiments during twenty repeats, when compared to \textless{} 50 \% frequency for STBO - this is highlighted in Figure \ref{fig:baumgartner_suzuki_reizman_suzuki_all_cotraining_optimization}b. As MTBO utilizes optimal regions of chemical space that have been identified in previous tasks with similar reactivity, this allows the strategy to identify new (and better performing) optimal reaction conditions faster.
 
 \begin{figure}
     \includegraphics[width=\textwidth]{gfx/Chapter04/catalyst_optimization.png}

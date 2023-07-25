@@ -506,7 +506,7 @@ I used the steady state simulation as the initialization for dynamic simulation.
 
 In order to build a simulation that could be used for examining the effectiveness of multifidelity BO for controller tuning, I aligned the simulation to experimental data collected at BASF. The resulting steady-state simulation after parameter estimation is shown in Figure \ref{fig:estimated}, which aligns well to the experimental temperature profile. I used an average of the experimental stage temperatures over nine hours of steady state experimental data for parameter estimation. 
 
-The simulated steady state temperature profile aligns well with the experimentally measured temperatures. In particular, the simulation is able to capture the rapid change in temperature between stage 10 and 20. However, the temperature of the middle section of the column is significantly lower than the experimentally measured values. This discrepancy could be due to a number of missing phenomena in the simulation including the heaters in the real column used to prevent heat loss from the column. These heaters could potentially increase the temperature of the internals of the column in a nonlinear fashion throughout the column. 
+The simulated steady state temperature profile aligns well with the experimentally measured temperatures. In particular, the simulation is able to capture the strong change in temperature between stage 10 and 20. However, the temperature of the middle section of the column is significantly lower than the experimentally measured values. This discrepancy could be due to a number of missing phenomena in the simulation including the heaters in the real column used to prevent heat loss from the column. These heaters could potentially increase the temperature of the internals of the column in a nonlinear fashion throughout the column. 
 
 % Figure 3: Steady state simulation
 \begin{figure}
@@ -526,13 +526,9 @@ While, the steady state simulation, we found that the dynamic simulation did not
     \label{fig:dynamic_nominal}
 \end{figure}
 
-
-
 \subsection{Optimization of controller parameters}
 
-To analyze the performance of ControlBO, I analyzed the performance of ControlBO wih and without a multifidelity model. Additionally, I observed that some simulations fail, so I evaluated it was optimal to use all data by setting large objective values for failed simulations ("All Data" or simply ignore these simulations ("Success only").  Figure \ref{fig:hypervolume_comparison} shows the hypervolume with respect to a fixed reference point during the tuning experiments. As noted in Chapter \ref{ch:summit}, hypervolume is a measure of the volume dominated by the Pareto front; larger hypervolumes correspond with more optimal solutions discovered (i.e., minimal IAE and CM). Note that the disturbance variables were the feed rate and reflux rate, which were stepped randomly during each tuning experiment. This reflects the actual use case where operators might perform steps on various streams and the tuning system needs to be able to accommodate these external changes. 
-
-All ControlBO variations were able to find better controller parameters over the course of 20 tuning experiments, improving its approximation of the Pareto front. Furthermore, using the auxiliary data from simulations resulted in faster optimization with optimal tuning parameters being found within 2-3 tuning experiments compared 5-10 for single fidelity. Furthermore, using data from only successfull simulations improved both the single-fidelity and multifidelity strategies. This indicates that methods that can automatically classifiy success of simulations could improve the performance of ControlBO in the future.
+To analyze the performance of ControlBO, I analyzed the performance of ControlBO wih and without a multifidelity model. Additionally, I observed that some simulations fail, so I evaluated it was optimal to use all data by setting large objective values for failed simulations ("All Data") or simply ignore these simulations ("Success only").  Figure \ref{fig:hypervolume_comparison} shows the hypervolume with respect to a fixed reference point during the tuning experiments. As noted in Chapter \ref{ch:summit}, hypervolume is a measure of the volume dominated by the Pareto front; larger hypervolumes correspond with more optimal solutions discovered (i.e., minimal IAE and CM). Note that the disturbance variables were the feed rate and reflux rate, which were stepped randomly during each tuning experiment. This reflects the actual use case where operators might perform steps on various streams and the tuning system needs to be able to accommodate these external changes. 
 
 % Figure 5: Hypervolume vs iterations
 \begin{figure}
@@ -541,6 +537,8 @@ All ControlBO variations were able to find better controller parameters over the
     \caption{Hypervolume trajectory of a single optimization run. Hypervolume is a measure of the volume dominated by the Pareto front; larger hypervolumes correspond with more optimal solutions discovered.}
     \label{fig:hypervolume_comparison}
 \end{figure}
+
+All ControlBO variations were able to find better controller parameters over the course of 20 tuning experiments, improving their approximation of the Pareto front. Furthermore, the combination of a classifier and using auxiliary data from simulations via the multi-task model resulted in faster optimization with optimal tuning parameters being found within 2-3 tuning experiments compared 5-10 with the single-task model. This speed of tuning represents several hours 
 
 In Figure \ref{fig:comparison_controlbo}, I create a performance metric to compare the final tuning of each optimization strategy. The metric is as follows:  
 
@@ -555,7 +553,7 @@ where $w_i$ is a weighting which is the inverse of the maximum value of each obj
 \begin{figure}
     \centering
     \includegraphics[width=\textwidth]{gfx/Chapter06/comparison.png}
-    \caption{Comparison of ControlBO with/without multitask model and with/without using all data.}
+    \caption{Comparison of ControlBO using various combinations of multitask model and success classifier.}
     \label{fig:comparison_controlbo}
 \end{figure}
 
