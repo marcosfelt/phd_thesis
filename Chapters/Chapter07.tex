@@ -145,27 +145,27 @@ In our case of predicting activity coefficients of binary mixtures at atmospheri
 
 Note that we predict the natural logarithm of the activity coefficient since these values can vary over an order of magnitude.
 
-\noindent
-\textbf{DeepGamma Polynomial:} Often, adding chemical knowledge into machine learning models can make them more accurate. In the case of activity coefficient prediction, it would be best to fit a thermodynamically consistent model such as the the non-random two liquid model (NRTL) \cite{Renon1968}. However, we found that many of the mixtures in our training set (see "Datasets") were difficult to fit using NRTL, often because the large correlations between its parameters \cite{Holler2019}. As shown in Figure \ref{fig:mnae_distribution}, the NRTL model had significant errors (>0.2) for many mixtures.
+% \noindent
+% \textbf{DeepGamma Polynomial:} Often, adding chemical knowledge into machine learning models can make them more accurate. In the case of activity coefficient prediction, it would be best to fit a thermodynamically consistent model such as the the non-random two liquid model (NRTL) \cite{Renon1968}. However, we found that many of the mixtures in our training set (see "Datasets") were difficult to fit using NRTL, often because the large correlations between its parameters \cite{Holler2019}. As shown in Figure \ref{fig:mnae_distribution}, the NRTL model had significant errors (>0.2) for many mixtures.
 
-\begin{figure}
-    \centering
-    \includegraphics[width=\textwidth]{gfx/Chapter07/error_distribution_fitting_cosmo.png}
-    \caption{Error distribution of mean normalized error of data fit using NRTL and polynomial models.}
-    \label{fig:mnae_distribution}
-\end{figure}
+% \begin{figure}
+%     \centering
+%     \includegraphics[width=\textwidth]{gfx/Chapter07/error_distribution_fitting_cosmo.png}
+%     \caption{Error distribution of mean normalized error of data fit using NRTL and polynomial models.}
+%     \label{fig:mnae_distribution}
+% \end{figure}
 
-I found empirically that the activity coefficient curves fit well to a fourth order polynomial model. While this  polynomial form does not necessarily ensure Gibbs-Duheim thermodynamic consistency\footnote{The Gibbs-Duheim equation relates changes in chemical potential to changes in temperature and pressure. $\sum_{i=1}^I N_i d\mu_i$ = -SdT + VdP. At equilibrium, the right hand side becomes zero, so traditional thermodynamic models like NRTL obey the equation $\sum_{i=1}^I N_i d\mu_i=0$.}, it should work well for the sole purpose of vapor liquid equilibrium activity coefficients (not liquid-liquid equilibrium for example). Therefore, I fitted fourth order polynomials to the activity coefficient data and used the D-MPNN to predict the coefficients of the polynomial model:
+% I found empirically that the activity coefficient curves fit well to a fourth order polynomial model. While this  polynomial form does not necessarily ensure Gibbs-Duheim thermodynamic consistency\footnote{The Gibbs-Duheim equation relates changes in chemical potential to changes in temperature and pressure. $\sum_{i=1}^I N_i d\mu_i$ = -SdT + VdP. At equilibrium, the right hand side becomes zero, so traditional thermodynamic models like NRTL obey the equation $\sum_{i=1}^I N_i d\mu_i=0$.}, it should work well for the sole purpose of vapor liquid equilibrium activity coefficients (not liquid-liquid equilibrium for example). Therefore, I fitted fourth order polynomials to the activity coefficient data and used the D-MPNN to predict the coefficients of the polynomial model:
 
-\begin{equation}
-    \ln \gamma_i(x_i,T) = \sum_{j=0}^4 c_{ij}(T)x^j
-\end{equation}
+% \begin{equation}
+%     \ln \gamma_i(x_i,T) = \sum_{j=0}^4 c_{ij}(T)x^j
+% \end{equation}
 
-\begin{equation}
-     \mathbf{c_{ij}} = R(h_v^T \in G, \mathbf{x}, T)
-\end{equation}
+% \begin{equation}
+%      \mathbf{c_{ij}} = R(h_v^T \in G, \mathbf{x}, T)
+% \end{equation}
 
-In the results, I compare direct prediction of activity coefficients and predicting polynomial coefficients.
+% In the results, I compare direct prediction of activity coefficients and predicting polynomial coefficients.
 
 \subsection{Datasets}
 
@@ -207,15 +207,15 @@ Previous work has demonstrated the power of transfer learning for improving pred
 \end{table}
 
 
-
-
 \textit{DeepGamma} is rapidly trained to reproduce results of COSMO-RS for activity coefficient prediction. It takes 2.5 days to train our best performing model, and predictions on more than 1M activity coefficients takes less than 30 minutes on a modern GPU. This is significant because generating the original data required over one month, representing a 1900x speed up.
 
 % In all our tables, we report mean absolute error for each model and holdout set. We also report the time required for training, as this varies significantly between the full and pretrained models. Fitting the polynomial model required approximately 24 hours.
 
-Results of training on the COSMO-RS activity coefficient dataset are shown in Table \ref{cosmo_rs_results}, the base DeepGamma model achieves the lowest mean absolute error on all holdout sets. Similar mean absolute errors are achieved on the validation and test datasets for all models. As expected, the Valid CONT holdout set has the lowest MAE due to the same molecules being in the training set and holdout set.  For the best performing base model, the INDP and MIX datasets have similar error profiles, indication that model has learned a good encoder representation.  Transfer learning models have slightly worse performance than the base models, but the transfer learning models take ~50\% less time to train. Part of the reason for poorer performance is that the Combisolv model was trained with a depth of four (i.e., number of message passing steps), while the COSMO-RS model only utilized three. Since each message passing step can cause changes in the atom representation, this difference in depth could effect quality of the final fingerprint formed. Interestingly, the DeepGamma Polynomial models have the worst performance of all models. Furthermore, there are significant differences in error between the different activity coefficients predicted by the DeepGamma Polynomial.  It is possible that further hyperparameter tuning could improve the accuracy of the model, particularly through changes in the encoder and feedforward network hidden size \cite{Yang2019, Vermeire2021}.
+Results of training on the COSMO-RS activity coefficient dataset are shown in Table \ref{cosmo_rs_results}, the base DeepGamma model achieves the lowest mean absolute error on all holdout sets. Similar mean absolute errors are achieved on the validation and test datasets for all models. As expected, the Valid CONT holdout set has the lowest MAE due to the same molecules being in the training set and holdout set.  For the best performing base model, the INDP and MIX datasets have similar error profiles, indication that model has learned a good encoder representation.  Transfer learning models have slightly worse performance than the base models, but the transfer learning models take ~50\% less time to train. Part of the reason for poorer performance is that the Combisolv model was trained with a depth of four (i.e., number of message passing steps), while the COSMO-RS model only utilized three. Since each message passing step can cause changes in the atom representation, this difference in depth could effect quality of the final fingerprint formed. 
 
-Results of training on the COSMO-RS activity coefficient dataset are shown in Table \ref{cosmo_rs_results}, the base DeepGamma model achieves the lowest mean absolute error on all holdout sets. Similar mean absolute errors are achieved on the validation and test datasets for all models. As expected, the Valid CONT holdout set has the lowest MAE due to the same molecules being in the training set and holdout set.  For the best performing base model, the INDP and MIX datasets have similar error profiles, indication that model has learned a good encoder representation.  Transfer learning models have slightly worse performance than the base models, but the transfer learning models take ~50\% less time to train. Part of the reason for poorer performance is that the Combisolv model was trained with a depth of four (i.e., number of message passing steps), while the COSMO-RS model only utilized three. Since each message passing step can cause changes in the atom representation, this difference in depth could effect quality of the final fingerprint formed. Interestingly, the DeepGamma Polynomial models have the worst performance of all models. Furthermore, there are significant differences in error between the different activity coefficients predicted by the DeepGamma Polynomial.  It is possible that further hyperparameter tuning could improve the accuracy of the model, particularly through changes in the encoder and feedforward network hidden size \cite{Yang2019, Vermeire2021}.
+% Interestingly, the DeepGamma Polynomial models have the worst performance of all models. Furthermore, there are significant differences in error between the different activity coefficients predicted by the DeepGamma Polynomial.  It is possible that further hyperparameter tuning could improve the accuracy of the model, particularly through changes in the encoder and feedforward network hidden size \cite{Yang2019, Vermeire2021}.
+
+Results of training on the COSMO-RS activity coefficient dataset are shown in Table \ref{cosmo_rs_results}, the base DeepGamma model achieves the lowest mean absolute error on all holdout sets. Similar mean absolute errors are achieved on the validation and test datasets for all models. As expected, the Valid CONT holdout set has the lowest MAE due to the same molecules being in the training set and holdout set.  For the best performing base model, the INDP and MIX datasets have similar error profiles, indication that model has learned a good encoder representation.  Transfer learning models have slightly worse performance than the base models, but the transfer learning models take ~50\% less time to train. Part of the reason for poorer performance is that the Combisolv model was trained with a depth of four (i.e., number of message passing steps), while the COSMO-RS model only utilized three. Since each message passing step can cause changes in the atom representation, this difference in depth could effect quality of the final fingerprint formed. Interestingly, the DeepGamma Polynomial models have the worst performance of all models.
 
 \begin{figure}[t]
     \centering
