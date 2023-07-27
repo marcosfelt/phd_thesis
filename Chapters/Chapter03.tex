@@ -21,7 +21,7 @@ In this chapter, I present a comparison of a wide range of potential strategies 
 
 The benchmarking is completed using an open-source python package I created called Summit. Summit is designed to make it possible for any scientist to execute standardized comparisons and repeatable tests of strategies. Additionally, Summit can be used for optimization of real experiments.
 
-In the subsequent sections, I review the history of self-optimization, the field from which machine learning for reaction optimization started. I also briefly discuss existing work on transfer learning for reaction optimization before detailing the strategies and benchmarks used in this chapter. Finally, I present results from benchmarking studies with Summit.
+In the subsequent sections, I review the history of self-optimization, the field from which machine learning for reaction optimization started before detailing the strategies and benchmarks used in this chapter. Finally, I present results from benchmarking studies with Summit.
 
 \begin{figure}
     \centering
@@ -62,7 +62,7 @@ Global optimization algorithms can identify the best value of a function indepen
 More recently, researchers have found success with Bayesian optimization (BO) algorithms \cite{Schweidtmann2018, Amar2019, Hase2020, Shields2021, Manson2021}. In work contemporary to Summit, Shields et al. showed that BO was efficient at optimizing both \textit{in silico} benchmarks and experimental case studies. Overall, Bayesian optimization offers a principled and efficient way to apply global optimization to chemical reactions and is discussed in more detail in Chapter \ref{ch:background}.
 
 \subsection{Categorical Variables}
-Each of the aforementioned algorithms only utilize continuous input variables (e.g. temperature, concentration, residence time), but chemistry problems often have categorical variables also (e.g. solvent, ligand etc.). To address this algorithmic limitation, the Jensen group used a branch-and-fit algorithm that eliminates possible values for categorical variables (e.g. particular solvents, ligands etc.) that resulted in low yield or high turn-over number \cite{Reizman2016a, Baumgartner2018}. This approach is less inefficient when compared to newer algorithms due to the need to fit a separate model for each categorical variable instead of developing one global model.
+Each of the aforementioned algorithms only utilize continuous input variables (e.g. temperature, concentration, residence time), but chemistry problems often have categorical variables also (e.g. solvent, ligand etc.). To address this algorithmic limitation, the Jensen group used a branch-and-fit algorithm that eliminates possible values for categorical variables (e.g. particular solvents, ligands etc.) that resulted in low yield or high turn-over number \cite{Reizman2016a, Baumgartner2018}. This approach is less efficient when compared to newer algorithms due to the need to fit a separate model for each categorical variable instead of developing one global model.
 
 Alternatively, it is possible to use optimization algorithms that inherently work with categorical variables. In two recent studies, Bayesian optimization algorithms were adapted to automatically learn the relationship between categorical variables from experimental data \cite{Manson2021, Hase2021}. These algorithms tended to perform slightly better in finding optimal reaction conditions than the aforementioned strategies that could not learn a relationship between categorical variables and may be a large research area of interest in future. Note that categorical variables can be explored by quantifying them with various ‘continuous variable’ chemical descriptors, though this is usually not effective in the limit of small data \cite{Pomberger2023}.
 
@@ -326,7 +326,7 @@ Chimera is a hierarchical ASF developed by Hase et al. \cite{Hase2018b, Hase2020
 \end{figure}
 
 \subsection{Computational Resources}
-All tests run for the original Summit paper were completed on the University of Cambridge Service for Data-Driven Discovery (CSD3), with the exception of the NelderMead strategies. Each test was run on a single CPU with 32 threads. Example scripts for running the tests on a similar cluster or single servers are available on Github. All tests run for the multi-task Bayesian optimization paper were completed on Lightning.ai, a cloud service for machine learning. This code is also available on \textbf{\href{https://github.com/sustainable-processes/multitask}{Github}}.
+All tests run for the original Summit paper were completed on the University of Cambridge Service for Data-Driven Discovery (CSD3), with the exception of the NelderMead strategies. Each test was run on a single CPU with 32 threads. Example scripts for running the tests on a similar cluster or single servers are available on Github. 
 
 
 \section{Results and Discussion}
@@ -354,7 +354,7 @@ Figure \ref{fig:hv_time_tradeoff} compares the performance of all strategies in 
     \label{fig:hv_time_tradeoff}
 \end{figure}
 
-Figure \ref{fig:hv_time_tradeoff}b plots the average hypervolume of each of the Bayesian optimization strategies over the course of 50 iterations. GRYFFIN quickly improves the quality of its suggestions with less than ten iterations, but TSEMO has better terminal performance. Both strategies have large confidence intervals with approximately 10 \% of repeats resulting in zero hypervolume. Still, their average performance is better than other strategies evaluated. The outstanding performance of TSEMO is likely linked to the fact that it trains individual surrogate models for each objective \cite{Bradford2018}, while the other strategies directly optimise the multi-objective transform value. As shown in \ref{ch:benchmarking_appendix}, there were not consistent patterns in which multi-objective transform worked best.
+Figure \ref{fig:hv_time_tradeoff}b plots the average hypervolume of each of the Bayesian optimization strategies over the course of 50 iterations. GRYFFIN quickly improves the quality of its suggestions with less than ten iterations, but TSEMO has better terminal performance. Both strategies have large confidence intervals with approximately 10 \% of repeats resulting in zero hypervolume. Still, their average performance is better than other strategies evaluated. The outstanding performance of TSEMO is likely linked to the fact that it trains individual surrogate models for each objective \cite{Bradford2018}, while the other strategies directly optimise the multi-objective transform value. As shown in Appendix \ref{ch:benchmarking_appendix}, there were not consistent patterns in which multi-objective transform worked best.
 
 \subsection{Optimization of C-N Cross Coupling}
 
@@ -390,7 +390,7 @@ The C-N benchmark presents trade-offs in the objectives. Increasing yield often 
     \label{tab:cn_benchmark_results}
 \end{table}
 
-\section{Conclusion}
+\section{Conclusions}
 
 Summit is a framework for optimization of chemical reactions. I present two benchmarks for reaction optimization and compare the performance of seven strategies with various combinations of multi-objective transforms on these benchmarks. Our results show that Bayesian optimization performs most consistently with TSEMO showing best-in-class performance on both benchmarks.
 

@@ -59,7 +59,7 @@ ControlBO is a multifidelity and multi-objective Bayesian optimization algorithm
 \end{equation}
 where $\Omega$ are the controller parameters and $\mathbf f$ is the laboratory controller tuning problem. $\delta$ are disturbance variables that might be stepped by operators or changed by other external factors. Similar to Paulson et al. \cite{Paulson2022}, I use a min max formulation where a GP is trained on both controller parameters $\Omega$ and values of disturbance variables from past tuning experiments. During acquisition function optimization, the disturbance variables are fixed at their maximum value, while the controllers parameters are varied to maximize the acquisition function. Fixing the disturbance variables ensures that robust controller parameters are chosen.
 
-ControlBO trains an independent multitask GP to predict each controller objective (IAE) and controller movement (CM) given the relevant controller parameters. The multitask GP is trained on both auxiliary simulation data and tuning experiments. This is what makes ControlBO multifidelity.
+ControlBO trains an independent multitask GP to predict each controller objective (IAE) and controller movement (CM) given the relevant controller parameters. The multitask GP is trained on both auxiliary simulation data and tuning experiments. By using data from the auxiliary simulation, my hope is that the optimization will proceed faster than when using only data from tuning experiments executed on the distillation column since the multi-task GP could learn the correlation between the simulation and the experimental data and thus make better predictions on the experiments with less data.
 
 Since our problem is multi-objective, I used a multi-objective acquisition function, namely the q Expected Hypervolume Improvement (qEHVI) \cite{Balandat2020}. This acquisition function has a balance of computational efficiency and fidelity resulting in an ability to find the Pareto front of trade-offs between objectives quickly. 
 
@@ -70,8 +70,7 @@ Additionally, I found that tuning experiments often fail due to controller param
 \end{equation}
 
 where $\alpha$ is the acquisition function.
-
-I developed a differential equation simulation of a distillation column that was aligned to experimental data using both steady state and dynamic parameter estimation. To leverage the simulation, I used a multi-task GP that could be trained on both the less abundant high fidelity experimental data and the more abundant low fidelity simulation data. I hoped that the multi-task GP could learn the correlation between the simulation and the experimental data and thus make better predictions on the experiments with less data.
+ 
 
 % Additionally, I found that the simulations often failed with certain controller parameters. Therefore, I trained a classifier to predict the likelihood of a successful simulation, which I expect to also correlate with reasonable experimental parameters. The probability of success predicted by the classifier was multiplied by the qNEHVI acquisition function value to form a chance constrained acquisition function:
 
@@ -79,7 +78,7 @@ I developed a differential equation simulation of a distillation column that was
 %     \alpha_{cc} = p(h \vert \mathcal D) \alpha_{qNEHVI}
 % \end{equation} 
 
-In practice, I optimized the high fidelity task when selecting  a new set of controller parameters ton run an experiment in the laboratory. Then, while waiting for the laboratory results, I optimized the lower fidelity task using the differential equation simulation with the most recently estimated parameters.  In the following section, I describe the simulation in detail.
+I developed a differential equation simulation of a distillation column that was aligned to experimental data using both steady state and dynamic parameter estimation. I generated two versions of this simulation: a "high fidelity" version that was aligned to experimental data and a "low fidelity" copy with slightly adjusted parameters. For evaluation of ControlBO, I first generated the data from a low fidelity simulation in advance with 500 randomly generated tuning experiments. Then, I used high fidelity simulation to represent the actual laboratory distillation column for evaluation of ControlBO \textit{in silico}. In the following section, I describe the simulation in detail.
 
 \subsection{Distillation Simulation}\label{sec:distillation_model}
 
@@ -469,7 +468,7 @@ Given the initialization, the full steady state simulation was then solved and u
         s.t. \;\; 0 = \mathbf g(\mathbf X, \boldsymbol \theta)
     \end{align}
 \end{subequations}
-where $\mathbf X$ are the state variables and $\boldsymbol \theta = \{\boldsymbol \theta_{est}, \boldsymbol \theta_{const} \}$.  $\boldsymbol \theta_{est}$ are the parameters to be estimated in Table \ref{tab:param_estimation} and $\boldsymbol \theta_{const}$. $\Delta P$ is the column pressure drop, and $w_p$ is a weighting for pressure drop objective, set nominally to 100.  $\mathbf f$ is the system of equations represented by equations in section \ref{sec:distillation_model} with all derviatives set equal to zero. 
+where $\mathbf X$ are the state variables and $\boldsymbol \theta = \{\boldsymbol \theta_{est}, \boldsymbol \theta_{const} \}$.  $\boldsymbol \theta_{est}$ are the parameters to be estimated in Table \ref{tab:param_estimation} and $\boldsymbol \theta_{const}$ are set using data from geometry of the column. $\Delta P$ is the column pressure drop, and $w_p$ is a weighting for pressure drop objective, set nominally to 100.  $\mathbf f$ is the system of equations represented by equations in section \ref{sec:distillation_model} with all derviatives set equal to zero. 
 % \{\mathbf x, \mathbf y, \mathbf T, \mathbf L, \mathbf n\}$ 
 \begin{sidewaystable}[]
     \centering
@@ -536,7 +535,7 @@ While, the steady state simulation, I found that the dynamic simulation did not 
 
 \subsection{Optimization of controller parameters}
 
-To analyze the performance of ControlBO, I analyzed the performance of ControlBO wih and without a multifidelity model.  Figure \ref{fig:hypervolume_comparison} shows the hypervolume with respect to a fixed reference point during the tuning experiments. As noted in Chapter \ref{ch:summit}, hypervolume is a measure of the volume dominated by the Pareto front; larger hypervolumes correspond with more optimal solutions discovered (i.e., minimal IAE and CM). Note that the disturbance variables were the feed rate and reflux rate, which were stepped randomly during each tuning experiment. This reflects the actual use case where operators might perform steps on various streams and the tuning system needs to be able to accommodate these external changes. 
+To evaluate the performance of ControlBO, I analyzed the performance of ControlBO wih and without a multifidelity model.  Figure \ref{fig:hypervolume_comparison} shows the hypervolume with respect to a fixed reference point during the tuning experiments. As noted in Chapter \ref{ch:summit}, hypervolume is a measure of the volume dominated by the Pareto front; larger hypervolumes correspond with more optimal solutions discovered (i.e., minimal IAE and CM). Note that the disturbance variables were the feed rate and reflux rate, which were stepped randomly during each tuning experiment. This reflects the actual use case where operators might perform steps on various streams and the tuning system needs to be able to accommodate these external changes. 
 
 % Figure 5: Hypervolume vs iterations
 \begin{figure}

@@ -240,6 +240,29 @@ P2Et          & 5        & 15       & \$601.00   & \$40.00
 
 \chapter{Additional Tables and Plots for ML-SAFT}
 
+\section{Analysis of PCP-SAFT parameters}\label{app:sensitivity}
+
+% PCP-SAFT sensitivity analysis was conducted on all molecules in the SEPP dataset  using the Sobol sensitivity analysis method within SALib.\cite{Iwanaga2022} The bounds on each parameter were set to ±10\% of their nominal SEPP values. Figure \ref{fig:sensitivity} shows the results sensitivity analysis.
+
+% Sensitivity analysis shows that $\epsilon/k$ plays a significant role in the prediction of vapor pressure, as well as $\sigma$, $m$, and the association parameters $\epsilon_{AB}$ and $\kappa_{AB}$. However, the vapor pressure predictions are not sensitive to the dipole moment $\mu$, a trend that is also observed for density predictions. For density, $\sigma$ is important while other parameters are less sensitive. 
+
+% \begin{figure}
+%     \centering
+%     \includegraphics[width=\textwidth]{gfx/Chapter08/sensitivity_analysis_boxplot.png}
+%     \caption{Results of sensitivity analysis of PCP-SAFT parameters on vapor pressure and density}
+%     \label{fig:sensitivity}
+% \end{figure}
+
+
+Figure \ref{fig:molecular_weight} shows each of the four parameters predicted by ML-SAFT versus the molecular weight of the molecules for the ML-SAFT dataset. I see a positive correlation between molecular weight and $m$ and $\sigma$, while little to no correlation is observed for $\epsilon/k$ and $\epsilon_{AB}$.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.8\textwidth]{gfx/Chapter08/mw_pcsaft_parameter_correlation.png}
+    \caption{Correlation between molecular weight and PCP-SAFT parameters predicted by ML-SAFT.}
+    \label{fig:molecular_weight}
+\end{figure}
+
 \section{Hyperparameter Tuning}
 
 The hyperparameters for each model were explored using a quasi-random design \cite{Bosquet2017} with a budget of 100 trials. The hyperparameters tuned for each model are shown in Table \ref{tab:hyperparameters}. The best hyperparameters for each model architecture was selected by evaluating the sum of the RMSE for all PCP-SAFT parameters.

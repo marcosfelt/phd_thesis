@@ -105,7 +105,7 @@ I used the homosegmented group contribution method from Sauer et al \cite{Sauer2
 
 Experimental data were extracted from the 2022 Dortmund Data Bank, which contains data for over 40k unique molecules \cite{dortmunddatabank}. The software package Pura \cite{purapython} was used to resolve the name or CAS numbers available in the Dortmund database into a cheminformatics friendly identifier, namely SMILES. Pura called on PubChem \cite{Kim2020}, the Chemical Identifier Resolver \cite{cir}, OPSIN \cite{Lowe2011}, and the Chemical Abstracts Service \cite{commonchem} to resolve a name or CAS number, and I required that at least two services agreed on the resolved SMILES. Pura resolved 68\% (27.2k/40.3k) of names or CAS numbers to SMILES. 
 
-The experimental data was subsequently filtered to obtain only data that were reasonable for PCP-SAFT regression. Ionic molecules were removed from the dataset as well as any molecules with temperatures outside of the range 200-1000 K and pressures outside the range 10-10000 kPa. Densities greater than 2000 $\text{kg/m}^{3}$ were also excluded. Finally, only molecules with at least four density data points and five vapor pressure data points were considered. After all filtering steps, the experimental data for 988 unique molecules were available for regression of PCP-SAFT parameters. This significant decrease in the size of the data set from 27k to 1k by the filtering step has been noted in other attempts to build models on data available in literature databases \cite{Fitzner2020, Gao2018}. 
+The experimental data were subsequently filtered to obtain only data that were reasonable for PCP-SAFT regression. Ionic molecules were removed from the dataset as well as any molecules with temperatures outside of the range 200-1000 K and pressures outside the range 10-10000 kPa. Densities greater than 2000 $\text{kg/m}^{3}$ were also excluded. Finally, only molecules with at least four density data points and five vapor pressure data points were considered. After all filtering steps, the experimental data for 988 unique molecules were available for regression of PCP-SAFT parameters. This significant decrease in the size of the data set from 27k to 1k by the filtering step has been noted in other attempts to build models on data available in literature databases \cite{Fitzner2020, Gao2018}. 
 
 \subsubsection{PCP-SAFT parameter regression}
 
@@ -139,7 +139,7 @@ where $p_i^{sat}(T_j)$ and $\rho_{i}^{l}(T_j, P_j)$ are the saturation vapor pre
 \begin{figure}
     \centering
     \includegraphics[width=\textwidth]{gfx/Chapter08/deepsaft_regression.png}
-    \caption{Building a dataset for ML-SAFT: (a) A workflow was developed to automatically regress PCP-SAFT parameters to pure component experimental data. A machine learning model (PaiNN) trained on  a combination of DFT and experimental data was used to predict the dipole moments of the experimental dataset, and the other parameters were initialized using standard values. (b-c) Example regression of PCP-SAFT to vapor pressure and density data for 2-ethoxyethanol using the Levenberg-Marquandt algorithm. The dashed line in the density plot represents liquid density.}
+    \caption{Building a dataset for ML-SAFT: (a) A workflow was developed to automatically regress PCP-SAFT parameters to pure component experimental data. A machine learning model (PaiNN) trained on  a combination of DFT and experimental data were used to predict the dipole moments of the experimental dataset, and the other parameters were initialized using standard values. (b-c) Example regression of PCP-SAFT to vapor pressure and density data for 2-ethoxyethanol using the Levenberg-Marquandt algorithm. The dashed line in the density plot represents liquid density.}
     \label{fig:ML-SAFT_regression}
 \end{figure}
 
@@ -349,26 +349,4 @@ Furthermore, I demonstrated that transfer learning from COSMO-RS simulations to 
 
 There are several ways in which ML-SAFT could be improved. First, the training data for ML-SAFT was primarily small molecules with less than 15 atoms. Previous work has shown that PCP-SAFT can effectively predict properties of larger drug-like molecules (e.g., solubility) \cite{Klajmon2020}, and the success of MPNNs in predicting the properties of drug-like molecules suggests that ML-SAFT would be effective given sufficient training data. Second, I do not predict the binary interaction coefficients, which has been shown to significantly improve the quality of PCP-SAFT predictions for mixtures. Future work could address this limitation by training models that contain message-passing between two molecular graphs. This would be a next step towards accurate predictions of multi-component mixture properties using PCP-SAFT.
 
-\section{Analysis of PCP-SAFT parameters}\label{app:sensitivity}
-
-% PCP-SAFT sensitivity analysis was conducted on all molecules in the SEPP dataset  using the Sobol sensitivity analysis method within SALib.\cite{Iwanaga2022} The bounds on each parameter were set to ±10\% of their nominal SEPP values. Figure \ref{fig:sensitivity} shows the results sensitivity analysis.
-
-% Sensitivity analysis shows that $\epsilon/k$ plays a significant role in the prediction of vapor pressure, as well as $\sigma$, $m$, and the association parameters $\epsilon_{AB}$ and $\kappa_{AB}$. However, the vapor pressure predictions are not sensitive to the dipole moment $\mu$, a trend that is also observed for density predictions. For density, $\sigma$ is important while other parameters are less sensitive. 
-
-% \begin{figure}
-%     \centering
-%     \includegraphics[width=\textwidth]{gfx/Chapter08/sensitivity_analysis_boxplot.png}
-%     \caption{Results of sensitivity analysis of PCP-SAFT parameters on vapor pressure and density}
-%     \label{fig:sensitivity}
-% \end{figure}
-
-
-Figure \ref{fig:molecular_weight} shows each of the four parameters predicted by ML-SAFT versus the molecular weight of the molecules for the ML-SAFT dataset. I see a positive correlation between molecular weight and $m$ and $\sigma$, while little to no correlation is observed for $\epsilon/k$ and $\epsilon_{AB}$.
-
-\begin{figure}
-    \centering
-    \includegraphics[width=0.8\textwidth]{gfx/Chapter08/mw_pcsaft_parameter_correlation.png}
-    \caption{Correlation between molecular weight and PCP-SAFT parameters predicted by ML-SAFT.}
-    \label{fig:molecular_weight}
-\end{figure}
 
