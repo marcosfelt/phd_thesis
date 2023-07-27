@@ -63,6 +63,14 @@ ControlBO trains an independent multitask GP to predict each controller objectiv
 
 Since our problem is multi-objective, I used a multi-objective acquisition function, namely the q Expected Hypervolume Improvement (qEHVI) \cite{Balandat2020}. This acquisition function has a balance of computational efficiency and fidelity resulting in an ability to find the Pareto front of trade-offs between objectives quickly. 
 
+Additionally, I found that tuning experiments often fail due to controller parameters being too aggressive. ControlBO therefore trains a GP classifier that predicts the probability of success of a tuning experiment using data from auxiliary simulation data. During acquisition function optimization, the probability of success of a tuning experiment, as predicted by the GP classifier, is multiplied by the acquisition function value to determine a final acquisition function value that is optimized to choose the next experiment:
+
+\begin{equation}
+    \alpha_{c} = p_{success}(y_c \vert x, \mathcal D) \alpha_{qEHVI}(X)
+\end{equation}
+
+where $\alpha$ is the acquisition function.
+
 I developed a differential equation simulation of a distillation column that was aligned to experimental data using both steady state and dynamic parameter estimation. To leverage the simulation, I used a multi-task GP that could be trained on both the less abundant high fidelity experimental data and the more abundant low fidelity simulation data. I hoped that the multi-task GP could learn the correlation between the simulation and the experimental data and thus make better predictions on the experiments with less data.
 
 % Additionally, I found that the simulations often failed with certain controller parameters. Therefore, I trained a classifier to predict the likelihood of a successful simulation, which I expect to also correlate with reasonable experimental parameters. The probability of success predicted by the classifier was multiplied by the qNEHVI acquisition function value to form a chance constrained acquisition function:
@@ -538,7 +546,7 @@ To analyze the performance of ControlBO, I analyzed the performance of ControlBO
     \label{fig:hypervolume_comparison}
 \end{figure}
 
-All ControlBO variations were able to find better controller parameters over the course of 20 tuning experiments, improving their approximation of the Pareto front. Furthermore, the combination of a classifier and using auxiliary data from simulations via the multi-task model resulted in faster optimization with optimal tuning parameters being found within 2-3 tuning experiments compared 5-10 with the single-task model. This speed of tuning represents several hours 
+All ControlBO variations were able to find better controller parameters over the course of 20 tuning experiments, improving their approximation of the Pareto front. Furthermore, the combination of a classifier and using auxiliary data from simulations via the multi-task model resulted in faster optimization with optimal tuning parameters being found within 2-3 tuning experiments compared 5-10 with the single-task model. 
 
 In Figure \ref{fig:comparison_controlbo}, I create a performance metric to compare the final tuning of each optimization strategy. The metric is as follows:  
 
@@ -548,7 +556,7 @@ In Figure \ref{fig:comparison_controlbo}, I create a performance metric to compa
 \end{split}
 \end{equation}
 
-where $w_i$ is a weighting which is the inverse of the maximum value of each objective. The single-fidelity strategy obtains the best overall tuning despite requiring more tuning experiments to achieve this performance. 
+where $w_i$ is a weighting which is the inverse of the maximum value of each objective. ControlBO with a multi-task model and classifier performs best for both steps in reflux rate and feed rate. The multi-task model alone does not improve performance over the single-task model always. This is likely due to the large imbalance between auxiliary simulation data (500 tuning experiments) and the primary task (15 tuning experiments), so there is a possibility of choosing tuning parameters that are too aggressive since the auxiliary simulation is more forgiving. Overall, ControlBO performs well in selecting robust tuning parameters quickly.
 
 \begin{figure}
     \centering
@@ -561,27 +569,65 @@ where $w_i$ is a weighting which is the inverse of the maximum value of each obj
 
 % Controller plots before and after tuning
 
-\section{Why does the multi-task model improve performance}
+\section{Why does the multi-task model improve performance?}
 
-% Table with MAE and r2 when using single-task vs multitask model
+As shown in Table \ref{tab:mt_vs_st_controlbo}, the multi-task models are more accurate than the single-task models when predicting held-out data. Therefore, these models can be used to quickly find optimal controller parameters and guide optimization. In particular, to produce the statistics shown in Table \ref{tab:mt_vs_st_controlbo}, the models were trained on the five initial random tuning experiments generated by Latin hypercube sampling in each tuning run, and the predictions were on the subsequent ten data points from one run. Therefore, these results suggest that the multitask model could more effectively select high quality experiments.
+% Table with MAE and $\rho$when using single-task vs multitask model
+
+\begin{table}[]
+    \centering
+    \caption{Comparison of mean absolute error (MAE) and Pearson's correlation coefficient ($\rho$) of predictions on five held out data points when model is trained on five data points selected randomly. ST means single-task and MT means for multi-task.}
+    \begin{tabular}{llrr}
+    
+    \toprule
+                     &  &      MT &       ST \\
+    Objective & {} &         &          \\
+    \midrule
+    Composition TC IAE & MAE&  \textbf{212.72} &  2094.70 \\
+                     & $\rho$&    \textbf{0.99 }&     0.27 \\
+    Composition TC Movement & MAE&    \textbf{0.51} &    11.04 \\
+                     & $\rho$&    \textbf{1.00} &     0.53 \\
+    Condenser LC IAE & MAE&    \textbf{0.00} &     0.30 \\
+                     & $\rho$&    \textbf{0.28} &     0.03 \\
+    Condenser LC Movement & MAE&    \textbf{0.25} &     0.45 \\
+                     & $\rho$&    \textbf{0.39} &     0.30 \\
+    Sump LC IAE & MAE&    \textbf{0.69} &     1.68 \\
+                     & $\rho$&    \textbf{0.98} &     0.61 \\
+    Sump LC Movement & MAE&    \textbf{0.10} &     0.42 \\
+                     & $\rho$&    0.90 &    \textbf{ 0.96} \\
+    \bottomrule
+    \end{tabular}
+    \label{tab:mt_vs_st_controlbo}
+\end{table}
 
 
 \section{Why does using a classifier improve performance?}
+
+The classifier is an important component of ControlBO since it enables making maximal use of simulation data. As shown in Figure \ref{fig:classifier_calibration}, the classifier was well calibrated in that increases in predicted probability of success were correlated with high fractions of actual successful simulations. This calibration is important since the classifier probabilities are used to weight the acquisition function values.
 
 % Classifier calibration
 \begin{figure}
     \centering
     \includegraphics[width=\textwidth]{gfx/Chapter06/classifier_calibration.png}
-    \caption{Calibration curve of GP classifier trained on 80\% of pretraining data for ControlBO optimization and tested on the remaining 20\%. The correlation of predicted and actual probability of success suggests that classifier is well calibrated.}
+    \caption{Calibration curve of GP classifier trained on 80\% of auxiliary simulation data for ControlBO optimization and tested on the remaining 20 \%. The correlation of predicted and actual probability of success suggests that classifier is well calibrated.}
     \label{fig:classifier_calibration}
 \end{figure}
 
+Furthermore, when the simulation success rate is plotted across different ControlBO configurations in Figure \ref{fig:mean_diff_classifier}, the classifier clearly improves the fraction of tuning experiments that are successful. Without the classifier, the majority of the simulations fail.  
+
 % Comparison of success rate with and without classifier
+\begin{figure}
+    \centering
+    \includegraphics[width=0.8\textwidth]{gfx/Chapter06/mean_diff_success_fraction.png}
+    \caption{Fraction of suggestions that were successful during tuning campaigns when using various configurations of ControlBO. ST stands for single-task, MT for multi-task, C is for classifier and NC is for no classifier.}
+    \label{fig:mean_diff_classifier}
+\end{figure}
+
 
 
 \section{Conclusion}
 
-Here, I compared several appraoches to optimizing control systems distillation columns using Bayesian optimization. I developed a simulation of a distillation column, which I aligned to experiments conducted by BASF. Subsequently, I used this simulation to explore the use of ControlBO, a multifidelity, multiobjecitve Bayesian optimization strategy designed for controller tuning. I found that ControlBO could find optimal tuning parameters within twenty experiments. Using ControlBO in multifidelity mode (i.e., with a multitask model) improved the speed of optimization but did not result in better final tuning. Additionally, using only data from successful simulations improved tuning performance.
+Here, I compared several appraoches to optimizing control systems distillation columns using Bayesian optimization. I developed a simulation of a distillation column, which I aligned to experiments conducted by BASF. Subsequently, I used this simulation to explore the use of ControlBO, a multifidelity, multiobjecitve Bayesian optimization strategy designed for controller tuning. I found that ControlBO could find optimal tuning parameters within twenty experiments. Using ControlBO in multifidelity mode (i.e., with a multitask model) improved the speed of optimization but did not result in better final tuning. However, when a classifier was used to filter out suggestions that might fail, ControlBO gave better solutions on average.
 
 This work is a first step in the direction of leveraging a combination of simulation and machine learning to accelerate controller tuning. However, There are significant challenges both in developing a robust dynamic simulation of a distillation column and applying Bayesian optimization to controller tuning. My distillation simulation does not take into account dynamic pressure changes, which do occur in actual laboratory distillation columns. While our experimental data suggest that pressure drop changes are small in the specific case study due to the use of a vacuum pump for control, more general application of this approach would require taking into account these pressure dynamics to accurately represent dynamic behavior. Similarly, our Bayesian optimization strategy only uses simple time-domain controller performance metrics, while frequency domain performance metrics might give more transferable results. Additionally, we test only on simulations here, but deployment on a real distillation column would be key to verifying the viability of our approach.
 
