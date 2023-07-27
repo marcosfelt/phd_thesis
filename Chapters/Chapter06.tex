@@ -8,9 +8,9 @@ Laboratory unit operations such as reactors and distillation columns  are often 
 
 As noted in Chapter \ref{ch:rl_tuning}, there are a wide variety of existing tuning protocols ranging from heuristics such as Ziegler Nichols \cite{Ziegler1942} and its refinements \cite{Hang1991} to tuning using analytical equations from models via methods such as  Internal Model Control \cite{Copeland2010}. However, extending these to multi-input multi-output systems has been challenging, often requiring additional optimizations \cite{Nandong2013, Nandong2015}. Optimization-based methods have shown promise \cite{Pajares2019, Sumana2010, Rajapandiyan2012, Behroozsarand2012}, but these methods have been difficult to apply in practice due to the large number of iterations they require. Recently, Bayesian optimization (BO) has shown promise for tuning controllers \cite{NeumannBrosig2020, Fiducioso2019, Khosravi2020, Konig2020, Fujimoto2022, Brunzema2022, Khosravi2022}, but this method still often requires tens to hundreds of iterations, making it too materially expensive for laboratory chemical processes.
 
-One approach to reduce the number of iterations required for BO is multifidelity Bayesian optimization (MFBO). MFBO leverages data from an auxiliary simulation or data source that is faster or cheaper to evaluate. Early examples of this approach include Kennedy et al. who used low fidelity approximations of an oil rig simulation to reduce the number of calls to a slower simulator \cite{Kennedy2000}. More recently , multifidelity Bayesian optimization approaches have developed to accelerate the tuning of hyperparameters for machine learning models \cite{pmlr-v70-kandasamy17a}, design of batteries \cite{Folch2023} and optimization of airplane rotors \cite{Pan2017}. Readers should refer to Chapter \ref{ch:background} for review of multifidelity and transfer learning in Bayesian optimization.
+One approach to reduce the number of iterations required for BO is multifidelity Bayesian optimization (MFBO). MFBO leverages data from an auxiliary simulation or data source that is faster or cheaper to evaluate. Early examples of this approach include Kennedy et al. who used low fidelity approximations of an oil rig simulation to reduce the number of calls to a slower simulator \cite{Kennedy2000}. More recently, multifidelity Bayesian optimization approaches have developed to accelerate the tuning of hyperparameters for machine learning models \cite{pmlr-v70-kandasamy17a}, design of batteries \cite{Folch2023} and optimization of airplane rotors \cite{Pan2017}. Readers should refer to Chapter \ref{ch:background} for review of multifidelity and transfer learning in Bayesian optimization.
 
-In this chapter, I use Bayesian optimization to accelerate controller tuning. Specifically, I develop a dynamic simulation of a distillation column that is low fidelity approximation of the original distillation experiment. I then introduce a novel BO strategy called ControlBO designed specifically for tuning control systems and explore whether multifidelity BO can accelerate controller tuning.
+In this chapter, I use Bayesian optimization to accelerate controller tuning. I introduce a novel BO strategy called ControlBO designed specifically for tuning control systems and explore whether multifidelity BO can accelerate controller tuning. I then develop a dynamic simulation of a distillation column that I use to evaluate ControlBO \textit{in silico}.
 
 \begin{figure}
     \centering
@@ -79,11 +79,11 @@ I developed a differential equation simulation of a distillation column that was
 %     \alpha_{cc} = p(h \vert \mathcal D) \alpha_{qNEHVI}
 % \end{equation} 
 
-In practice, I optimized the high fidelity task when selecting  a new set of controller parameters ton run an experiment in the laboratory. Then, while waiting for the laboratory results, I optimized the lower fidelity task using the differential equation simulation with the most recently estimated parameters. 
+In practice, I optimized the high fidelity task when selecting  a new set of controller parameters ton run an experiment in the laboratory. Then, while waiting for the laboratory results, I optimized the lower fidelity task using the differential equation simulation with the most recently estimated parameters.  In the following section, I describe the simulation in detail.
 
 \subsection{Distillation Simulation}\label{sec:distillation_model}
 
-In order to base our simulations in reality, my collaborators at BASF collected experimental data for separation of a 50/50 methanol-water mixture at the laboratories of BASF SE in a 80 tray column with one bubble cap on each stage. The column was kept at approximately 800 mbar vacuum, and a Julabo evaporator was used as the reobiler. The column occupies approximately three stories in the BASF lab.  
+In order to base the distillation simulations in reality, my collaborators at BASF collected experimental data for separation of a 50/50 methanol-water mixture at the laboratories of BASF SE in a 80 tray column with one bubble cap on each stage. The column was kept at approximately 800 mbar vacuum, and a Julabo evaporator was used as the reobiler. The column occupies approximately three stories in the BASF lab.  
 
 % Three days of data were collected, one of which is used for parameter estimation and the rest for validation. 
 
@@ -135,7 +135,7 @@ assumed the pressure drop was constant throughout the simulation, which is reaso
 
 where $\Delta P_i =\Delta P_{strip}$ for stages below feed stage and $\Delta P_i =\Delta P_{rect}$ for feed stage and above. The condenser pressure is calculated using $P_{cond}=P_{N} - \Delta P_{rect}$.
 
-Constant parameters are shown in Table \ref{tab:parameters} and state variables in Table \ref{tab:state_variables}.
+State variables in Table \ref{tab:state_variables}.
 \begin{table}
     \centering
     \caption{State variables of the distillation column model.}
@@ -512,7 +512,7 @@ I used the steady state simulation as the initialization for dynamic simulation.
 
 \subsection{Distillation simulation correlates with experiments}
 
-In order to build a simulation that could be used for examining the effectiveness of multifidelity BO for controller tuning, I aligned the simulation to experimental data collected at BASF. The resulting steady-state simulation after parameter estimation is shown in Figure \ref{fig:estimated}, which aligns well to the experimental temperature profile. I used an average of the experimental stage temperatures over nine hours of steady state experimental data for parameter estimation. 
+In order to build a simulation that could be used for examining the effectiveness of multifidelity BO for controller tuning, I aligned the simulation to experimental data collected at BASF. The resulting steady-state simulation after parameter estimation is shown in Figure \ref{fig:estimated}. I used an average of the experimental stage temperatures over nine hours of steady state experimental data for parameter estimation. 
 
 The simulated steady state temperature profile aligns well with the experimentally measured temperatures. In particular, the simulation is able to capture the strong change in temperature between stage 10 and 20. However, the temperature of the middle section of the column is significantly lower than the experimentally measured values. This discrepancy could be due to a number of missing phenomena in the simulation including the heaters in the real column used to prevent heat loss from the column. These heaters could potentially increase the temperature of the internals of the column in a nonlinear fashion throughout the column. 
 
@@ -524,7 +524,7 @@ The simulated steady state temperature profile aligns well with the experimental
     \label{fig:estimated}
 \end{figure}
 
-While, the steady state simulation, we found that the dynamic simulation did not fully capture all aspects of the experiments. In particular, the frequency response of the simulation upon a step in reflux rate did not reflect the oscillations seen in the actual experiments. Achieving a perfect match between the experimentally measured values and simulation is difficult, especially when the experiments are measured in closed-loop. However, I proceeded forward with Bayesian optimization given that the simulations captured some aspects of the steady-state and dynamic behavior of the distillation column.
+While, the steady state simulation, I found that the dynamic simulation did not fully capture all aspects of the experiments. In particular, the frequency response of the simulation upon a step in reflux rate did not reflect the oscillations seen in the actual experiments. Achieving a perfect match between the experimentally measured values and simulation is difficult, especially when the experiments are measured in closed-loop. However, I proceeded forward with Bayesian optimization given that the simulations captured some aspects of the steady-state and dynamic behavior of the distillation column.
  
 % Figure 4: Dynamic simulation
 \begin{figure}
@@ -536,7 +536,7 @@ While, the steady state simulation, we found that the dynamic simulation did not
 
 \subsection{Optimization of controller parameters}
 
-To analyze the performance of ControlBO, I analyzed the performance of ControlBO wih and without a multifidelity model. Additionally, I observed that some simulations fail, so I evaluated it was optimal to use all data by setting large objective values for failed simulations ("All Data") or simply ignore these simulations ("Success only").  Figure \ref{fig:hypervolume_comparison} shows the hypervolume with respect to a fixed reference point during the tuning experiments. As noted in Chapter \ref{ch:summit}, hypervolume is a measure of the volume dominated by the Pareto front; larger hypervolumes correspond with more optimal solutions discovered (i.e., minimal IAE and CM). Note that the disturbance variables were the feed rate and reflux rate, which were stepped randomly during each tuning experiment. This reflects the actual use case where operators might perform steps on various streams and the tuning system needs to be able to accommodate these external changes. 
+To analyze the performance of ControlBO, I analyzed the performance of ControlBO wih and without a multifidelity model.  Figure \ref{fig:hypervolume_comparison} shows the hypervolume with respect to a fixed reference point during the tuning experiments. As noted in Chapter \ref{ch:summit}, hypervolume is a measure of the volume dominated by the Pareto front; larger hypervolumes correspond with more optimal solutions discovered (i.e., minimal IAE and CM). Note that the disturbance variables were the feed rate and reflux rate, which were stepped randomly during each tuning experiment. This reflects the actual use case where operators might perform steps on various streams and the tuning system needs to be able to accommodate these external changes. 
 
 % Figure 5: Hypervolume vs iterations
 \begin{figure}
@@ -569,7 +569,7 @@ where $w_i$ is a weighting which is the inverse of the maximum value of each obj
 
 % Controller plots before and after tuning
 
-\section{Why does the multi-task model improve performance?}
+\subsection{Why does the multi-task model improve performance?}
 
 As shown in Table \ref{tab:mt_vs_st_controlbo}, the multi-task models are more accurate than the single-task models when predicting held-out data. Therefore, these models can be used to quickly find optimal controller parameters and guide optimization. In particular, to produce the statistics shown in Table \ref{tab:mt_vs_st_controlbo}, the models were trained on the five initial random tuning experiments generated by Latin hypercube sampling in each tuning run, and the predictions were on the subsequent ten data points from one run. Therefore, these results suggest that the multitask model could more effectively select high quality experiments.
 % Table with MAE and $\rho$when using single-task vs multitask model
@@ -601,7 +601,7 @@ As shown in Table \ref{tab:mt_vs_st_controlbo}, the multi-task models are more a
 \end{table}
 
 
-\section{Why does using a classifier improve performance?}
+\subsection{Why does using a classifier improve performance?}
 
 The classifier is an important component of ControlBO since it enables making maximal use of simulation data. As shown in Figure \ref{fig:classifier_calibration}, the classifier was well calibrated in that increases in predicted probability of success were correlated with high fractions of actual successful simulations. This calibration is important since the classifier probabilities are used to weight the acquisition function values.
 
@@ -624,10 +624,20 @@ Furthermore, when the simulation success rate is plotted across different Contro
 \end{figure}
 
 
+\subsection{Performance after tuning}
 
-\section{Conclusion}
+Figure \ref{fig:dynamic_after_tuning} shows the performance of the distillation column after tuning. Compared to the original tuning after parameter estimation shown in Figure \ref{fig:estimated}, the condenser and and sump levels are better controlled with tightly tuned loops. The composition temperature controller is slow to respond, but this is due to limitations of the simulation; when more aggressive controller parameters are used the simulation fails.
 
-Here, I compared several appraoches to optimizing control systems distillation columns using Bayesian optimization. I developed a simulation of a distillation column, which I aligned to experiments conducted by BASF. Subsequently, I used this simulation to explore the use of ControlBO, a multifidelity, multiobjecitve Bayesian optimization strategy designed for controller tuning. I found that ControlBO could find optimal tuning parameters within twenty experiments. Using ControlBO in multifidelity mode (i.e., with a multitask model) improved the speed of optimization but did not result in better final tuning. However, when a classifier was used to filter out suggestions that might fail, ControlBO gave better solutions on average.
+\begin{figure}
+    \centering
+    \includegraphics[width=\textwidth]{gfx/Chapter06/mt_c_dynamic.png}
+    \caption{Dynamic simulation after controller tuning of a separation of 50/50 methanol-water separation in a distillation column with 80 bubble cap trays. \textbf{Top left}: Liquid composition over time. \textbf{Top right}: Temperature over time. \textbf{Bottom left}: Flow over time \textbf{Bottom right}: Holdups in condenser and reboiler.}
+    \label{fig:dynamic_after_tuning}
+\end{figure}
+
+\section{Conclusions}
+
+Here, I compared several approaches to optimizing control systems distillation columns using Bayesian optimization. I developed a simulation of a distillation column, which I aligned to experiments conducted by BASF. Subsequently, I used this simulation to explore the use of ControlBO, a multifidelity, multiobjecitve Bayesian optimization strategy designed for controller tuning. I found that ControlBO could find optimal tuning parameters within twenty experiments. Using ControlBO in multifidelity mode (i.e., with a multitask model) improved the speed of optimization but did not result in better final tuning. However, when a classifier was used to filter out suggestions that might fail, ControlBO gave better solutions on average.
 
 This work is a first step in the direction of leveraging a combination of simulation and machine learning to accelerate controller tuning. However, There are significant challenges both in developing a robust dynamic simulation of a distillation column and applying Bayesian optimization to controller tuning. My distillation simulation does not take into account dynamic pressure changes, which do occur in actual laboratory distillation columns. While our experimental data suggest that pressure drop changes are small in the specific case study due to the use of a vacuum pump for control, more general application of this approach would require taking into account these pressure dynamics to accurately represent dynamic behavior. Similarly, our Bayesian optimization strategy only uses simple time-domain controller performance metrics, while frequency domain performance metrics might give more transferable results. Additionally, we test only on simulations here, but deployment on a real distillation column would be key to verifying the viability of our approach.
 

@@ -137,7 +137,7 @@ A wide range of heuristic methods have been created based on the experience of o
 	\end{tabular}
 \end{table}
 
-The advantages of Z-N and its refinements\cite{Hang1991} are that they do not require a process model. They can be easily implemented by an operator online, which perhaps explains their popularity \cite{KiamHeongAng2005}. However, it is often undesirable to introduce oscillations into a chemical process, which, if taken too far, could result in a loss of control (i.e., an unstable or runaway process). Relay feedback is an alternative method of obtaining $K_u$ and $P_u$, which only introduces small oscillations into the process \cite{Shen1994}. A relay is introduced into the control loop (i.e., an on-off switch).  As shown in Figure \ref{relay_tuning}, the following process is executed: 
+The advantages of Z-N and its refinements\cite{Hang1991} are that they do not require a process model. They can be easily implemented by an operator online, which perhaps explains their popularity \cite{KiamHeongAng2005}. However, it is often undesirable to introduce oscillations into a chemical process, which, if taken too far, could result in a loss of control (i.e., an unstable or runaway process). Relay feedback is an alternative method of obtaining $K_u$ and $P_u$, which only introduces small oscillations into the process \cite{Shen1994}. A relay is introduced into the control loop (i.e., an on-off switch).  The following process is executed: 
 \begin{enumerate}
     \item A small step change is made in the input, u.
     \item The output y in monitored, and when it begins to rise, the input is changed to the negative of the step value.
@@ -145,12 +145,12 @@ The advantages of Z-N and its refinements\cite{Hang1991} are that they do not re
     \item 	This is continued, and the resulting oscillations are used to find the ultimate gain and period. Then, the Z-N parameters in Table \ref{table:ZN_parameters} can be used to find the PID parameters. 
 \end{enumerate}
 
-\begin{figure}[bt]
-  \centering
-  \includegraphics[scale=0.3]{gfx/Chapter05/relay_tuning.png}
-  \caption{Illustration of the relay tuning procedure for input $u$ and output $y$. Adapted from Shen et al \cite{Shen1994}.}
-  \label{relay_tuning}
-\end{figure}
+% \begin{figure}[bt]
+%   \centering
+%   \includegraphics[scale=0.3]{gfx/Chapter05/relay_tuning.png}
+%   \caption{Illustration of the relay tuning procedure for input $u$ and output $y$. Adapted from Shen et al \cite{Shen1994}.}
+%   \label{relay_tuning}
+% \end{figure}
 
 Z-N and relay feedback methods are designed for SISO controllers in an independent environment. For decentralized MIMO control, previous work has shown that the Z-N rules in Table 1 give extremely aggressive tuning that causes oscillations when multiple controllers are introduced \cite{Riggs2006}. To compensate for this issue, Luyben introduced the BLT tuning method, which calculates a detuning factor $F$ to reduce the proportional gain of each controller \cite{Luyben1986}. $F$ depends on the number of loops being tuned, and Luyben's empirical simulations suggested that more nonlinearities in a system required higher values of $F$ (i.e., more detuning).
 
