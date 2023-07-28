@@ -5,10 +5,10 @@
 This chapter contains text published in the following paper:
 
 \begin{enumerate}
-\item Taylor C.J., Pomberger, A., \textbf{Felton, K.}, Grainger R., Barecka, M., Chamberlain, T., Bourne, R.A., Lapkin, A. A. "A Brief Introduction to Chemical Reaction Optimization". \textit{Chemical Reviews}. 2023.
+\item Taylor C.J., Pomberger, A., \textbf{Felton, K.}, Grainger R., Barecka, M., Chamberlain, T., Bourne, R.A., Lapkin, A. A. "A Brief Introduction to Chemical Reaction optimisation". \textit{Chemical Reviews}. 2023.
 \end{enumerate}
 
-In this chapter, I first review transfer learning and then the introduce two types of machine learning used in this thesis: Bayesian optimization and molecular property prediction. I discuss how transfer learning can be applied to both of these types of machine learning.
+In this chapter, I first review transfer learning and then the introduce two types of machine learning used in this thesis: Bayesian optimisation and molecular property prediction. I discuss how transfer learning can be applied to both of these types of machine learning.
 
 \section{Transfer Learning}
 
@@ -36,17 +36,17 @@ For example, Greenman et al recently used multifdielity modeling to improve pred
 
 \subsection{Meta-learning}
 
-Informally, meta-learning is the process of learning how to learn. The difference in this approach is the training process explicitly includes a loss function that aims to create fast learning. Most existing approaches rely primarily on learning metrics for better classification, but a recent set of methods based on optimization are more relevant to process development.  In this case, the aim is to adjust gradient based optimization to train a model such that minimizing the loss will require the minimium number of steps. There are a wide variety of techniques in this family including model agnostic meta-learning (MAML) \cite{Finn2017}, REPTILE \cite{Nichols2018} and Platipus \cite{Finn2018}. While I do not explore meta-learning in this thesis, it is a promising direction for future work in accelerating process development.
+Informally, meta-learning is the process of learning how to learn. The difference in this approach is the training process explicitly includes a loss function that aims to create fast learning. Most existing approaches rely primarily on learning metrics for better classification, but a recent set of methods based on optimisation are more relevant to process development.  In this case, the aim is to adjust gradient based optimisation to train a model such that minimizing the loss will require the minimium number of steps. There are a wide variety of techniques in this family including model agnostic meta-learning (MAML) \cite{Finn2017}, REPTILE \cite{Nichols2018} and Platipus \cite{Finn2018}. While I do not explore meta-learning in this thesis, it is a promising direction for future work in accelerating process development.
 
 
 
-\section{Bayesian optimization}
+\section{Bayesian optimisation}
 
-Bayesian optimization (BO) is a method for optimizing expensive to evaluate functions \cite{Shahriari2016}. In our case, these "functions" are experiments or long-running simulations. More formally, BO aims to solve the optimization problem.
+Bayesian optimisation (BO) is a method for optimizing expensive to evaluate functions \cite{Shahriari2016}. In our case, these "functions" are experiments or long-running simulations. More formally, BO aims to solve the optimisation problem.
 \begin{equation}
     \max_x y(x)
 \end{equation}
-where $y(x)$ is the underlying function that are observed via time-consuming or costly experiments. Bayesian optimization (BO) is designed to optimize $y$ with as few experiments as possible. It does this by first training a surrogate probabilistic model to represent the underlying function and, then, optimizing an acquisition function informed by this model to choose next experiments. Typically, the probabilistic model is a Gaussian Process (GP). 
+where $y(x)$ is the underlying function that are observed via time-consuming or costly experiments. Bayesian optimisation (BO) is designed to optimize $y$ with as few experiments as possible. It does this by first training a surrogate probabilistic model to represent the underlying function and, then, optimizing an acquisition function informed by this model to choose next experiments. Typically, the probabilistic model is a Gaussian Process (GP). 
 
 \subsection{Gaussian Processes}
 
@@ -106,11 +106,11 @@ After some manipulations, the following closed form for the expected improvement
 \begin{equation}
     EI(x) =(\tilde \mu_{\theta}(x)-\hat y^*)\Phi(Z^*) + \tilde \sigma_{\theta}(x) \phi(Z^*)
 \end{equation}
-where $Z^*= \frac{y^*-\tilde\mu_{\theta}(x)}{\tilde \sigma_{\theta}(x)}$.  I then solve the following optimization problem to select the next experiment $x_{next}$.
+where $Z^*= \frac{y^*-\tilde\mu_{\theta}(x)}{\tilde \sigma_{\theta}(x)}$.  I then solve the following optimisation problem to select the next experiment $x_{next}$.
 \begin{equation}
     x_{\text{next}} = \text{argmax}_{x} EI(x)
 \end{equation}
-Since EI has a closed analytical expression for the expectation and derivative, gradient based second-order optimization algorithms are typically used. 
+Since EI has a closed analytical expression for the expectation and derivative, gradient based second-order optimisation algorithms are typically used. 
 
 While EI is a good baseline acquisition function, it can be overly exploitative, especially in the presence of noisy or inaccurate predictions from the GP.  Noisy EI (NEI) improves upon this by sampling the expectation of the acquisition function and the posterior probability, which reduces uncertainty in the optimum \cite{Letham2019}. A robust and efficient impelementation of the NEI that uses a full Monte-Carlo treatment is available in the software package BoTorch \cite{Balandat2020}:
 \begin{equation}
@@ -118,25 +118,25 @@ qNEI(x)= E[(\max \xi  - \max \xi_{obs} )_+]
 \end{equation}
 where $\xi_{obs} f(x)$ and $\xi_{obs}\sim f(x)$ are samples from the posterior of the GP.
 
-\subsection{Transfer learning for Bayesian optimization}
+\subsection{Transfer learning for Bayesian optimisation}
 
 The most common approach to transfer learning in BO is improving the probabilistic model by leveraging information for auxiliary tasks. I will review two methods for improving  Gaussian processes: multi-task BO and multi-fidelity BO.
 
-One of the potential ways to accelerate Bayesian optimization is multi-task Bayesian optimization (MTBO). MTBO was originally developed to speed up hyperparameter tuning of machine learning models (e.g., choosing learning rates and batch sizes to maximize model accuracy) \cite{Swersky2013}. Using only the hyperparameters and resulting model accuracy scores of a previously trained machine learning model (which I call Task A),  MTBO decreased by up to 50\% the number of experiments needed to find optimal hyperparameters for a new machine learning model (which I call Task B).  The data from Task A helped the model better predict Task B, even with only a few experiments for Task B.
+One of the potential ways to accelerate Bayesian optimisation is multi-task Bayesian optimisation (MTBO). MTBO was originally developed to speed up hyperparameter tuning of machine learning models (e.g., choosing learning rates and batch sizes to maximize model accuracy) \cite{Swersky2013}. Using only the hyperparameters and resulting model accuracy scores of a previously trained machine learning model (which I call Task A),  MTBO decreased by up to 50\% the number of experiments needed to find optimal hyperparameters for a new machine learning model (which I call Task B).  The data from Task A helped the model better predict Task B, even with only a few experiments for Task B.
 
-Multi-task Bayesian optimization (MTBO) uses a multi-task probabilistic model inside a BO framework.  Swersky et al. were the first to demonstrate that multi-task BO can be effectively used to accelerate BO for hyperparameter tuning of machine learning models \cite{Swersky2013}. They demonstrated that using the results of hyperparameter tuning on one dataset could assist in tuning another with multi-task GPs. In many cases, multi-task BO could achieve 40-50\% improvements in the test accuracy of models with significantly fewer training runs.  
+Multi-task Bayesian optimisation (MTBO) uses a multi-task probabilistic model inside a BO framework.  Swersky et al. were the first to demonstrate that multi-task BO can be effectively used to accelerate BO for hyperparameter tuning of machine learning models \cite{Swersky2013}. They demonstrated that using the results of hyperparameter tuning on one dataset could assist in tuning another with multi-task GPs. In many cases, multi-task BO could achieve 40-50\% improvements in the test accuracy of models with significantly fewer training runs.  
 
 One of the challenges faced in applying MTBO to big data uses cases has been its lack of scalability. This in mainly due to the $O(n^3)$ cost of using GPs with exact inference. Several different approaches have been taken to solving this problem including training a vanilla neural network on the tasks and feeding the output to a Bayesian linear regression model \cite{Perrone2018} and using the auxiliary tasks to create a learned feature representation in a compressed space \cite{Hakhamaneshi2021}. These methods have retained the performance of multi-task BO while minimizing the computational cost of its deployment. However, in this thesis, all applications of MTBO have less than 1000 points and in many cases, less than 100. This makes multi-task GPs with exact inference more tractable.
 
-Another direction has been to apply the machinery of multi-task GPs to multifidelity BO, which aims to leverage data from a cheap but less accurate data source to help with optimizing a more expensive function \cite{Huang2006, Forrester2007}. This technique has been applied in a wide range of scenarios including parameter estimation of physics models using data from multiple experiments and simulations \cite{Perdikaris2016}; optimizing battery electrode structure using data from both cheap and expensive multitscale differential equation models \cite{Pan2017, Folch2023}, and optimizing composition of alloys using a mix of DFT fidelities \cite{Tran2020}. I explore this idea in chapter \ref{ch:mfbo}.
+Another direction has been to apply the machinery of multi-task GPs to multifidelity BO, which aims to leverage data from a cheap but less accurate data source to help with optimizing a more expensive function \cite{Huang2006, Forrester2007}. This technique has been applied in a wide range of scenarios including parameter estimation of physics models using data from multiple experiments and simulations \cite{Perdikaris2016}; optimizing battery electrode structure using data from both cheap and expensive multiscale differential equation models \cite{Pan2017, Folch2023}, and optimizing composition of alloys using a mix of DFT fidelities \cite{Tran2020}. I explore this idea in chapter \ref{ch:mfbo}.
 
 \section{Molecular Property Prediction}
 
-In addition to Bayesian optimization, I use molecular property prediction techinques in Part II.
+In addition to Bayesian optimisation, I use molecular property prediction techniques in Part II.
 
 \subsection{Molecular Parameterization}
 
-The first step of making machine learning models that can predict molecular properties is translating molecules to a machine-readable, typically numerical, format that can be used as input for ML models. This translation process is molecular parameterization as it aims to capture relevant molecular properties for a particular reaction. For different chemical transformations, molecular parametrizations should capture different properties such as steric hinderance of a functional group or electronegativity of neighboring atoms. The parameterization strategy should also be chosen to allow optimal compatibility with the ML model used, as prediction performance will depend on the compatibility between input format and ML model.
+The first step of making machine learning models that can predict molecular properties is translating molecules to a machine-readable, typically numerical, format that can be used as input for ML models. This translation process is molecular parameterization as it aims to capture relevant molecular properties for a particular reaction. For different chemical transformations, molecular parameterizations should capture different properties such as steric hinderance of a functional group or electronegativity of neighboring atoms. The parameterization strategy should also be chosen to allow optimal compatibility with the ML model used, as prediction performance will depend on the compatibility between input format and ML model.
 
 The baseline parameterization method for representing chemical inputs is one-hot encoding (OHE). A one (1) or a zero (0) represent the presence or absence of specified reaction components respectively - no chemical information is encoded. This approach has been shown to be effective for a variety of chemical tasks including yield prediction, but cannot extrapolate to new parts of chemical space \cite{Pomberger2023}. 
 
@@ -174,7 +174,7 @@ Molecules can be treated as graphs with atoms as nodes and bonds as edges. There
 \begin{equation}
     h_v^{t+1} = U_t(h_v^t, m_v^{t+1})
 \end{equation}
-where $M_t$ is the message function, $U_t$ is the update function and $h_v^{t}$ is the hidden state at step $t$. This update process is repeated several times (usually two to three) and the representations from all atoms are aggregrated, usually using a sum or mean:
+where $M_t$ is the message function, $U_t$ is the update function and $h_v^{t}$ is the hidden state at step $t$. This update process is repeated several times (usually two to three) and the representations from all atoms are aggregated, usually using a sum or mean:
 \begin{equation}
     \bar h = \sum_{v\forall \mathcal V} h_v
 \end{equation}
@@ -193,8 +193,8 @@ Most transfer learning work for molecular property prediction centers around pre
 
 The self-supervised approaches generally try to improve the representations learned by MPNNs using unlabeled data. Since there are large databases of existing molecules (e.g., ZINC with 1B+ molecules \cite{Irwin2020}), a large-scale pre-training task similar to those used for language modeling can be constructed. For example, Hu et al. masked missing atom nodes from molecular graphs and created a task of predicting the missing nodes \cite{Hu2020Pretrain}. By combining this pre-training task with a supervised pre-training on molecular properties, they obtained state-of-the-art results at the time of publication on some benchmark tasks. While self-supervised approaches are promising, they currently not result in significant performance improvements without supervised pretraining \cite{Sun2022}.
 
-Supervised approaches usually train a full network on previous data, fix the message passing encoder and only train the feed forward network on subsequent data. For example, Vermeire et al used such an approach to improve predictions of solvation free energies by first pretraining on a large database of calculations from the thermodynamic programme COSMO-RS and subsequently fine-tuning on experimental data \cite{Vermeire2021, Vermeire2022}. They found that this combination of pretraining and fine-tuning outperformed using the COSMO-RS or experimental dataset individually. Recently, this approach has also been applied to predicting glass transition temperature of polymers \cite{Volgin2022}, vapor pressure of energetic materials \cite{Lansford2023}, and several thermochemistry properties \cite{Ureel2023}. I explore pretraining of MPNNs in Part III.
+Supervised approaches usually train a full network on previous data, fix the message passing encoder and only train the feed forward network on subsequent data. For example, Vermeire et al. used such an approach to improve predictions of solvation free energies by first pretraining on a large database of calculations from the thermodynamic programme COSMO-RS and subsequently fine-tuning on experimental data \cite{Vermeire2021, Vermeire2022}. They found that this combination of pretraining and fine-tuning outperformed using the COSMO-RS or experimental dataset individually. Recently, this approach has also been applied to predicting glass transition temperature of polymers \cite{Volgin2022}, vapor pressure of energetic materials \cite{Lansford2023}, and several thermochemistry properties \cite{Ureel2023}. I explore pretraining of MPNNs in Part III.
 
 \section{Conclusions}
 
-In this thesis, transfer learning is examined in two modes: multi-task learning, multifidelty learning and pre-training. These general strategies are overlaid on the machine learning approaches of Bayesian optimization and molecular property prediction using deep learning. 
+In this thesis, transfer learning is examined in two modes: multi-task learning, multifidelty learning and pretraining. These general strategies are overlaid on the machine learning approaches of Bayesian optimisation and molecular property prediction using deep learning. 

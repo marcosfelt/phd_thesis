@@ -1,16 +1,16 @@
 %************************************************
-\chapter{ControlBO: Bayesian Optimization for Controller Tuning}\label{ch:mfbo} 
+\chapter{ControlBO: Bayesian optimisation for Controller Tuning}\label{ch:mfbo} 
 %************************************************
 
 \section{Introduction}
 \label{sec:intro}
 Laboratory unit operations such as reactors and distillation columns  are often subjected to many processes in a short window of time. For each new process, the control systems of these unit operations need to be re-tuned, which can be a time and labor intensive endeavor. As an example, in the distillation laboratories at BASF, operators often spend days attempting to find the best tuning parameters for a new distillation column setup, which is unacceptable given the short timelines of operating a testing laboratory. While it is possible to use model predictive control, decentralized PID controllers are often used due to their robustness and simplicity. In this chapter, I aim to develop a fast method for tuning controllers and apply this method laboratory distillation columns.
 
-As noted in Chapter \ref{ch:rl_tuning}, there are a wide variety of existing tuning protocols ranging from heuristics such as Ziegler Nichols \cite{Ziegler1942} and its refinements \cite{Hang1991} to tuning using analytical equations from models via methods such as  Internal Model Control \cite{Copeland2010}. However, extending these to multi-input multi-output systems has been challenging, often requiring additional optimizations \cite{Nandong2013, Nandong2015}. Optimization-based methods have shown promise \cite{Pajares2019, Sumana2010, Rajapandiyan2012, Behroozsarand2012}, but these methods have been difficult to apply in practice due to the large number of iterations they require. Recently, Bayesian optimization (BO) has shown promise for tuning controllers \cite{NeumannBrosig2020, Fiducioso2019, Khosravi2020, Konig2020, Fujimoto2022, Brunzema2022, Khosravi2022}, but this method still often requires tens to hundreds of iterations, making it too materially expensive for laboratory chemical processes.
+As noted in Chapter \ref{ch:rl_tuning}, there are a wide variety of existing tuning protocols ranging from heuristics such as Ziegler Nichols \cite{Ziegler1942} and its refinements \cite{Hang1991} to tuning using analytical equations from models via methods such as  Internal Model Control \cite{Copeland2010}. However, extending these to multi-input multi-output systems has been challenging, often requiring additional optimisations \cite{Nandong2013, Nandong2015}. optimisation-based methods have shown promise \cite{Pajares2019, Sumana2010, Rajapandiyan2012, Behroozsarand2012}, but these methods have been difficult to apply in practice due to the large number of iterations they require. Recently, Bayesian optimisation (BO) has shown promise for tuning controllers \cite{NeumannBrosig2020, Fiducioso2019, Khosravi2020, Konig2020, Fujimoto2022, Brunzema2022, Khosravi2022}, but this method still often requires tens to hundreds of iterations, making it too materially expensive for laboratory chemical processes.
 
-One approach to reduce the number of iterations required for BO is multifidelity Bayesian optimization (MFBO). MFBO leverages data from an auxiliary simulation or data source that is faster or cheaper to evaluate. Early examples of this approach include Kennedy et al. who used low fidelity approximations of an oil rig simulation to reduce the number of calls to a slower simulator \cite{Kennedy2000}. More recently, multifidelity Bayesian optimization approaches have developed to accelerate the tuning of hyperparameters for machine learning models \cite{pmlr-v70-kandasamy17a}, design of batteries \cite{Folch2023} and optimization of airplane rotors \cite{Pan2017}. Readers should refer to Chapter \ref{ch:background} for review of multifidelity and transfer learning in Bayesian optimization.
+One approach to reduce the number of iterations required for BO is multifidelity Bayesian optimisation (MFBO). MFBO leverages data from an auxiliary simulation or data source that is faster or cheaper to evaluate. Early examples of this approach include Kennedy et al. who used low fidelity approximations of an oil rig simulation to reduce the number of calls to a slower simulator \cite{Kennedy2000}. More recently, multifidelity Bayesian optimisation approaches have developed to accelerate the tuning of hyperparameters for machine learning models \cite{pmlr-v70-kandasamy17a}, design of batteries \cite{Folch2023} and optimisation of airplane rotors \cite{Pan2017}. Readers should refer to Chapter \ref{ch:background} for review of multifidelity and transfer learning in Bayesian optimisation.
 
-In this chapter, I use Bayesian optimization to accelerate controller tuning. I introduce a novel BO strategy called ControlBO designed specifically for tuning control systems and explore whether multifidelity BO can accelerate controller tuning. I then develop a dynamic simulation of a distillation column that I use to evaluate ControlBO \textit{in silico}.
+In this chapter, I use Bayesian optimisation to accelerate controller tuning. I introduce a novel BO strategy called ControlBO designed specifically for tuning control systems and explore whether multifidelity BO can accelerate controller tuning. I then develop a dynamic simulation of a distillation column that I use to evaluate ControlBO \textit{in silico}.
 
 \begin{figure}
     \centering
@@ -21,7 +21,7 @@ In this chapter, I use Bayesian optimization to accelerate controller tuning. I 
 
 \section{Methods}
 
-\subsection{Controller tuning as an optimization problem}
+\subsection{Controller tuning as an optimisation problem}
 
 As noted in Chapter \ref{ch:rl_tuning}, controller tuning involves identifying the three parameters of the PID equation, $K^P$, $\tau_I$ and $\tau_D$:
 
@@ -33,7 +33,7 @@ As noted in Chapter \ref{ch:rl_tuning}, controller tuning involves identifying t
 \end{equation}
 where $u(t)$ is the controller output that is feed into the actuator (e.g., a valve) and $e(t)$ is the error at time $t$. $Y$ is the controlled variable, and $Y^{sp}$ is the setpoint, and $\Omega=\{K^p, \tau_I, \tau_D \}$ are the controller parameters. In this work, I only use PI controllers, so $\tau_D=0$.
 
-I formulate the problem of controller design and tuning as an optimization problem. The aim is to find a set of controller parameters that will achieve desired behavior. I define good controller behavior as minimizing the integral absolute error (IAE) for each controlled variable and minimizing total controller movement (CM):
+I formulate the problem of controller design and tuning as an optimisation problem. The aim is to find a set of controller parameters that will achieve desired behavior. I define good controller behavior as minimizing the integral absolute error (IAE) for each controlled variable and minimizing total controller movement (CM):
 \begin{equation}
     \min_{\Omega}(IAE_1, IAE_2, IAE_3, CM_1, CM_2, CM_3)
 \end{equation}
@@ -48,22 +48,22 @@ I formulate the problem of controller design and tuning as an optimization probl
 \end{equation}
 where $y_{sp}$ is the setpoint,  $\hat y$  is the value of  the variable, T is the time horizon. 
 
-\subsection{ControlBO: Bayesian optimization for controller tuning}
+\subsection{ControlBO: Bayesian optimisation for controller tuning}
 
-ControlBO is a Bayesian optimization algorithm that aims to identify robust controller parameters for MIMO systems in as few experiments as possible. I was inspired by a recent paper by Paulson et al. that uses a Gaussian Process to model both the uncertain variables as well as the controller parameters \cite{Paulson2022}. They then use min-max formulation where the integral absolute error is minimized, while the uncertain variables are held at their maximum value. However, they sample from a high fidelity simulation and then assume that this simulation will always transfer to laboratory experiments.
+ControlBO is a Bayesian optimisation algorithm that aims to identify robust controller parameters for MIMO systems in as few experiments as possible. I was inspired by a recent paper by Paulson et al. that uses a Gaussian Process to model both the uncertain variables as well as the controller parameters \cite{Paulson2022}. They then use min-max formulation where the integral absolute error is minimized, while the uncertain variables are held at their maximum value. However, they sample from a high fidelity simulation and then assume that this simulation will always transfer to laboratory experiments.
 
-ControlBO is a multifidelity and multi-objective Bayesian optimization algorithm that aims to solve the following problem:
+ControlBO is a multifidelity and multi-objective Bayesian optimisation algorithm that aims to solve the following problem:
 
 \begin{equation}
     \Omega^* = \min_{\Omega} \mathbf f(\Omega, x, \delta)
 \end{equation}
-where $\Omega$ are the controller parameters and $\mathbf f$ is the laboratory controller tuning problem. $\delta$ are disturbance variables that might be stepped by operators or changed by other external factors. Similar to Paulson et al. \cite{Paulson2022}, I use a min max formulation where a GP is trained on both controller parameters $\Omega$ and values of disturbance variables from past tuning experiments. During acquisition function optimization, the disturbance variables are fixed at their maximum value, while the controllers parameters are varied to maximize the acquisition function. Fixing the disturbance variables ensures that robust controller parameters are chosen.
+where $\Omega$ are the controller parameters and $\mathbf f$ is the laboratory controller tuning problem. $\delta$ are disturbance variables that might be stepped by operators or changed by other external factors. Similar to Paulson et al. \cite{Paulson2022}, I use a min max formulation where a GP is trained on both controller parameters $\Omega$ and values of disturbance variables from past tuning experiments. During acquisition function optimisation, the disturbance variables are fixed at their maximum value, while the controllers parameters are varied to maximize the acquisition function. Fixing the disturbance variables ensures that robust controller parameters are chosen.
 
-ControlBO trains an independent multitask GP to predict each controller objective (IAE) and controller movement (CM) given the relevant controller parameters. The multitask GP is trained on both auxiliary simulation data and tuning experiments. By using data from the auxiliary simulation, my hope is that the optimization will proceed faster than when using only data from tuning experiments executed on the distillation column since the multi-task GP could learn the correlation between the simulation and the experimental data and thus make better predictions on the experiments with less data.
+ControlBO trains an independent multitask GP to predict each controller objective (IAE) and controller movement (CM) given the relevant controller parameters. The multitask GP is trained on both auxiliary simulation data and tuning experiments. By using data from the auxiliary simulation, my hope is that the optimisation will proceed faster than when using only data from tuning experiments executed on the distillation column since the multi-task GP could learn the correlation between the simulation and the experimental data and thus make better predictions on the experiments with less data.
 
 Since our problem is multi-objective, I used a multi-objective acquisition function, namely the q Expected Hypervolume Improvement (qEHVI) \cite{Balandat2020}. This acquisition function has a balance of computational efficiency and fidelity resulting in an ability to find the Pareto front of trade-offs between objectives quickly. 
 
-Additionally, I found that tuning experiments often fail due to controller parameters being too aggressive. ControlBO therefore trains a GP classifier that predicts the probability of success of a tuning experiment using data from auxiliary simulation data. During acquisition function optimization, the probability of success of a tuning experiment, as predicted by the GP classifier, is multiplied by the acquisition function value to determine a final acquisition function value that is optimized to choose the next experiment:
+Additionally, I found that tuning experiments often fail due to controller parameters being too aggressive. ControlBO therefore trains a GP classifier that predicts the probability of success of a tuning experiment using data from auxiliary simulation data. During acquisition function optimisation, the probability of success of a tuning experiment, as predicted by the GP classifier, is multiplied by the acquisition function value to determine a final acquisition function value that is optimized to choose the next experiment:
 
 \begin{equation}
     \alpha_{c} = p_{success}(y_c \vert x, \mathcal D) \alpha_{qEHVI}(X)
@@ -111,7 +111,7 @@ My goal in simulating a distillation columns was to find a balance between model
 %     \item$\alpha_{rect}$ is the Murphree efficiency in the rectifying section (feed stage and above)
 % \end{itemize}
 
-assumed the pressure drop was constant throughout the simulation, which is reasonable given the experimental observations (a vacuum was used to keep pressure drop constant). Therefore the pressure on each stage is calculated using:
+I assumed the pressure drop was constant throughout the simulation, which is reasonable given the experimental observations (a vacuum was used to keep pressure drop constant). Therefore the pressure on each stage is calculated using:
 
 % \begin{table}
 %     \centering
@@ -523,7 +523,7 @@ The simulated steady state temperature profile aligns well with the experimental
     \label{fig:estimated}
 \end{figure}
 
-While, the steady state simulation, I found that the dynamic simulation did not fully capture all aspects of the experiments. In particular, the frequency response of the simulation upon a step in reflux rate did not reflect the oscillations seen in the actual experiments. Achieving a perfect match between the experimentally measured values and simulation is difficult, especially when the experiments are measured in closed-loop. However, I proceeded forward with Bayesian optimization given that the simulations captured some aspects of the steady-state and dynamic behavior of the distillation column.
+While, the steady state simulation, I found that the dynamic simulation did not fully capture all aspects of the experiments. In particular, the frequency response of the simulation upon a step in reflux rate did not reflect the oscillations seen in the actual experiments. Achieving a perfect match between the experimentally measured values and simulation is difficult, especially when the experiments are measured in closed-loop. However, I proceeded forward with Bayesian optimisation given that the simulations captured some aspects of the steady-state and dynamic behavior of the distillation column.
  
 % Figure 4: Dynamic simulation
 \begin{figure}
@@ -533,7 +533,7 @@ While, the steady state simulation, I found that the dynamic simulation did not 
     \label{fig:dynamic_nominal}
 \end{figure}
 
-\subsection{Optimization of controller parameters}
+\subsection{optimisation of controller parameters}
 
 To evaluate the performance of ControlBO, I analyzed the performance of ControlBO wih and without a multifidelity model.  Figure \ref{fig:hypervolume_comparison} shows the hypervolume with respect to a fixed reference point during the tuning experiments. As noted in Chapter \ref{ch:summit}, hypervolume is a measure of the volume dominated by the Pareto front; larger hypervolumes correspond with more optimal solutions discovered (i.e., minimal IAE and CM). Note that the disturbance variables were the feed rate and reflux rate, which were stepped randomly during each tuning experiment. This reflects the actual use case where operators might perform steps on various streams and the tuning system needs to be able to accommodate these external changes. 
 
@@ -541,13 +541,13 @@ To evaluate the performance of ControlBO, I analyzed the performance of ControlB
 \begin{figure}
     \centering
     \includegraphics[width=\textwidth]{gfx/Chapter06/hypervolume_comparison.png}
-    \caption{Hypervolume trajectory of a single optimization run. Hypervolume is a measure of the volume dominated by the Pareto front; larger hypervolumes correspond with more optimal solutions discovered.}
+    \caption{Hypervolume trajectory of a single optimisation run. Hypervolume is a measure of the volume dominated by the Pareto front; larger hypervolumes correspond with more optimal solutions discovered.}
     \label{fig:hypervolume_comparison}
 \end{figure}
 
-All ControlBO variations were able to find better controller parameters over the course of 20 tuning experiments, improving their approximation of the Pareto front. Furthermore, the combination of a classifier and using auxiliary data from simulations via the multi-task model resulted in faster optimization with optimal tuning parameters being found within 2-3 tuning experiments compared 5-10 with the single-task model. 
+All ControlBO variations were able to find better controller parameters over the course of 20 tuning experiments, improving their approximation of the Pareto front. Furthermore, the combination of a classifier and using auxiliary data from simulations via the multi-task model resulted in faster optimisation with optimal tuning parameters being found within 2-3 tuning experiments compared 5-10 with the single-task model. 
 
-In Figure \ref{fig:comparison_controlbo}, I create a performance metric to compare the final tuning of each optimization strategy. The metric is as follows:  
+In Figure \ref{fig:comparison_controlbo}, I create a performance metric to compare the final tuning of each optimisation strategy. The metric is as follows:  
 
 \begin{equation}
 \begin{split}
@@ -570,7 +570,7 @@ where $w_i$ is a weighting which is the inverse of the maximum value of each obj
 
 \subsection{Why does the multi-task model improve performance?}
 
-As shown in Table \ref{tab:mt_vs_st_controlbo}, the multi-task models are more accurate than the single-task models when predicting held-out data. Therefore, these models can be used to quickly find optimal controller parameters and guide optimization. In particular, to produce the statistics shown in Table \ref{tab:mt_vs_st_controlbo}, the models were trained on the five initial random tuning experiments generated by Latin hypercube sampling in each tuning run, and the predictions were on the subsequent ten data points from one run. Therefore, these results suggest that the multitask model could more effectively select high quality experiments.
+As shown in Table \ref{tab:mt_vs_st_controlbo}, the multi-task models are more accurate than the single-task models when predicting held-out data. Therefore, these models can be used to quickly find optimal controller parameters and guide optimisation. In particular, to produce the statistics shown in Table \ref{tab:mt_vs_st_controlbo}, the models were trained on the five initial random tuning experiments generated by Latin hypercube sampling in each tuning run, and the predictions were on the subsequent ten data points from one run. Therefore, these results suggest that the multitask model could more effectively select high quality experiments.
 % Table with MAE and $\rho$when using single-task vs multitask model
 
 \begin{table}[]
@@ -608,7 +608,7 @@ The classifier is an important component of ControlBO since it enables making ma
 \begin{figure}
     \centering
     \includegraphics[width=\textwidth]{gfx/Chapter06/classifier_calibration.png}
-    \caption{Calibration curve of GP classifier trained on 80\% of auxiliary simulation data for ControlBO optimization and tested on the remaining 20 \%. The correlation of predicted and actual probability of success suggests that classifier is well calibrated.}
+    \caption{Calibration curve of GP classifier trained on 80\% of auxiliary simulation data for ControlBO optimisation and tested on the remaining 20 \%. The correlation of predicted and actual probability of success suggests that classifier is well calibrated.}
     \label{fig:classifier_calibration}
 \end{figure}
 
@@ -636,7 +636,7 @@ Figure \ref{fig:dynamic_after_tuning} shows the performance of the distillation 
 
 \section{Conclusions}
 
-Here, I compared several approaches to optimizing control systems distillation columns using Bayesian optimization. I developed a simulation of a distillation column, which I aligned to experiments conducted by BASF. Subsequently, I used this simulation to explore the use of ControlBO, a multifidelity, multiobjecitve Bayesian optimization strategy designed for controller tuning. I found that ControlBO could find optimal tuning parameters within twenty experiments. Using ControlBO in multifidelity mode (i.e., with a multitask model) improved the speed of optimization but did not result in better final tuning. However, when a classifier was used to filter out suggestions that might fail, ControlBO gave better solutions on average.
+Here, I compared several approaches to optimizing control systems distillation columns using Bayesian optimisation. I developed a simulation of a distillation column, which I aligned to experiments conducted by BASF. Subsequently, I used this simulation to explore the use of ControlBO, a multifidelity, multiobjecitve Bayesian optimisation strategy designed for controller tuning. I found that ControlBO could find optimal tuning parameters within twenty experiments. Using ControlBO in multifidelity mode (i.e., with a multitask model) improved the speed of optimisation but did not result in better final tuning. However, when a classifier was used to filter out suggestions that might fail, ControlBO gave better solutions on average.
 
-This work is a first step in the direction of leveraging a combination of simulation and machine learning to accelerate controller tuning. However, There are significant challenges both in developing a robust dynamic simulation of a distillation column and applying Bayesian optimization to controller tuning. My distillation simulation does not take into account dynamic pressure changes, which do occur in actual laboratory distillation columns. While our experimental data suggest that pressure drop changes are small in the specific case study due to the use of a vacuum pump for control, more general application of this approach would require taking into account these pressure dynamics to accurately represent dynamic behavior. Similarly, our Bayesian optimization strategy only uses simple time-domain controller performance metrics, while frequency domain performance metrics might give more transferable results. Additionally, we test only on simulations here, but deployment on a real distillation column would be key to verifying the viability of our approach.
+This work is a first step in the direction of leveraging a combination of simulation and machine learning to accelerate controller tuning. However, There are significant challenges both in developing a robust dynamic simulation of a distillation column and applying Bayesian optimisation to controller tuning. My distillation simulation does not take into account dynamic pressure changes, which do occur in actual laboratory distillation columns. While our experimental data suggest that pressure drop changes are small in the specific case study due to the use of a vacuum pump for control, more general application of this approach would require taking into account these pressure dynamics to accurately represent dynamic behavior. Similarly, our Bayesian optimisation strategy only uses simple time-domain controller performance metrics, while frequency domain performance metrics might give more transferable results. Additionally, we test only on simulations here, but deployment on a real distillation column would be key to verifying the viability of our approach.
 
