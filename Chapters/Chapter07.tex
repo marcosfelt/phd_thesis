@@ -192,16 +192,16 @@ Previous work has demonstrated the power of transfer learning for improving pred
     \toprule
     Holdout Set & Model Name &  $ln\gamma_1$ MAE &   $ln\gamma_2$ MAE \\
     \midrule
-    test INDP & DG & \textbf{0.0602} & 0.0645 \\
-              & DG-TLCB & 0.0775 & \textbf{0.0629} \\
-    test MIX & DG & \textbf{0.0643} & \textbf{0.0679} \\
-              & DG-TLCB & 0.0795 & 0.0797 \\
-    valid CONT & DG & \textbf{0.0269} & 0.0401 \\
-                & DG-TLCB & 0.0353 & \textbf{0.0327} \\
-    valid INDP & DG & \textbf{0.0810 }& 0.0914 \\
-              & DG-TLCB & 0.0952 & 0.0877 \\
-    valid MIX & DG & \textbf{0.0682 }& \textbf{0.0784} \\
-              & DG-TLCB & 0.0852 & 0.0811 \\
+    Test INDP & DG & \textbf{0.08} &\textbf{ 0.09} \\
+              & DG-TLCB & \textbf{0.12} & \textbf{0.11} \\
+    Test MIX & DG & \textbf{0.1} & \textbf{0.11} \\
+              & DG-TLCB & 0.15 & 0.17 \\
+    Valid CONT & DG & \textbf{0.05} & \textbf{0.06} \\
+              & DG-TLCB & 0.06 & 0.06 \\
+    Valid INDP & DG & \textbf{0.09} &\textbf{ 0.10} \\
+              & DG-TLCB & 0.11 & 0.11 \\
+    Valid MIX & DG & \textbf{0.08} & \textbf{0.090} \\
+              & DG-TLCB & 0.10 & 0.10 \\
     \bottomrule
     \end{tabular}
 \end{table}
@@ -217,15 +217,15 @@ Results of training on the COSMO-RS activity coefficient dataset are shown in Ta
 
 Results of training on the COSMO-RS activity coefficient dataset are shown in Table \ref{cosmo_rs_results}, the base DeepGamma model achieves the lowest mean absolute error on all holdout sets. Similar mean absolute errors are achieved on the validation and test datasets for all models. As expected, the Valid CONT holdout set has the lowest MAE due to the same molecules being in the training set and holdout set.  For the best performing base model, the INDP and MIX datasets have similar error profiles, indication that model has learned a good encoder representation.  Transfer learning models have slightly worse performance than the base models, but the transfer learning models take ~50\% less time to train. Part of the reason for poorer performance is that the Combisolv model was trained with a depth of four (i.e., number of message passing steps), while the COSMO-RS model only utilized three. Since each message passing step can cause changes in the atom representation, this difference in depth could effect quality of the final fingerprint formed. Interestingly, the DeepGamma Polynomial models have the worst performance of all models.
 
-\begin{figure}[t]
-    \centering
-    \includegraphics[width=\textwidth]{gfx/Chapter07/cosmo_base_test_indp_parity_plot.png}
-    \caption{Parity plot showing predicted versus ground truth activity coefficients obtained from COSMO-RS.}
-    \label{fig:my_label}
-\end{figure}
+% \begin{figure}[t]
+%     \centering
+%     \includegraphics[width=\textwidth]{gfx/Chapter07/cosmo_base_test_indp_parity_plot.png}
+%     \caption{Parity plot showing predicted versus ground truth activity coefficients obtained from COSMO-RS.}
+%     \label{fig:my_label}
+% \end{figure}
 
 
-\section{Conclusion}
+\section{Conclusions}
 
 In this chapter, I propose \textit{DeepGamma}, an approach to predicting activity coefficients directly from molecular structures using directed messasge passing neural networks. The approach offers an over 1900x speed-up compared to the original quantum simulations.  Furthermore, the model is accurate at predicting activity coefficients of unseen molecules.
 
