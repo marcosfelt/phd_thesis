@@ -67,7 +67,7 @@ Please note that all experimental work was completed by Dr Connor Taylor. The re
 
 \begin{figure}
     \centering
-    \includegraphics{gfx/Chapter04/self_optimisation_setup.png}
+    \includegraphics{gfx/Chapter04/self_optimization_setup.png}
     \caption{A schematic diagram of the experimental setup and protocol we used for the MTBO self-optimisation studies. Figure created by Connor Taylor.}
     \label{fig:self_opt_setup}
 \end{figure}
@@ -90,7 +90,7 @@ Four specific case studies are highlighted in Figure \ref{fig:baumgartner_multit
 
 \begin{figure}
     \centering
-    \includegraphics[width=1.2\textwidth]{gfx/Chapter04/baumgartner_suzuki_reizman_suzuki_one_cotraining_optimisation.png}
+    \includegraphics[width=1.2\textwidth]{gfx/Chapter04/baumgartner_suzuki_reizman_suzuki_one_cotraining_optimization.png}
     \caption{A comparison of the performance of single-task Bayesian optimisation (STBO) and multi-task Bayesian optimisation (MTBO) of Suzuki B1 with Suzuki R1-R4 as auxiliary tasks. The average best yield with a 95 \% confidence interval over 20 repeats is shown. The label above each plot refers to the auxiliary (Aux.) task based on the names in Figure \ref{fig:benchmarks_suzuki}, where Suzuki is abbreviated to S.}
     \label{fig:baumgartner_multitask}
 \end{figure}
@@ -103,7 +103,7 @@ To further investigate this issue, I plotted a measure of uncertainty calibratio
 
 \begin{figure}
     \centering
-    \includegraphics[width=0.6\textwidth]{gfx/Chapter04/baumgartner_suzuki_reizman_suzuki_case_2_optimisation_uncertainty.png}
+    \includegraphics[width=0.6\textwidth]{gfx/Chapter04/baumgartner_suzuki_reizman_suzuki_case_2_optimization_uncertainty.png}
     \caption{Spearman's rank correlation coefficient ($\rho$) between standard deviation of predictions and absolute error on holdout set data. A higher value indicates a more calibrated model.}
     \label{fig:uncertainty_multitask}
 \end{figure}
@@ -116,7 +116,7 @@ STBO HS has variable performance relying heavily on the initial conditions provi
 Performance of MTBO can be improved using \textit{multiple} auxiliary tasks. As shown in Figure \ref{fig:baumgartner_suzuki_reizman_suzuki_all_cotraining_optimisation}a, when Suzuki B1 is optimized with Suzuki R1-R4 as auxiliary tasks, the optimal conditions are always found by MTBO in fewer than five experiments. Both P1-L1 and P2-L1 are considered optimal for this reaction, and MTBO selects these two catalysts in over 80 \% of experiments during twenty repeats, when compared to \textless{} 50 \% frequency for STBO - this is highlighted in Figure \ref{fig:baumgartner_suzuki_reizman_suzuki_all_cotraining_optimisation}b. As MTBO utilizes optimal regions of chemical space that have been identified in previous tasks with similar reactivity, this allows the strategy to identify new (and better performing) optimal reaction conditions faster.
 
 \begin{figure}
-    \includegraphics[width=\textwidth]{gfx/Chapter04/catalyst_optimisation.png}
+    \includegraphics[width=\textwidth]{gfx/Chapter04/catalyst_optimization.png}
 
     \caption{A comparison of the performance of single-task Bayesian optimisation (STBO), STBO head start (STBO HS), and multi-task Bayesian optimisation (MTBO) of Suzuki B1 and all of Suzuki R1-R4 as auxiliary tasks. (a)  The average best yield with a 95 \% confidence interval over 20 repeats is shown.  (b) Frequency of selection of each catalyst in Scheme 1 by STBO and MTBO.}
     \label{fig:baumgartner_suzuki_reizman_suzuki_all_cotraining_optimisation}
@@ -143,7 +143,7 @@ For each of these consecutive C-H activation case studies, iteratively fewer exp
 
 \begin{figure}
     \centering
-    \includegraphics[width=0.7\textwidth]{gfx/Chapter04/ch_activation_optimisation_curves.png}
+    \includegraphics[width=0.7\textwidth]{gfx/Chapter04/ch_activation_optimization_curves.png}
     \caption{A plot of best yield of the products in each case study against the optimisation experimental number in each campaign.}
     \label{fig:optimisation_curves}
 \end{figure}
