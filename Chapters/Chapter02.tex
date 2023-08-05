@@ -46,7 +46,7 @@ Bayesian optimisation (BO) is a method for optimizing expensive to evaluate func
 \begin{equation}
     \max_x y(x)
 \end{equation}
-where $y(x)$ is the underlying function that are observed via time-consuming or costly experiments. Bayesian optimisation (BO) is designed to optimize $y$ with as few experiments as possible. It does this by first training a surrogate probabilistic model to represent the underlying function and, then, optimizing an acquisition function informed by this model to choose next experiments. Typically, the probabilistic model is a Gaussian Process (GP). 
+where $y(x)$ is the underlying function that is observed via time-consuming or costly experiments. Bayesian optimisation (BO) is designed to optimize $y$ with as few experiments as possible. It does this by first training a surrogate probabilistic model to represent the underlying function and, then, optimizing an acquisition function informed by this model to choose next experiments. Typically, the probabilistic model is a Gaussian Process (GP). 
 
 \subsection{Gaussian Processes}
 
@@ -122,9 +122,7 @@ where $\xi_{obs} f(x)$ and $\xi_{obs}\sim f(x)$ are samples from the posterior o
 
 The most common approach to transfer learning in BO is improving the probabilistic model by leveraging information for auxiliary tasks. I will review two methods for improving  Gaussian processes: multi-task BO and multi-fidelity BO.
 
-One of the potential ways to accelerate Bayesian optimisation is multi-task Bayesian optimisation (MTBO). MTBO was originally developed to speed up hyperparameter tuning of machine learning models (e.g., choosing learning rates and batch sizes to maximize model accuracy) \cite{Swersky2013}. Using only the hyperparameters and resulting model accuracy scores of a previously trained machine learning model (which I call Task A),  MTBO decreased by up to 50\% the number of experiments needed to find optimal hyperparameters for a new machine learning model (which I call Task B).  The data from Task A helped the model better predict Task B, even with only a few experiments for Task B.
-
-Multi-task Bayesian optimisation (MTBO) uses a multi-task probabilistic model inside a BO framework.  Swersky et al. were the first to demonstrate that multi-task BO can be effectively used to accelerate BO for hyperparameter tuning of machine learning models \cite{Swersky2013}. They demonstrated that using the results of hyperparameter tuning on one dataset could assist in tuning another with multi-task GPs. In many cases, multi-task BO could achieve 40-50\% improvements in the test accuracy of models with significantly fewer training runs.  
+One of the potential ways to accelerate Bayesian optimisation is multi-task Bayesian optimisation (MTBO). MTBO was originally developed to speed up hyperparameter tuning of machine learning models (e.g., choosing learning rates and batch sizes to maximize model accuracy) \cite{Swersky2013}. Using only the hyperparameters and resulting model accuracy scores of a previously trained machine learning model (which I call Task A),  MTBO decreased by up to 50\% the number of experiments needed to find optimal hyperparameters for a new machine learning model (which I call Task B).  The data from Task A helped the model better predict Task B, even with only a few experiments for Task B. 
 
 One of the challenges faced in applying MTBO to big data uses cases has been its lack of scalability. This in mainly due to the $O(n^3)$ cost of using GPs with exact inference. Several different approaches have been taken to solving this problem including training a vanilla neural network on the tasks and feeding the output to a Bayesian linear regression model \cite{Perrone2018} and using the auxiliary tasks to create a learned feature representation in a compressed space \cite{Hakhamaneshi2021}. These methods have retained the performance of multi-task BO while minimizing the computational cost of its deployment. However, in this thesis, all applications of MTBO have less than 1000 points and in many cases, less than 100. This makes multi-task GPs with exact inference more tractable.
 
@@ -136,7 +134,7 @@ In addition to Bayesian optimisation, I use molecular property prediction techni
 
 \subsection{Molecular Parameterization}
 
-The first step of making machine learning models that can predict molecular properties is translating molecules to a machine-readable, typically numerical, format that can be used as input for ML models. This translation process is molecular parameterization as it aims to capture relevant molecular properties for a particular reaction. For different chemical transformations, molecular parameterizations should capture different properties such as steric hinderance of a functional group or electronegativity of neighboring atoms. The parameterization strategy should also be chosen to allow optimal compatibility with the ML model used, as prediction performance will depend on the compatibility between input format and ML model.
+The first step in making machine learning models that can predict molecular properties is translating molecules to a machine-readable, typically numerical, format that can be used as input for ML models. This translation process is molecular parameterization as it aims to capture relevant molecular properties for a particular reaction. For different chemical transformations, molecular parameterizations should capture different properties such as steric hinderance of a functional group or electronegativity of neighboring atoms. The parameterization strategy should also be chosen to allow optimal compatibility with the ML model used, as prediction performance will depend on the compatibility between input format and ML model.
 
 The baseline parameterization method for representing chemical inputs is one-hot encoding (OHE). A one (1) or a zero (0) represent the presence or absence of specified reaction components respectively - no chemical information is encoded. This approach has been shown to be effective for a variety of chemical tasks including yield prediction, but cannot extrapolate to new parts of chemical space \cite{Pomberger2023}. 
 
@@ -185,7 +183,7 @@ To obtain predictions $\hat y$, the outputs of the last message passing step $T$
     \hat y = R(h_v^T \in G)
 \end{equation}
 
-This  vector is called a message. In each layer, a permutation invariant aggregation function such as the mean is used to calculate the total message for each node prior to passing through an activation function to get a new value for each node.  In contrast to traditional fixed fingerprints like ECFP \cite{Rogers2010}, the best feature vector is learned end-to-end for each property prediction task. I make use of MPNNs in Part III of this thesis.
+In contrast to traditional fixed fingerprints like ECFP \cite{Rogers2010}, the best feature vector is learned end-to-end for each property prediction task. I make use of MPNNs in Part III of this thesis.
 
 \subsection{Transfer Learning for Molecular Property Prediction}
 
