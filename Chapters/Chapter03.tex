@@ -116,7 +116,7 @@ In the subsequent sections, I describe the benchmarks and strategies used in thi
 
 \subsubsection{Mechanistic Benchmarks}
 
-The $S_NAr$ benchmark is a reaction between 2,4-difluoronitrobenzene \textbf{1.5} and pyrrolidine \textbf{1.6} to afford the desired products \textbf{1.7} with \textbf{1.8} and \textbf{1.9} as undesired side-products \cite{Hone2017}. Here, the aim is to optimise the reaction in a virtual self-optimising flow setup, as shown in Figure \ref{fig:snar}a. Formally, the optimisation problem can be stated as simultaneously maximising space time yield ($STY$) and minimizing the E-factor ($E$). The decision variables (i.e,. the reaction conditions) are the temperature (40-120 $^{\circ}$C), residence time (0.5-2 minutes), equivalents of \textbf{1.6} (1.0-5.0) and concentration of difluoronitrobenzene (0.1-0.5M). As noted in Equation \ref{snar_formal}, this is achieved by adjusting the residence time $\tau$, inlet concentration of \textbf{1.5} $C_{3.5,i}$, equivalents of pyrrolidine $n_{3.6}$, and reactor temperature, $T$.
+The $S_NAr$ benchmark is a reaction between 2,4-difluoronitrobenzene \textbf{3.5} and pyrrolidine \textbf{3.6} to afford the desired products \textbf{3.7} with \textbf{3.8} and \textbf{3.9} as undesired side-products \cite{Hone2017}. Here, the aim is to optimise the reaction in a virtual self-optimising flow setup, as shown in Figure \ref{fig:snar}a. Formally, the optimisation problem can be stated as simultaneously maximising space time yield ($STY$) and minimizing the E-factor ($E$). The decision variables (i.e,. the reaction conditions) are the temperature (40-120 $^{\circ}$C), residence time (0.5-2 minutes), equivalents of \textbf{3.6} (1.0-5.0) and concentration of difluoronitrobenzene (0.1-0.5M). As noted in Equation \ref{snar_formal}, this is achieved by adjusting the residence time $\tau$, inlet concentration of \textbf{1.5} $C_{3.5,i}$, equivalents of pyrrolidine $n_{3.6}$, and reactor temperature, $T$.
 \begin{equation}
 	\label{snar_formal}
 	\begin{gathered}
@@ -148,7 +148,7 @@ I use hypervolume as a performance metric, which measures the volume in any numb
 \begin{figure}
     \centering
     \includegraphics[width=\textwidth]{gfx/Chapter03/snar_benchmark_scheme_thesis.png}
-    \caption{Scheme showing the reaction being optimized for $S_NAr$ benchmark. This is a four dimensional optimisation of a  S\textsubscript{N}Ar reaction between difluoronitrobenzene (\textbf{1.5}) and pyrrollidine (\textbf{1.6}) \cite{Hone2017}.}
+    \caption{Scheme showing the reaction being optimized for $S_NAr$ benchmark. This is a four dimensional optimisation of a  S\textsubscript{N}Ar reaction between difluoronitrobenzene (\textbf{3.5}) and pyrrollidine (\textbf{3.6}) \cite{Hone2017}.}
     \label{fig:snar_benchmark}
 \end{figure}
 
@@ -165,7 +165,7 @@ I now show the equations used to calculate the objective values for given a set 
 	   & = \frac{Q_{tot}\rho_{eth} + \frac{1}{1000}\sum_{n=1, i \neq 3}^5 M_nC_nQ_{tot}}{\frac{1}{1000}M_{3.7}C_{3.7}Q_{tot}}		
 	\end{split}
 \end{equation}
-where $M_n$ is the molar weight in g/mol of species $n$; $Q_{eth}$ and $\rho_{eth}$ are the volumetric flowrate the density of ethanol respectively; and $Q_{tot}$ is the total volumetric flowrate. The volume of the reactor is assumed to be 5 mL. The inlet concentration of \textbf{2} is calculated:
+where $M_n$ is the molar weight in g/mol of species $n$; $Q_{eth}$ and $\rho_{eth}$ are the volumetric flowrate the density of ethanol respectively; and $Q_{tot}$ is the total volumetric flowrate. The volume of the reactor is assumed to be 5 mL. The inlet concentration of \textbf{3.6} is calculated:
 \begin{equation}
     C_{3.6,i} = n_{3.6} C_{3.5,i}
 \end{equation}
@@ -176,7 +176,7 @@ is the equivalents of pyrrolidine. Since the total flowrate $Q_{tot}$ is $\frac{
 \begin{equation}
     Q_2 = \frac{C_{3.6,i}}{C_{2,0}}Q_{tot}
 \end{equation}
-where $C_{1,0}=1 M$ and $C_{2,0}=2 M$ are the reservoir concentrations of \textbf{1} and \textbf{2} respectively. To calculate the outlet concentrations of the products, the standard equation for a constant density plug flow reactor is used:
+where $C_{1,0}=1 M$ and $C_{2,0}=2 M$ are the reservoir concentrations of \textbf{3.5} and \textbf{3.6  } respectively. To calculate the outlet concentrations of the products, the standard equation for a constant density plug flow reactor is used:
 \begin{equation}
 	\label{pfr}
 	d\tau = \frac{dC_n}{- r_n}

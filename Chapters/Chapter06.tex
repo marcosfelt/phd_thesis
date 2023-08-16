@@ -141,8 +141,8 @@ where $\Delta P_i =\Delta P_{strip}$ for stages below feed stage and $\Delta P_i
         \hline
          $x_i$ &  Liquid composition of methanol on stage $i$ \\
          $y_i$ & Vapor composition of water on stage $i$\\
-         $L_i$ & Liquid flow on stage $i$  \\
-         $V_i$  & Vapor flow on stage $i$ \\
+         $L_i$ & Liquid flow leaving stage $i$  \\
+         $V_i$  & Vapor flow leaving stage $i$ \\
          $T_i$  & Temperature on stage $i$ \\
          $T_i$  & Holdup on stage $i$ \\
          \hline
@@ -169,21 +169,17 @@ Note that the feed stage and the stage above the feed stage are treated separate
 
 where $q_i$ is the liquid fraction of the feed stream.
 
-The material balance for the sump:
+The reboiler and sump are lumped into into one stage. 
 
 \begin{equation}
-    \frac{dn_1}{dt} = L_2 - L_1 + V_0 - V_1
+    \frac{dn_1}{dt} =  L_1 - V_0 - B
 \end{equation}
 
-I assume that the holdup in the thermosyphon reboiler is constant over time, and that all liquid flowing into the reboiler is vaporized. Therefore, the liquid flow into the reboiler is equal to the vapor flow out of the reboiler $V_0$, resulting in the following balance at the bottom of the sump:
-\begin{equation}
-    L_0 = V_0 + B
-\end{equation}
 
 The condenser and reflux drum are lumped and consider as one unit.
 
 \begin{equation}
-    \frac{dn_{N+2}}{dt} = V_{N+1}-(L_{N+2} + D)    
+    \frac{dn_{N+1}}{dt} = V_{N+1}-(L_{N+1} + D)    
 \end{equation}
 
 
@@ -208,21 +204,15 @@ The  feed stage and the stage above the feed stage are treated separately:
 \end{split}
 \end{equation}
 
-Given the previously stated assumption of a total reboiler, the composition of the liquid and vapor in the reboiler are the same:
-
-\begin{equation}
-    x_0 = y_0
-\end{equation}
-
 The component balance around the sump is as follows:
 
 \begin{equation}
-    \frac{d(x_{0} n_{0})}{dt} = L_2 x_2 - L_1 x_1 + V_0 y_0 - V_1 y_1
+    \frac{d(x_{0} n_{0})}{dt} = L_1 x_1 - (B + V_0) x_0 
 \end{equation}
 
 The component balance around the condenser is as follows:
 \begin{equation}
-    \frac{d(x_{N+2} n_{N+2})}{dt}  = V_{N+1} y_{N+1} - x_{N+2} (L_{N+2} + D)
+    \frac{d(x_{N+1} n_{N+1})}{dt}  = V_{N+1} y_{N+1} - x_{N+1} (L_{N+1} + D)
 \end{equation}
 
 \subsubsection{Energy balances}\label{sec:energy_balances}
@@ -231,7 +221,7 @@ In calculating energy balances, I assume that vapor holdup is negligible and the
 
 \begin{equation}
 \begin{split}
-    \frac{d(n_ih^L_i)}{dt} = h^L_{i+1}L_{i+1}-h^L_iL_i+h^V_{i-1}V_{i-1}-h^V_iV_i + Q_i  \\ \forall i=1 \dots N_F-1, N_F+2 \dots N+1
+    \frac{d(n_ih^L_i)}{dt} = h^L_{i+1}L_{i+1}-h^L_iL_i+h^V_{i-1}V_{i-1}-h^V_iV_i \\ \forall i=1 \dots N_F-1, N_F+2 \dots N+1
 \end{split}
 \end{equation}
 
@@ -250,29 +240,25 @@ For the feed stage and the stage above the feed stage:
 \end{split}
 \end{equation}
 
- The energy balances for the reboiler and sump respectively are:
+ The energy balances for the sump is
 
 \begin{equation}
-    \frac{d(n_0h^L_0)}{dt} = V_0(h^L_{1} - h^V_0) + Q_0
-\end{equation}
-
-\begin{equation}
-    \frac{d(n_1h^L_1)}{dt} = L_2 h^L_2 - L_1 h^L_1 + V_0 h^V_0 - L_1 h^L_1 + Q_1  
+    \frac{d(n_0h^L_0)}{dt} = L_1 h^L_1 - (V_0 + B) h^L_0 + Q_0
 \end{equation}
 
 The energy balance for the condenser is as follows:
 
 \begin{equation}
-    \frac{d(n_{N+2}h^L_{N+2})}{dt} = h^V_{N+1} V_{N+1}-h^L_{N+2}(L_{N+2} + D) + Q_{N+2}
+    \frac{d(n_{N+1}h^L_{N+1})}{dt} = h^V_{N+1} V_{N+1}-h^L_{N+1}(L_{N+1} + D) + Q_{N+1}
 \end{equation}
 
 Additionally, a heat exchanger subcools the liquid from the condenser:
 
 \begin{equation}
-    n_{subcool}\frac{d h^L_{reflux}}{dt} = L_{N+2}(h^L_{N+2} - h^L_{reflux}) + Q_{subcool}
+    n_{subcool}\frac{d h^L_{reflux}}{dt} = L_{N+1}(h^L_{N+1} - h^L_{reflux}) + Q_{subcool}
 \end{equation}
 
-For liquid enthalpy $h^{L,c}$ of each component, take a mole fraction weighted average of the specific enthalpies calculated by integrating a constant heat capacity from a reference temperature $T_{ref}$ of normal boiling point of each component $c$. Data is taken from Table 2-72 of Perry’s Chemical Engineering Handbook \cite{Perrys2018}.
+For liquid enthalpy $h^{L,c}$ of each component, take a mole fraction weighted average of the specific enthalpies calculated by integrating a constant heat capacity from a reference temperature $T_{ref}$ of normal boiling point of each component $c$. Data is taken from Table 2-72 of Perry’s Chemical Engineer's Handbook \cite{Perrys2018}.
 
 \begin{equation}
     h^L(T_i, P_i, x_i) = x_ih^{L,0}(T_i,P_i) + (1-x_i)h^{L,1}(T_i,P_i)
@@ -288,22 +274,25 @@ For liquid enthalpy $h^{L,c}$ of each component, take a mole fraction weighted a
 
 The enthalpy of the liquid on stage $i$ is then:
 \begin{equation}
-    h^L_i := h^L(T_i, P_i,x_i)
+    h^L_i := h^L(T_i, P_i,x_i) \;\; \forall i = 1 \dots N_F-1, N_F+1 \dots N+1
 \end{equation}
 
 \begin{equation}
     h^L_{N_F} := h^L(T_{N_F}, P_{N_F},x_{N_F})
 \end{equation}
 
-For vapor enthalpy,  a similar approach is taken. Data for heat of vaporization and vapor enthalpy is taken from Table 2-169 and Table 2-102 respectively in Perry’s Chemical Engineering Handbook \cite{Perrys2018}.
+For vapor enthalpy,  a similar approach is taken. Data for heat of vaporization, vapor enthalpy and heat capacity are taken from Table 2-169, Table 2-102, Table 2-27 respectively in Perry’s Chemical Engineer's Handbook \cite{Perrys2018}.
 
 \begin{equation}
     h^V(T_i, P_i, x_i) = x_i h^{V,0}(T_i,P_i) + (1-x_i) h^{V,1}(T_i,P_i)
 \end{equation}
 
+\begin{equation}
+    h^{V,c}(T,P) = \int_{T_{ref}}^T C_{p,V}^c(\tau)d\tau 
+\end{equation}
 
 \begin{equation}
-    h^{V,c}(T,P) = H^{vap, c}(T_{ref}) + 4R(T-T_{ref})
+    C_{p,V}^c(T) = \sum_{k=0}^5 c_v^kT^k 
 \end{equation}
 
 \begin{equation}
@@ -334,11 +323,15 @@ I use the NRTL model for calculating the activity coefficients, though a variety
 \end{table}
 
 \begin{equation}
-    \ln \gamma_{i,0} = x_2^2\biggl [\tau_{21} \biggl (\frac{G_{21}}{x_1+x_2G_{21}}\biggr)^2 + \frac{\tau_{12}G_{12}}{(x_2 + x_1 G_{12})^2} \biggr ]
+    \ln \gamma_{1} = x_2^2\biggl [\tau_{21} \biggl (\frac{G_{21}}{x_1+x_2G_{21}}\biggr)^2 + \frac{\tau_{12}G_{12}}{(x_2 + x_1 G_{12})^2} \biggr ]
 \end{equation}
 
 \begin{equation}
-     \ln \gamma_{i,1} = x_1^2\biggl [\tau_{12} \biggl (\frac{G_{12}}{x_2+x_1G_{12}}\biggr)^2 + \frac{\tau_{21}G_{21}}{(x_1 + x_2 G_{21})^2} \biggr ]   
+     \ln \gamma_{2} = x_1^2\biggl [\tau_{12} \biggl (\frac{G_{12}}{x_2+x_1G_{12}}\biggr)^2 + \frac{\tau_{21}G_{21}}{(x_1 + x_2 G_{21})^2} \biggr ]   
+\end{equation}
+
+\begin{equation}
+    G_{ij} = e^{-\alpha_{ij} \tau_{ij}}
 \end{equation}
 
 \subsubsection{Pressure balance}
@@ -346,10 +339,10 @@ I use the NRTL model for calculating the activity coefficients, though a variety
 Vapor pressure is calculated using Antoine’s equation with coefficients taken from NIST. 
 
 \begin{equation}
-    \log P_{i,k}^{sat}(T_i) = A_k + \frac{B_k}{T_i + C_k}
+    \log P^{sat}(T_i) = A + \frac{B}{T_i + C}
 \end{equation}
 
-For trays ($i=1\dots N$), modified Raoult’s Law is used with Murphree efficiencies to account for deviations from equilibrium.
+For trays ($i=1\dots N$), modified Raoult’s Law is used with Murphree efficiencies $\alpha$ to account for deviations from equilibrium.
 
 \begin{equation}
     y_i = \alpha_i\frac{x_i\gamma_i(T_i, P_i, x_i)P_0^{sat}(T_i)}{P} + (1-\alpha_i)y_{i-1}
@@ -358,12 +351,12 @@ For trays ($i=1\dots N$), modified Raoult’s Law is used with Murphree efficien
 This leads to the bubble pressure balance:
 
 \begin{equation}
-    P = x_i\gamma_{i,0}(T_i, P_i, x_i)P^{sat}_{i,0} + (1-x_i)\gamma_{i,1}(T_i, P_i, (1-x_i))P^{sat}_{i,1}
+    P = x_i\gamma_{i,1}(T_i, P_i, x_i)P^{sat}_{i,0} + (1-x_i)\gamma_{i,2}(T_i, P_i, (1-x_i))P^{sat}_{i,1}
 \end{equation}
 
 \subsubsection{Francis weir formula}
 
-The Francis weir formula is used for dynamic simulations to calculate liquid flow over the weir given a certain holdup. As shown in Figure \ref{fig:weir}, $h_i^{ow}$ from the the clear liquid to the weir. This can calculated by taking the difference between the actual volume in the weir and a reference volume $n^v_{ref}$ (i.e., the volume if there was no crest) given the cross sectional area.
+The Francis weir formula is used for dynamic simulations to calculate liquid flow over the weir given a certain holdup. As shown in Figure \ref{fig:weir}, $h_i^{ow}$ from the clear liquid to the weir. This can be calculated by taking the difference between the actual volume in the weir and a reference volume $n^v_{ref}$ (i.e., the volume if there was no crest) given the cross sectional area.
 
 \begin{figure}
     \centering
@@ -384,7 +377,7 @@ The Francis weir formula for calculating flow over the weir comes from the Berno
 \end{equation}
 
 \begin{equation}
-    L_i^{vol} = \int_0^{h_i^{ow}} v(y)wdy = w\sqrt{2g}\int_0^{h_i^{ow}} y^{1/2}dy = \frac{2}{3}w\sqrt{2g}(h_i^{ow})^{3/2} 
+    L_i^{vol} = \int_0^{h_i^{ow}} v(h)wdh = w\sqrt{2g}\int_0^{h_i^{ow}} h^{1/2}dh = \frac{2}{3}w\sqrt{2g}(h_i^{ow})^{3/2} 
 \end{equation}
 
 
@@ -413,7 +406,7 @@ Since the simulation is in molar flowrates, volumetric flowrates should be conve
 \end{equation}
 
 
-where $\rho(T_i,x_i)$ is the volumetric density, calculated by a weighted average of the volumetric density of both components. Volumetric density come from Perry’s Chemical Engineering Handbook \cite{Perrys2018}.
+where $\rho(T_i,x_i)$ is the volumetric density, calculated by a weighted average of the volumetric density of both components. Volumetric density come from Perry’s Chemical Engineer's Handbook \cite{Perrys2018}.
 
 \begin{equation}
     \rho(T_i, x_i) = x_i\rho^0(T_i, x_i) + (1-x_i)\rho^1(T_i, x_i)
