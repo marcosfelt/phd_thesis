@@ -199,7 +199,7 @@ Previous work has demonstrated the power of transfer learning for improving pred
 The training set size was 11M activity coefficients. Sizes of the holdout set are listed in Table \ref{tab:cosmo_rs_results}.
 
 \noindent
-\textbf{Training Details:} We leveraged the implementation of D-MPNNs in the python package chemprop \cite{Yang2019, Heid2023}. A model was trained on the Combisolv dataset using the same hyperparameters as in the paper by Vermeire and Green (batch size 50, encoder hidden size 200, and feed forward network hidden size of 500) except that a shared encoder was used instead of one for the solute and solvent \cite{Vermeire2021}. Using a shared encoder did not have a significant impact on the results. Since the paper did not report learning rate, a small set of experiments were conducted to find that an initial learning rate of 1e-4 and max learning rate of 2e-4 were optimal for the Noam learning rate scheduler \cite{Vaswani2017}. Training on a single Tesla GPU (AWS EC2 g4dn.xlarge) required 43 hours. For the COSMO-RS models, we used a feedforward network hidden size of 380, a batch size of 4550,  and a max learning rate of 6e-3.  The COSMO-RS models were trained for until three consecutive epochs did not have improved validation MSE. I used instances equipped with a single A10 GPU (16 GB) and 61 GB of RAM to train these models.  For transfer learning on the COSMO-RS dataset, we froze the encoder learned for the Combisolv model and only adjusted the parameters of the feed forward network.
+\textbf{Training Details:} I leveraged the implementation of D-MPNNs in the python package chemprop \cite{Yang2019, Heid2023}. A model was trained on the Combisolv dataset using the same hyperparameters as in the paper by Vermeire and Green (batch size 50, encoder hidden size 200, and feed forward network hidden size of 500) except that a shared encoder was used instead of one for the solute and solvent \cite{Vermeire2021}. Using a shared encoder did not have a significant impact on the results. Since the paper did not report learning rate, a small set of experiments were conducted to find that an initial learning rate of 1e-4 and max learning rate of 2e-4 were optimal for the Noam learning rate scheduler \cite{Vaswani2017}. Training on a single Tesla GPU (AWS EC2 g4dn.xlarge) required 43 hours. For the COSMO-RS models, we used a feedforward network hidden size of 380, a batch size of 4550, and a max learning rate of 6e-3.  The COSMO-RS models were trained for until three consecutive epochs did not have improved validation MSE. I used instances equipped with a single A10 GPU (16 GB) and 61 GB of RAM to train these models. For transfer learning on the COSMO-RS dataset, I froze the encoder learned for the Combisolv model and only adjusted the parameters of the feed forward network.
 
 
 \section{Results and Discussion}
@@ -213,16 +213,16 @@ The training set size was 11M activity coefficients. Sizes of the holdout set ar
     \toprule
     Holdout Set & $n$ & Model Name &  $ln\gamma_1$ MAE &   $ln\gamma_2$ MAE \\
     \midrule
-    Test INDP & 579 458 & DG & 0.15 & 0.14 \\
-              & & DG-TLCB & 0.14 & 0.14 \\
-    Test MIX & 5 985 078& DG & 0.11 & 0.10 \\
-              && DG-TLCB & 0.10 & 0.10 \\
-    Valid CONT & 111 426 & DG & 0.027 & 0.026 \\
-              && DG-TLCB & 0.033 & 0.032 \\
-    Valid INDP & 595 243& DG & 0.075 & 0.072 \\
-              && DG-TLCB & 0.11 & 0.092 \\
-    Valid MIX &  920 139& DG & 0.062 & 0.058 \\
-              && DG-TLCB & 0.093 & 0.083 \\
+    Test INDP & DG & 0.1453 & 0.1369 \\
+              & DG-TLCB & 0.1345 & 0.1355 \\
+    Test MIX & DG & 0.1077 & 0.1033 \\
+              & DG-TLCB & 0.0955 & 0.0979 \\
+    Valid CONT & DG & 0.0270 & 0.0267 \\
+              & DG-TLCB & 0.0291 & 0.0323 \\
+    Valid INDP & DG & 0.0747 & 0.0717 \\
+              & DG-TLCB & 0.1076 & 0.0930 \\
+    Valid MIX & DG & 0.0623 & 0.0575 \\
+              & DG-TLCB & 0.0826 & 0.0793 \\
     \bottomrule
     \end{tabular}
 \end{table}
@@ -232,8 +232,7 @@ The training set size was 11M activity coefficients. Sizes of the holdout set ar
 
 % In all our tables, we report mean absolute error for each model and holdout set. We also report the time required for training, as this varies significantly between the full and pretrained models. Fitting the polynomial model required approximately 24 hours.
 
-Results of training on the COSMO-RS activity coefficient dataset are shown in Table \ref{tab:cosmo_rs_results}. The base \textit{DeepGamma} model  and model pretrained on COSMO-RS data 
- achieve similar mean absolute errors. Similar mean absolute errors are achieved on the validation and test datasets for all models. As expected, the Valid CONT holdout set has the lowest MAE due to the same molecules being in the training set and holdout set.  For the best performing base model, the INDP and MIX datasets have similar error profiles, indication that model has learned a good encoder representation.  Note that even though the transfer learning model has approximately the performance as the base models, it takes ~50 \% less time to train. 
+Results of training on the COSMO-RS activity coefficient dataset are shown in Table \ref{tab:cosmo_rs_results}. The base \textit{DeepGamma} model  and model pretrained on COSMO-RS data achieve similar mean absolute errors. Similar mean absolute errors are achieved on the validation and test datasets for all models. As expected, the Valid CONT holdout set has the lowest MAE due to the same molecules being in the training set and holdout set.  For the best performing base model, the INDP and MIX datasets have similar error profiles, indication that model has learned a good encoder representation.  Note that even though the transfer learning model has approximately the performance as the base models, it takes ~50 \% less time to train. 
 
 The accuracy of predictions varies as function of composition. As shown in Figure \ref{fig:absolute_error_composition}, there are higher errors approaching infinite dilution, which is a trend seen in other work published contemporaneously \cite{Winter2022}. This is likely due to the activity coefficient being larger approaching infinite dilution.
 
@@ -255,7 +254,7 @@ Figure \ref{fig:dg_test_indp_parity_plot} visualizes the predictions versus orig
 
 \subsection{Using \textit{DeepGamma} for VLE predictions}
 
-I used \textit{DeepGamma} to predict the activity coefficients of several mixtures in the test INDP set and used these activity coefficients to construct P-xy diagrams. I used Antoine equation with activity coefficients from the NIST database to calculate vapor pressures. In Figure \ref{fig:low_error_dg_prediction} and \ref{fig:high_error_dg_prediction}, I show two mixtures with different levels of error  between the \textit{DeepGamma} and COSMO-RS predictions. Figure \ref{fig:low_error_dg_prediction} shows 2-methyl-2-butanol and 2-methylpentane at 333.15K, a mixture for which \textit{DeepGamma} accurately predicts activity coefficients and thus renders an accurate representation of the P-xy diagram.  However, in Figure \ref{fig:high_error_dg_prediction}, I show isopropylamine and trifluoroacetic acid, a mixture for which \textit{DeepGamma} has high erorr in the predictions liquid pressure and even gives non-physical results from vapor pressure. This again highlights that the lack of thermodynamic consistency in deep learning models represents a problem when using the predictions from models like \textit{DeepGamma} in downstream applications.
+I used \textit{DeepGamma} to predict the activity coefficients of several mixtures in the test INDP set and used these activity coefficients to construct P-xy diagrams. I used Antoine equation with activity coefficients from the NIST database to calculate vapor pressures \cite{Muzny}. In Figure \ref{fig:low_error_dg_prediction} and \ref{fig:high_error_dg_prediction}, I show two mixtures with different levels of error  between the \textit{DeepGamma} and COSMO-RS predictions. Figure \ref{fig:low_error_dg_prediction} shows 2-methyl-2-butanol and 2-methylpentane at 333.15K, a mixture for which \textit{DeepGamma} accurately predicts activity coefficients and thus renders an accurate representation of the P-xy diagram.  However, in Figure \ref{fig:high_error_dg_prediction}, I show isopropylamine and trifluoroacetic acid, a mixture for which \textit{DeepGamma} has high erorr in the predictions liquid pressure and even gives non-physical results from vapor pressure. This again highlights that the lack of thermodynamic consistency in deep learning models represents a problem when using the predictions from models like \textit{DeepGamma} in downstream applications.
 
 \begin{figure}
     \centering
