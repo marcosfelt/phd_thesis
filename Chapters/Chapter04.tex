@@ -25,7 +25,7 @@ As shown in Figure \ref{fig:multitask_overview}a-b, MTBO changes the probabilist
 \begin{equation}
     k^{ICM}_{\theta}(x,x') = k^t_{\theta} \otimes  k_{\theta}(x,x')
 \end{equation}
-The task kernel $k^t_{\theta}$ is a $T \times T$ matrix of trainable parameters where $T$ is the number of tasks. These parameters represent the inter-task correlation.
+The task kernel $k^t_{\theta}$ is a $T \times T$ matrix of trainable parameters where $T$ is the number of tasks. These parameters represent the inter-task correlation, and in the case of reactions should represent reaction similarity. The parameters start with a prior of very little task correlation and are updated with evidence from the data; if there is strong covariance between the data from different tasks, this multi-task GP will assume the reactions are similar and the auxiliary data can be used to improve predictions on the main task.
 
 \begin{figure}
     \centering
@@ -77,7 +77,7 @@ Please note that all experimental work was completed by Dr Connor Taylor. The re
 
 \subsection{In Silico Case Studies: Suzuki-Miyaura Couplings}
 
-I first executed \textit{in silico} MTBO studies using model chemical reactions as benchmarks. These models were generated using neural networks trained on literature experimental data that predict reaction yield. The model `Suzuki B1' was trained using Suzuki cross-coupling data from Baumgartner \textit{et al.} \cite{Baumgartner2018}, while the models `Suzuki R1-4' were trained using data from Reizman \textit{et al.} \cite{Reizman2016a}.  These specific transformations and the variables that affect these models are shown in Figure \ref{fig:benchmarks_suzuki}.
+I first executed \textit{in silico} MTBO studies using model chemical reactions as benchmarks. These models were generated using neural networks trained on literature experimental data that predict reaction yield. The model `Suzuki B1' was trained using Suzuki cross-coupling data from Baumgartner \textit{et al.} \cite{Baumgartner2018}, while the models `Suzuki R1-4' were trained using data from Reizman \textit{et al.} \cite{Reizman2016a}.  These specific transformations and the variables that affect these models are shown in Figure \ref{fig:benchmarks_suzuki}. When conducting benchmarking studies with MTBO, I initialized the optimization strategy using the best conditions from the auxiliary task.  I also included an additional baseline, STBO HS, that represents starting STBO with the best conditions from the auxiliary task(s) used for MTBO. This was done to understand how much of the acceleration of MTBO could be achieved by just using the optimal values from the auxiliary task.
 
 \begin{figure}
     \centering
@@ -86,7 +86,7 @@ I first executed \textit{in silico} MTBO studies using model chemical reactions 
     \label{fig:benchmarks_suzuki}
 \end{figure}
 
-Four specific case studies are highlighted in Figure \ref{fig:baumgartner_multitask}, each where the main task is Suzuki B1 and the auxiliary training task is one dataset from each of Suzuki R1-4. In each case study, a conventional single-task Bayesian optimisation (STBO) benchmark for the Suzuki B1 reaction serves as a comparison.  An additional baseline, STBO HS, is included which represents starting STBO with the best data from the auxiliary task(s) used for MTBO. For each MTBO study, 96 datapoints from the auxiliary task were utilized. The average best yield for each algorithm is shown with a 95 \% confidence interval over 20 repeated runs. 
+Four specific case studies are highlighted in Figure \ref{fig:baumgartner_multitask}, each where the main task is Suzuki B1 and the auxiliary training task is one dataset from each of Suzuki R1-4. In each case study, a conventional single-task Bayesian optimisation (STBO) benchmark for the Suzuki B1 reaction serves as a comparison.   For each MTBO study, 96 datapoints from the auxiliary task were utilized. The average best yield for each algorithm is shown with a 95 \% confidence interval over 20 repeated runs. 
 
 \begin{figure}
     \centering
@@ -113,7 +113,7 @@ In the case studies where the auxiliary tasks were Suzuki R3-4, the reactivity o
 
 STBO HS has variable performance relying heavily on the initial conditions provided. Overall, we observe that MTBO is less sensitive to changes in optima than MTBO, but MTBO is more sensitive to getting stuck in local optima that might be far away from the condition used initially. 
 
-Performance of MTBO can be improved using \textit{multiple} auxiliary tasks. As shown in Figure \ref{fig:baumgartner_suzuki_reizman_suzuki_all_cotraining_optimisation}a, when Suzuki B1 is optimized with Suzuki R1-R4 as auxiliary tasks, the optimal conditions are always found by MTBO in fewer than five experiments. Both P1-L1 and P2-L1 are considered optimal for this reaction, and MTBO selects these two catalysts in over 80 \% of experiments during twenty repeats, when compared to \textless{} 50 \% frequency for STBO - this is highlighted in Figure \ref{fig:baumgartner_suzuki_reizman_suzuki_all_cotraining_optimisation}b. As MTBO utilizes optimal regions of chemical space that have been identified in previous tasks with similar reactivity, this allows the strategy to identify new (and better performing) optimal reaction conditions faster.
+The performance of MTBO can be improved using \textit{multiple} auxiliary tasks. As shown in Figure \ref{fig:baumgartner_suzuki_reizman_suzuki_all_cotraining_optimisation}a, when Suzuki B1 is optimized with Suzuki R1-R4 as auxiliary tasks, the optimal conditions are always found by MTBO in fewer than five experiments. Both P1-L1 and P2-L1 are considered optimal for this reaction, and MTBO selects these two catalysts in over 80 \% of experiments during twenty repeats, when compared to \textless{} 50 \% frequency for STBO - this is highlighted in Figure \ref{fig:baumgartner_suzuki_reizman_suzuki_all_cotraining_optimisation}b. As MTBO utilizes optimal regions of chemical space that have been identified in previous tasks with similar reactivity, this allows the strategy to identify new (and better performing) optimal reaction conditions faster.
 
 \begin{figure}
     \includegraphics[width=\textwidth]{gfx/Chapter04/catalyst_optimization.png}
