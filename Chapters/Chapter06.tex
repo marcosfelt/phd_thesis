@@ -10,7 +10,7 @@ As noted in Chapter \ref{ch:rl_tuning}, there are a wide variety of existing tun
 
 One approach to reduce the number of iterations required for BO is multifidelity Bayesian optimisation (MFBO). MFBO leverages data from an auxiliary simulation or data source that is faster or cheaper to evaluate. Early examples of this approach include Kennedy et al. who used low fidelity approximations of an oil rig simulation to reduce the number of calls to a slower simulator \cite{Kennedy2000}. More recently, multifidelity Bayesian optimisation approaches have developed to accelerate the tuning of hyperparameters for machine learning models \cite{pmlr-v70-kandasamy17a}, design of batteries \cite{Folch2023} and optimisation of airplane rotors \cite{Pan2017}. Readers should refer to Chapter \ref{ch:background} for review of multifidelity and transfer learning in Bayesian optimisation.
 
-In this chapter, I use Bayesian optimisation to accelerate controller tuning. I introduce a novel BO strategy called ControlBO designed specifically for tuning control systems and explore whether multifidelity BO can accelerate controller tuning. I then develop a dynamic simulation of a distillation column that I use to evaluate ControlBO \textit{in silico}.
+In this chapter, I use Bayesian optimisation to accelerate controller tuning. I introduce a novel BO strategy called ControlBO that I  designed specifically for tuning control systems and explore whether multifidelity BO can accelerate controller tuning. I then develop a dynamic simulation of a distillation column that I use to evaluate ControlBO \textit{in silico}. This overall workflow is shown in Figure \ref{fig:tuning_workflow}.
 
 \begin{figure}
     \centering
@@ -46,7 +46,7 @@ I formulate the problem of controller design and tuning as an optimisation probl
 \begin{equation}
     CM = \sum_{t=1}^{T}( \vert x_t - x_{t-1} \vert)
 \end{equation}
-where $y_{sp}$ is the setpoint,  $\hat y$  is the value of  the variable, T is the time horizon. 
+where $y_{sp}$ is the setpoint,  $\hat y$  is the value of  the variable, T is the time horizon for a single tuning experiment. 
 
 \subsection{ControlBO: Bayesian optimisation for controller tuning}
 
@@ -55,7 +55,7 @@ ControlBO is a Bayesian optimisation algorithm that aims to identify robust cont
 ControlBO is a multifidelity and multi-objective Bayesian optimisation algorithm that aims to solve the following problem:
 
 \begin{equation}
-    \Omega^* = \min_{\Omega} \mathbf f(\Omega, x, \delta)
+    \Omega^* = \min_{\Omega} \mathbf f(\Omega, \delta)
 \end{equation}
 where $\Omega$ are the controller parameters and $\mathbf f$ is the laboratory controller tuning problem. $\delta$ are disturbance variables that might be stepped by operators or changed by other external factors. Similar to Paulson et al. \cite{Paulson2022}, I use a min max formulation where a GP is trained on both controller parameters $\Omega$ and values of disturbance variables from past tuning experiments. During acquisition function optimisation, the disturbance variables are fixed at their maximum value, while the controllers parameters are varied to maximize the acquisition function. Fixing the disturbance variables ensures that robust controller parameters are chosen.
 
@@ -63,7 +63,7 @@ The unique feature of ControlBO is that it trains an independent multitask GP to
 
 Since our problem is multi-objective, I used a multi-objective acquisition function, namely the q Expected Hypervolume Improvement (qEHVI) \cite{Balandat2020}. This acquisition function has a balance of computational efficiency and fidelity resulting in an ability to find the Pareto front of trade-offs between objectives quickly. 
 
-Additionally, I found that tuning experiments often fail due to controller parameters being too aggressive. ControlBO therefore trains a GP classifier that predicts the probability of success of a tuning experiment using data from the auxiliary simulation. During acquisition function optimisation, the probability of success of a tuning experiment, as predicted by the GP classifier, is multiplied by the acquisition function value to determine a final acquisition function value that is optimized to choose the next experiment:
+Additionally, I found that tuning experiments often fail due to controller parameters being too aggressive. ControlBO therefore trains a GP classifier that predicts the probability of success of a tuning experiment using data from the auxiliary simulation. Success is defined as whether or not a simulation converged. During acquisition function optimisation, the probability of success of a tuning experiment, as predicted by the GP classifier, is multiplied by the acquisition function value to determine a final acquisition function value that is optimized to choose the next experiment:
 
 \begin{equation}
     \alpha_{c} = p_{success}(y_c \vert x, \mathcal D) \alpha_{qEHVI}(X)
@@ -78,7 +78,7 @@ where $\alpha$ is the acquisition function.
 %     \alpha_{cc} = p(h \vert \mathcal D) \alpha_{qNEHVI}
 % \end{equation} 
 
-I developed a differential equation simulation of a distillation column that was aligned to experimental data using both steady state and dynamic parameter estimation. I generated two versions of this simulation: a "high fidelity" version that was aligned to experimental data and a "low fidelity" copy with slightly adjusted parameters. For evaluation of ControlBO, I first generated the data from a low fidelity simulation in advance with 500 randomly generated tuning experiments. Then, I used high fidelity simulation to represent the actual laboratory distillation column for evaluation of ControlBO \textit{in silico}. In the following section, I describe the simulation in detail.
+I developed a differential equation simulation of a distillation column that was aligned to experimental data using both steady state and dynamic parameter estimation. I generated two versions of this simulation: a "high fidelity" version that was aligned to experimental data and a "low fidelity" copy with slightly adjusted parameters. For evaluation of ControlBO, I first generated the data from a low fidelity simulation in advance with 500 randomly generated tuning experiments run in simulation. Then, I used high fidelity simulation to represent the actual laboratory distillation column for evaluation of ControlBO \textit{in silico}. In the following section, I describe the simulation in detail.
 
 \subsection{Distillation Simulation}\label{sec:distillation_model}
 
@@ -141,10 +141,10 @@ where $\Delta P_i =\Delta P_{strip}$ for stages below feed stage and $\Delta P_i
         \hline
          $x_i$ &  Liquid composition of methanol on stage $i$ \\
          $y_i$ & Vapor composition of water on stage $i$\\
-         $L_i$ & Liquid flow leaving stage $i$  \\
-         $V_i$  & Vapor flow leaving stage $i$ \\
-         $T_i$  & Temperature on stage $i$ \\
-         $T_i$  & Holdup on stage $i$ \\
+         $L_i$ & Liquid flow leaving stage (mol/minute) $i$  \\
+         $V_i$  & Vapor flow leaving stage (mol/minute) $i$ \\
+         $T_i$  & Temperature on stage (K) $i$ \\
+         $n_i$  & Holdup on stage (mol) $i$ \\
          \hline
     \end{tabular}
     \label{tab:state_variables}
@@ -167,7 +167,7 @@ Note that the feed stage and the stage above the feed stage are treated separate
    \frac{dn_{N_F+1}}{dt} = L_{N_F+2}-L_{N_F+1} + V_{N_F}-V_{N_F+1} + (1-q_{N_F})F 
 \end{equation}
 
-where $q_i$ is the liquid fraction of the feed stream.
+where $q_i$ is the liquid fraction of the feed stream and $F$ is the molar feed flow.
 
 The reboiler and sump are lumped into into one stage. 
 
@@ -175,6 +175,7 @@ The reboiler and sump are lumped into into one stage.
     \frac{dn_1}{dt} =  L_1 - V_0 - B
 \end{equation}
 
+$B$ is the molar bottoms flow.
 
 The condenser and reflux drum are lumped and consider as one unit.
 
@@ -197,6 +198,8 @@ The  feed stage and the stage above the feed stage are treated separately:
  \frac{d(x_{N_F} n_{N_F})}{dt} =  &  x_{N_F+1}L_{N_F+1}  - x_{N_F}L_{N_F} +  y_{N_F-1}V_{N_F-1} \\ & -y_{N_F}V_{N_F} + q_{N_F}z_FF   
 \end{split}
 \end{equation}
+
+where $z_F$ is the overall molar composition of the feed stream.
 
 \begin{equation}
 \begin{split}
@@ -225,6 +228,8 @@ In calculating energy balances, I assume that vapor holdup is negligible and the
 \end{split}
 \end{equation}
 
+where $h^L_i$ and $h^V_i$ are the specific enthalpy of the liquid and vapor respectively on stage $i$.
+
 For the feed stage and the stage above the feed stage:
 
 \begin{equation}
@@ -240,11 +245,13 @@ For the feed stage and the stage above the feed stage:
 \end{split}
 \end{equation}
 
- The energy balances for the sump is
+ The energy balances for the sump is:
 
 \begin{equation}
     \frac{d(n_0h^L_0)}{dt} = L_1 h^L_1 - (V_0 + B) h^L_0 + Q_0
 \end{equation}
+
+where $Q_0$ is the reboiler heat duty.
 
 The energy balance for the condenser is as follows:
 
@@ -252,13 +259,17 @@ The energy balance for the condenser is as follows:
     \frac{d(n_{N+1}h^L_{N+1})}{dt} = h^V_{N+1} V_{N+1}-h^L_{N+1}(L_{N+1} + D) + Q_{N+1}
 \end{equation}
 
+wher $Q_{N+1}$ is the condenser duty.
+
 Additionally, a heat exchanger subcools the liquid from the condenser:
 
 \begin{equation}
     n_{subcool}\frac{d h^L_{reflux}}{dt} = L_{N+1}(h^L_{N+1} - h^L_{reflux}) + Q_{subcool}
 \end{equation}
 
-For liquid enthalpy $h^{L,c}$ of each component, take a mole fraction weighted average of the specific enthalpies calculated by integrating a constant heat capacity from a reference temperature $T_{ref}$ of normal boiling point of each component $c$. Data is taken from Table 2-72 of Perry’s Chemical Engineer's Handbook \cite{Perrys2018}.
+where $Q_{subcool}$ is the heat exchanger duty.
+
+For liquid enthalpy $h^{L,c}$ of each component, a mole fraction weighted average of the specific enthalpies is calculated by integrating a constant heat capacity from a reference temperature $T_{ref}$ of normal boiling point of each component $c$. Data is taken from Table 2-72 of Perry’s Chemical Engineer's Handbook \cite{Perrys2018}.
 
 \begin{equation}
     h^L(T_i, P_i, x_i) = x_ih^{L,0}(T_i,P_i) + (1-x_i)h^{L,1}(T_i,P_i)
@@ -354,9 +365,9 @@ This leads to the bubble pressure balance:
     P = x_i\gamma_{i,1}(T_i, P_i, x_i)P^{sat}_{i,0} + (1-x_i)\gamma_{i,2}(T_i, P_i, (1-x_i))P^{sat}_{i,1}
 \end{equation}
 
-\subsubsection{Francis weir formula}
+\subsubsection{Francis weir formula}\label{sec:francis_weir}
 
-The Francis weir formula is used for dynamic simulations to calculate liquid flow over the weir given a certain holdup. As shown in Figure \ref{fig:weir}, $h_i^{ow}$ from the clear liquid to the weir. This can be calculated by taking the difference between the actual volume in the weir and a reference volume $n^v_{ref}$ (i.e., the volume if there was no crest) given the cross sectional area.
+The Francis weir formula is used for dynamic simulations to calculate liquid flow over the weir given a certain holdup. As shown in Figure \ref{fig:weir}, $h_i^{ow}$ from the clear liquid to the weir. This can be calculated by taking the difference between the actual volume in the weir and a reference volume $n^v_{ref}$ (i.e., the volume if there was no crest) given the cross sectional area $A$.
 
 \begin{figure}
     \centering
@@ -370,7 +381,8 @@ The Francis weir formula is used for dynamic simulations to calculate liquid flo
     h^{ow}_i = \frac{n^v_i-n^v_{ref}}{A}
 \end{equation}
 
-The Francis weir formula for calculating flow over the weir comes from the Bernoulli equation for the horizontal velocity $v$. The equation is integrated from the top of the liquid (y=0) to the weir ($y=h_i^{ow}$)
+
+The Francis weir formula for calculating flow over the weir of width $w$ comes from the Bernoulli equation for the horizontal velocity $v$. The equation is integrated from the top of the liquid (y=0) to the weir ($y=h_i^{ow}$)
 
 \begin{equation}
     \frac{1}{2} \rho v^2 = \rho g y \ \Longrightarrow v(y) = \sqrt{2gy}
@@ -397,7 +409,7 @@ All constants are then lumped into a a single parameter $W_{tray}$:
     W_{tray} = \frac{2}{3}w\sqrt{2g}A^{-3/2}
 \end{equation}
 
-Based on measurements from BASF, I assume the diameter of the weir $w$ is 8 mm and the height of the weir $h$ is 10 mm.  I then take $h = 1\cdot10^{-2} m$ and $A=\pi w^2/4 = \pi(8 \cdot 10^{-3})^2/4 = 5.024 \cdot 10^{-5} m^2$, and g is the gravity of Earth. Therefore $W_{tray}^{init}=120149 \; m^{-3/2}s^{-1}$. $n^v_{ref}=Ah=5.024 \cdot 10^{-7} m^3$. 
+Based on measurements from BASF, I assume the diameter of the weir $w$ is 8 mm and the height of the weir $h$ is 10 mm. Additionally, these measurements give $h = 1\cdot10^{-2} m$ and $A=\pi w^2/4 = \pi(8 \cdot 10^{-3})^2/4 = 5.024 \cdot 10^{-5} m^2$. Therefore $W_{tray}^{init}=120149 \; m^{-3/2}s^{-1}$. $n^v_{ref}=Ah=5.024 \cdot 10^{-7} m^3$. 
 
 Since the simulation is in molar flowrates, volumetric flowrates should be converted to molar flowrates:
 
@@ -449,9 +461,9 @@ I implemented the equations from the previous section in a simulation of a disti
     \label{fig:simulation_workflow}
 \end{figure}
 
-To initialize  the simulation, only the component material balances and pressure balances were solved. The constant molal overflow assumption was used, which states that there is constant liquid flow in the stripping and rectifying section respectively as well as constant vapor flow. 
+To initialise  the simulation, only the component material balances and pressure balances were solved using the steady-state solver in GEKKO \cite{Beal2018}. This solver turns off the derivatives in all equations and solves nonlinear simulataneous equation problem using a nonlinear solver. The constant molal overflow assumption was used, which states that there is constant liquid flow in the stripping and rectifying section respectively as well as constant vapor flow.  The values of the state variables are saved from the the constant molal overflow calculation, and estimates of reboiler and condenser duty are calculated using energy balances.
 
-Given the initialization, the full steady state simulation was then solved and used to generate the nominal values for steady state parameter estimation to the experimental data. The full list of estimated parameters can be found in Table \ref{tab:param_estimation}. Note that, while the condenser duty during dynamic simulation was fixed at the value from steady state parameter estimation, the reboiler duty was a manipulated variable; therefore, the steady-state estimated value of the reboiler duty served as an initial condition. The objective of the parameter estimation was to minimize the $L_1$ error between the simulation and experimental temperatures on stages 10, 22 and 35, as these stages were shown to be sensitive to changes in the parameters. Therefore, the parameter estimation problem was formulated as:
+The full steady state simulation was then solved using the state variables from the constant molal overflow simulation as initial guesses. Again the steady-state solver in  GEKKO was used. This results of the full steady state simulation was used to generate the nominal values for steady state parameter estimation to the experimental data. The full list of estimated parameters can be found in Table \ref{tab:param_estimation}. Note that, while the condenser duty during dynamic simulation was fixed at the value from steady state parameter estimation, the reboiler duty was a manipulated variable; therefore, the steady-state estimated value of the reboiler duty served as an initial condition. The objective of the parameter estimation was to minimize the $L_1$ error between the simulation and experimental temperatures on stages 1, 8, 11, 16, 17, 21, 23, 41, 47, 53, 61, 81, as these stages were shown to be sensitive to changes in the parameters. Therefore, the parameter estimation problem was formulated as:
 %  The $l_1$ norm was chosen due to its improved  handling of outliers \cite{Safdarnejad2016}.
 \begin{subequations}
     \begin{align}
@@ -459,7 +471,7 @@ Given the initialization, the full steady state simulation was then solved and u
         s.t. \;\; 0 = \mathbf g(\mathbf X, \boldsymbol \theta)
     \end{align}
 \end{subequations}
-where $\mathbf X$ are the state variables and $\boldsymbol \theta = \{\boldsymbol \theta_{est}, \boldsymbol \theta_{const} \}$.  $\boldsymbol \theta_{est}$ are the parameters to be estimated in Table \ref{tab:param_estimation} and $\boldsymbol \theta_{const}$ are set using data from geometry of the column. $\Delta P$ is the column pressure drop, and $w_p$ is a weighting for pressure drop objective, set nominally to 100.  $\mathbf f$ is the system of equations represented by equations in section \ref{sec:distillation_model} with all derviatives set equal to zero. 
+where $\mathbf X$ are the state variables and $\boldsymbol \theta = \{\boldsymbol \theta_{est}, \boldsymbol \theta_{const} \}$.  $\boldsymbol \theta_{est}$ are the parameters to be estimated in Table \ref{tab:param_estimation} and $\boldsymbol \theta_{const}$ are set using data from geometry of the column. $\Delta P$ is the column pressure drop, and $w_p$ is a weighting for pressure drop objective, set nominally to 100.  $\mathbf f$ is the system of equations represented by equations in section \ref{sec:distillation_model} with all derivatives set equal to zero. 
 % \{\mathbf x, \mathbf y, \mathbf T, \mathbf L, \mathbf n\}$ 
 \begin{sidewaystable}[]
     \centering
@@ -479,7 +491,7 @@ where $\mathbf X$ are the state variables and $\boldsymbol \theta = \{\boldsymbo
     \label{tab:param_estimation}
 \end{sidewaystable}
 
-I used the steady state simulation as the initialization for dynamic simulation. The simulation was stepped forward in thirty second intervals using a sequential integration approach. 
+I used the state variables after parameter estimation from steady state simulations as the initial condition for the dynamic simulation. The dynamic simulation was run using GEKKO's sequential differential algebraic equation solver. The simulation was stepped forward in thirty second intervals using a sequential integration approach. 
 
 % In Figure \ref{fig:validation}a, we show that using the estimated parameters with settings from a different day of experiments gives good alignment between simulation and experiment.  An example closed-loop dynamic simulation is shown in Figure Xb, which demonstrates that the dynamic simulation aligns closely to the experimental dynamics. 
 
@@ -502,9 +514,9 @@ I used the steady state simulation as the initialization for dynamic simulation.
 
 \subsection{Distillation simulation correlates with experiments}
 
-In order to build a simulation that could be used for examining the effectiveness of multifidelity BO for controller tuning, I aligned the simulation to experimental data collected at BASF. The resulting steady-state simulation after parameter estimation is shown in Figure \ref{fig:estimated}. I used an average of the experimental stage temperatures over nine hours of steady state experimental data for parameter estimation. 
+In order to build a simulation that could be used for examining the effectiveness of multifidelity BO for controller tuning, I used parameter estimation to align the simulation to one steady state experimental condition collected at BASF. The resulting steady-state simulation after parameter estimation is shown in Figure \ref{fig:estimated}. I used an average of the experimental stage temperatures over nine hours of steady state experimental data for parameter estimation. The final estimated parameters are shown in Table \ref{tab:param_estimation}.
 
-The simulated steady state temperature profile aligns well with the experimentally measured temperatures. In particular, the simulation is able to capture the strong change in temperature between stage 10 and 20. However, the temperature of the middle section of the column is significantly lower than the experimentally measured values. This discrepancy could be due to a number of missing phenomena in the simulation including the heaters in the real column used to prevent heat loss from the column. These heaters could potentially increase the temperature of the internals of the column in a nonlinear fashion throughout the column. 
+The simulated steady state temperature profile aligns well with the experimentally measured temperatures (see Figure \ref{fig:estimated}). In particular, the simulation is able to capture the strong change in temperature between stage 10 and 20. However, the temperature of the middle section of the column is significantly lower than the experimentally measured values. This discrepancy could be due to a number of missing phenomena in the simulation including the heaters in the real column used to prevent heat loss from the column. These heaters could potentially increase the temperature of the internals of the column in a nonlinear fashion throughout the column. 
 
 % Figure 3: Steady state simulation
 \begin{figure}
@@ -514,7 +526,7 @@ The simulated steady state temperature profile aligns well with the experimental
     \label{fig:estimated}
 \end{figure}
 
-While  the steady state simulation aligned well, I found that the dynamic simulation did not fully capture all aspects of the experiments. In particular, the frequency response of the simulation upon a step in reflux rate did not reflect the oscillations seen in the actual experiments. Achieving a perfect match between the experimentally measured values and simulation is difficult, especially when the experiments are measured in closed-loop. However, I proceeded forward with Bayesian optimisation given that the simulations captured some aspects of the steady-state and dynamic behavior of the distillation column.
+While the steady state simulation aligned well to experiments, I found that the dynamic simulation did not fully capture all aspects of the experiments as shown in Figure \ref{fig:dynamic_nominal}. In particular, the frequency response of the simulation upon a step in reflux rate did not reflect the oscillations seen in the actual experiments. Achieving a perfect match between the experimentally measured values and simulation is difficult, especially when the experiments are measured in closed-loop. However, I proceeded forward with Bayesian optimisation given that the simulations captured some aspects of the steady-state and dynamic behavior of the distillation column.
  
 % Figure 4: Dynamic simulation
 \begin{figure}
@@ -526,7 +538,7 @@ While  the steady state simulation aligned well, I found that the dynamic simula
 
 \subsection{Optimisation of controller parameters}
 
-To evaluate the performance of ControlBO, I analyzed the performance of ControlBO wih and without a multifidelity model.  Figure \ref{fig:hypervolume_comparison} shows the hypervolume with respect to a fixed reference point during the tuning experiments. As noted in Chapter \ref{ch:summit}, hypervolume is a measure of the volume dominated by the Pareto front; larger hypervolumes correspond with more optimal solutions discovered (i.e., minimal IAE and CM). Note that the disturbance variables were the feed rate and reflux rate, which were stepped randomly during each tuning experiment. This reflects the actual use case where operators might perform steps on various streams and the tuning system needs to be able to accommodate these external changes. 
+To evaluate the performance of ControlBO, I analyzed the performance of ControlBO wih and without a multi-task model.  For the variations with a multi-task model, we used data from  500 auxiliary tuning experiments conducted on a simulation with a different Francis weir parameters than those shown in Section \ref{sec:francis_weir}. This was to simulate a case where we conducted parameter estimation on a single experimental condition, but there was still error between the simulation and experiments. In other words, I desired to see if the multi-task model could learn from an auxiliary simulation that was not a perfect reflection of the real experiment.  
 
 % Figure 5: Hypervolume vs iterations
 \begin{figure}
@@ -536,7 +548,7 @@ To evaluate the performance of ControlBO, I analyzed the performance of ControlB
     \label{fig:hypervolume_comparison}
 \end{figure}
 
-All ControlBO variations were able to find better controller parameters over the course of 20 tuning experiments, improving their approximation of the Pareto front. Furthermore, the combination of a classifier and using auxiliary data from simulations via the multi-task model resulted in faster optimisation with optimal tuning parameters being found within 2-3 tuning experiments compared 5-10 with the single-task model. 
+Figure \ref{fig:hypervolume_comparison} shows the hypervolume with respect to a fixed reference point during the tuning experiments. As noted in Chapter \ref{ch:summit}, hypervolume is a measure of the volume dominated by the Pareto front; larger hypervolumes correspond with more optimal solutions discovered (i.e., minimal IAE and CM). Note that the disturbance variables were the feed rate and reflux rate, which were stepped randomly during each tuning experiment. This reflects the actual use case where operators might perform steps on various streams and the tuning system needs to be able to accommodate these external changes.  All ControlBO variations were able to find better controller parameters over the course of 20 tuning experiments, improving their approximation of the Pareto front. Furthermore, the combination of a classifier and using auxiliary data from simulations via the multi-task model resulted in faster optimisation with optimal tuning parameters being found within 2-3 tuning experiments compared 5-10 with the single-task model.  Note that all tuning experiments were conducted in simulation, though the long-term intention is to use the algorithm directly on a laboratory distillation column.
 
 In Figure \ref{fig:comparison_controlbo}, I create a performance metric to compare the final tuning of each optimisation strategy. The metric is as follows:  
 
@@ -546,7 +558,7 @@ In Figure \ref{fig:comparison_controlbo}, I create a performance metric to compa
 \end{split}
 \end{equation}
 
-where $w_i$ is a weighting which is the inverse of the maximum value of each objective. ControlBO with a multi-task model and classifier performs best for both steps in reflux rate and feed rate. The multi-task model alone does not improve performance over the single-task model always. This is likely due to the large imbalance between auxiliary simulation data (500 tuning experiments) and the primary task (15 tuning experiments), so there is a possibility of choosing tuning parameters that are too aggressive since the auxiliary simulation is more forgiving. Overall, ControlBO performs well in selecting robust tuning parameters quickly.
+where $w_i$ is a weighting which is the inverse of the maximum value of each objective. The maximum value for IAE ControlBO with a multi-task model and classifier performs best for both steps in reflux rate and feed rate. The multi-task model alone does not improve performance over the single-task model always. Overall, ControlBO performs well in selecting robust tuning parameters quickly.
 
 \begin{figure}
     \centering
@@ -559,14 +571,14 @@ where $w_i$ is a weighting which is the inverse of the maximum value of each obj
 
 % Controller plots before and after tuning
 
-\subsection{Why does the multi-task model improve performance?}
+\subsection{How does the multi-task model perform?}
 
-As shown in Table \ref{tab:mt_vs_st_controlbo}, the multi-task models are more accurate than the single-task models when predicting held-out data. Therefore, these models can be used to quickly find optimal controller parameters and guide optimisation. In particular, to produce the statistics shown in Table \ref{tab:mt_vs_st_controlbo}, the models were trained on the five initial random tuning experiments generated by Latin hypercube sampling in each tuning run, and the predictions were on the subsequent ten data points from one run. Therefore, these results suggest that the multitask model could more effectively select high quality experiments.
+As shown in Table \ref{tab:mt_vs_st_controlbo}, the multi-task models are more accurate than the single-task models when predicting data held-out via random train-test split. Therefore, these models can be used to quickly find optimal controller parameters and guide optimisation. In particular, to produce the statistics shown in Table \ref{tab:mt_vs_st_controlbo}, the models were trained on the five initial random tuning experiments generated by Latin hypercube sampling in each tuning run, and the predictions were on the subsequent ten data points from one run. Therefore, these results suggest that the multitask model could more effectively select high quality experiments.
 % Table with MAE and $\rho$when using single-task vs multitask model
 
 \begin{table}[]
     \centering
-    \caption{Comparison of mean absolute error (MAE) and Pearson's correlation coefficient ($\rho$) of predictions on five held out data points when model is trained on five data points selected randomly. ST means single-task and MT means for multi-task.}
+    \caption{Comparison of mean absolute error (MAE) and Pearson's correlation coefficient ($\rho$) of predictions on five held out data points when model is trained on five data points selected randomly. The objectives are integral absolute error (IAE) and controller movement (CM). TC stands for temperature controller, and LC stands for level controller.  ST means single-task and MT means for multi-task.}
     \begin{tabular}{llrr}
     
     \toprule
@@ -593,7 +605,7 @@ As shown in Table \ref{tab:mt_vs_st_controlbo}, the multi-task models are more a
 
 \subsection{Why does using a classifier improve performance?}
 
-The classifier is an important component of ControlBO since it enables making maximal use of simulation data. As shown in Figure \ref{fig:classifier_calibration}, the classifier was well calibrated in that increases in predicted probability of success were correlated with high fractions of actual successful simulations. This calibration is important since the classifier probabilities are used to weight the acquisition function values.
+The classifier is an important component of ControlBO since it enables making maximal use of simulation data. As shown in Figure \ref{fig:classifier_calibration}, the classifier was well calibrated in that increases in predicted probability of success were correlated with high fractions of actual successful simulations, where success is defined as the simulation converging. This calibration is important since the classifier probabilities are used to weight the acquisition function values.
 
 % Classifier calibration
 \begin{figure}
@@ -616,7 +628,7 @@ Furthermore, when the simulation success rate is plotted across different Contro
 
 \subsection{Performance after tuning}
 
-Figure \ref{fig:dynamic_after_tuning} shows the performance of the distillation column after tuning. Compared to the original tuning after parameter estimation shown in Figure \ref{fig:estimated}, the condenser and and sump levels are better controlled with tightly tuned loops. The composition temperature controller is slow to respond, but this is due to limitations of the simulation; when more aggressive controller parameters are used the simulation fails.
+Figure \ref{fig:dynamic_after_tuning} shows the performance of the distillation column after tuning. Compared to the original tuning after parameter estimation shown in Figure \ref{fig:estimated}, the condenser and and sump levels are better controlled with tightly tuned loops. The temperature controller is slow to respond, but this is due to limitations of the simulation; when more aggressive controller parameters are used the simulation fails.
 
 \begin{figure}
     \centering

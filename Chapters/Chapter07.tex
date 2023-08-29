@@ -18,7 +18,7 @@ In order to design and engineer systems which contain vapor-liquid equilibrium, 
     y_i P = x_iP_i^{sat}(T)
 \end{equation}
 
-where $y_i$ and $x_i$ are the vapor and liquid compositions of component $i$ of the mixture respectively, $P$ is the absolute pressure, and $P_i^{sat}(T)$ is the vapor pressure at temperature $T$. Raoult's law describes non-interacting ideal systems, yet it fails to properly predict vapor-liquid equilibrium for the wide variety of mixtures used in industrial chemical processes. Therefore, the simplified gamma-phi equation was developed to describe deviations from ideality:
+where $y_i$ and $x_i$ are the vapor and liquid compositions of component $i$ of the mixture respectively, $P$ is the absolute pressure, and $P_i^{sat}(T)$ is the vapor pressure at temperature $T$. Raoult's law describes non-interacting ideal systems, yet it fails to properly predict vapor-liquid equilibrium for the wide variety of mixtures used in industrial chemical processes. The simplified $\gamma$-$\phi$ equation describes deviations from ideality:
 
 \begin{equation}
     \label{gamma-phi}
@@ -103,17 +103,17 @@ While UNIFAC provides fast predictions, the accuracy of the model is limited by 
 
 The second set of methods are quantum chemistry methods. These simulations often use a combination of molecular dynamics and density functional theory (DFT) calculations to predict activity coefficients for each mixture component \cite{Constantinescu2005}. COSMO-RS is one of the most reliable computational methods for liquid-phase thermodynamic predictions \cite{Klamt1995, Klamt2010}. It relies on the theory of screening charges, which states that every element of a surface of a dissolved solute must be complemented by an opposite charge in the solvent  \cite{Klamt1995}. The charge surface around a solute is divided into infinitesimally small pieces, which are then integrated to find the charge density. This charge density can then be used to calculate activity coefficients. The charge density is calculated via rigorous DFT calculations. COSMO-RS and a related method named COSMO-SAC have been applied in calculations of VLE \cite{Constantinescu2005}, liquid-liquid equilibrium (LLE) \cite{Dechambre2014} and vapor-liquid-liquid-equilibrium (VLLE) curves \cite{Kundu2011}.
 
-The downside of COSMO methods is that they are often not accurate for polar compounds \cite{Constantinescu2005, Kundu2011}. This is often due to the lack of theory for the hydrogen bonding present in these systems \cite{Kundu2011}. Another challenging aspect of COSMO-RS is the computational intensity of DFT calculations for new mixtures. 
+The downside of COSMO methods is that they are often not accurate for polar compounds \cite{Constantinescu2005, Kundu2011}. This is often due to the lack of theory for the hydrogen bonding present in these systems \cite{Kundu2011}. Another challenging aspect of COSMO-RS is the is that the DFT calculations required for new molecules can take between hours and days for new molecules, depending on the size of the molecule.
 
 \subsubsection{Machine Learning}
 
-There has been significant work on directly predicting infinite dilution activity coefficients from molecular structures and closely related free solvation energies using simple neural networks \cite{Urata2002, RamirezBeltran2009, Nami2011, Behrooz2017}, matrix completion\cite{Jirasek2020} and  graph neural networks \cite{Vermeire2021, Felton2022, SanchezMedina2022, Qin2022, Rittig2022}. However, the limitation of these works is their lack of thermodynamic consistency and other guarantees that come with rigorously derived equations of state. To overcome this problem, recent work has attempted to predict EoS parameters \cite{Abbasi2020, Madani2021, Abdallahelhadj2022, Winter2022}, which can be in turn used to predict thermodynamic outcomes.
- 
+Recently, a significant volume of research has been dedicated to directly predicting infinite dilution activity coefficients and closely related free solvation energies from molecular structures using simple neural networks \cite{Urata2002, RamirezBeltran2009, Nami2011, Behrooz2017}, matrix completion \cite{Jirasek2020}, graph neural networks \cite{Grambow_2019, Vermeire2021, Chung2022, SanchezMedina2023a, Qin2023, Rittig2023, SanchezMedina2023b}, and transformers \cite{Winter2022, Winter2023}. Many of these papers were published at the same time or after the initial publication of this chapter. However, the limitation of these works and the work in this chapter is their lack of thermodynamic consistency and other guarantees that come with rigorously derived equations of state \cite{Rittig2023b}. To overcome this problem, recent work has attempted to predict equation of state parameters \cite{Abbasi2020, Madani2021, Abdallahelhadj2022, Winter2023, SanchezMedina2023b}, which can be in turn used to predict thermodynamic outcomes; I use this method in Chapter \ref{ch:ml_saft}.
+
 \section{Methods}
 \subsection{Models}
 
 \noindent
-\textbf{Message passing neural networks:} Molecules can be treated as graphs with atoms as nodes and bonds as edges. Therefore, message passing neural networks (MPNN) that operate on graphs can be used for end-to-end prediction of molecular properties \cite{Gilmer2017}.  In a MPNN, each node passes a vector (i.e., its current features) to its neighbor. This  vector is called a message. In each layer, a permutation invariant aggregation function such as the mean is used to calculate the total message for each node prior to passing through an activation function to get a new value for each node.  In contrast to traditional fixed fingerprints like ECFP \cite{Rogers2010}, the best feature vector is learned end-to-end for each property prediction task.
+\textbf{Message passing neural networks:} As noted in Chapter \ref{ch:background}, molecules can be represented as graphs where the atoms are nodes and the bonds as edges. Therefore, message passing neural networks (MPNN) that operate on graphs can be used for end-to-end prediction of molecular properties \cite{Gilmer2017}.  In a MPNN, each node passes a vector (i.e., its current features) to its neighbor. This  vector is called a message. In each layer, a permutation invariant aggregation function such as the mean is used to calculate the total message for each node prior to passing through an activation function to get a new value for each node.  In contrast to traditional fixed fingerprints like ECFP \cite{Rogers2010}, the best feature vector is learned end-to-end for each property prediction task.
 
 One type on MPNN is a directed message passing neural network (D-MPNN) in which the encoder acts on edges (bonds) instead of nodes (atoms) to improve stability of training \cite{Yang2019}. Yang, Swanson and colleagues demonstrated that D-MPNNs have superior performance to other tools such as gradient boosted trees for property prediction tasks \cite{Yang2019}. Formally, a molecule in a D-MPNN is considered to be a graph $G$ with edges $e_{vw}$ and nodes $v$ and $w$ with atom features $x_v$. A message passing update $m_{vw}^{t}$ is as follows:
 
@@ -122,7 +122,7 @@ One type on MPNN is a directed message passing neural network (D-MPNN) in which 
 \end{equation}
 
 \begin{equation}
-    h_v^{t+1} = U_t(h_v^t, m_v^{t+1})
+    h_v^{t+1} = U_t(h_v^t, m_{vw}^{t+1})
 \end{equation}
 
 where $M_t$ is the message function, $U_t$ is the update function and $h_v^{t}$ is the hidden state at step $t$. To obtain predictions $\hat y$, all of the atom vectors are added or averaged in a step often called pooling. Since activity coefficients are an intensive property (i.e., they do not depend directly on molecular size), I use the mean pooling function \cite{Schweidtmann2023}:
@@ -143,13 +143,13 @@ In addition to using outputs of the message passing steps as input to the feed f
     \hat y = R(h_v^T \in G, f)
 \end{equation}
 
-In our case of predicting activity coefficients of binary mixtures at atmospheric pressure, we treat the temperature and composition as additional features. Therefore, the feed forward network can be written as:
+In our case of predicting activity coefficients of binary mixtures at atmospheric pressure, I treat the temperature and composition as additional features. Therefore, the feed forward network can be written as:
 
 \begin{equation}
    \ln \gamma(x,T)= R(h_v^T \in G, x, T)
 \end{equation}
 
-Note that we predict the natural logarithm of the activity coefficient since these values can vary over an order of magnitude.
+Note that the model predicts the natural logarithm of the activity coefficient since activity coefficient values can vary over two orders of magnitude.
 
 % \noindent
 % \textbf{DeepGamma Polynomial:} Often, adding chemical knowledge into machine learning models can make them more accurate. In the case of activity coefficient prediction, it would be best to fit a thermodynamically consistent model such as the the non-random two liquid model (NRTL) \cite{Renon1968}. However, we found that many of the mixtures in our training set (see "Datasets") were difficult to fit using NRTL, often because the large correlations between its parameters \cite{Holler2019}. As shown in Figure \ref{fig:mnae_distribution}, the NRTL model had significant errors (>0.2) for many mixtures.
@@ -181,7 +181,7 @@ Previous work has demonstrated the power of transfer learning for improving pred
 \textbf{Combisolv Solvation Energy Dataset:} Solvation energies describe the change in free energy when a gas molecule of a solute is placed into a solvent. Solvation energies are closely related to activity coefficients at infinite dilution \cite{Moine2017}, so encoder representations learned on this task could be useful for the downstream task of activity coefficient prediction. I utilize the Combisolv dataset, which contains the largest number of solvation energies publicly available to date: one million binary pairs of molecules calculated using COSMO-RS \cite{Vermeire2021}.
 
 \noindent
-\textbf{COSMO-RS Activity Coefficient Dataset:} I executed COSMO-RS calculations for over 18 million activity coefficients by taking all the binary pairs of 460 common solvent molecules from a previously published dataset \cite{Amar2019}. The activity coefficients were calculated in 5 K temperature increments between the normal boiling points of the each binary pair, and 0.1 mol/mol composition grid was used. All activity coefficients were calculated at atmospheric pressure. COSMOtherm 2020 at the TZVPD fine fidelity level was utilized, and parameters were taken from the 2020 COSMObase database \cite{Klamt2010}. These calculations took 41 days on a 24 Intel Xeon(R) E5-2643 v3 CPUs. 
+\textbf{COSMO-RS Activity Coefficient Dataset:} I executed COSMO-RS calculations for over 18 million activity coefficients by taking all the binary pairs of 460 common solvent molecules from a previously published dataset \cite{Amar2019}. The activity coefficients were calculated in 5 K temperature increments between the normal boiling points of the each binary pair, and 0.1 mol/mol composition grid was used. All activity coefficients were calculated at atmospheric pressure. COSMOtherm 2020 at the TZVPD fine fidelity level was utilized, and parameters were taken from the 2020 COSMObase database \cite{Klamt2010}. These calculations took 41 days on a 24 core Intel Xeon(R) E5-2643 v3 CPUs. 
 
 % \noindent
 % \textbf{Aspen Activity Coefficient Dataset:} The third set of data were obtained using the process modeling software, Aspen Plus. This was chosen due to the fact that the thermodynamic data used to simulate processes were obtained from the Dortmund Data Bank (DDB). A total of 2500 components were added to Aspen, from which temperature dependent non-random two liquid model binary parameters of binary VLE systems were retrieved via regression of literature data from Aspen’s VLE-IG databank. VLE systems were retrieved, from which the activity coefficients were calculated at mole fractions of zero to one in increments of 0.1 and 11 K temperature increments. 
@@ -206,23 +206,23 @@ The training set size was 11M activity coefficients. Sizes of the holdout set ar
 
 \begin{table}
     \centering
-    \caption{Validation and test mean absolute error of DeepGamma (DG) models on the COSMO-RS Activity  Coefficient Dataset. TLCB stands for transfer learning, where the encoder from the model trained on the Combisolv dataset is frozen and only the feedforward network is tuned. $n$ is the size of the holdout set.}
+    \caption{Validation and test set mean absolute error of DeepGamma (DG) models on the COSMO-RS Activity  Coefficient Dataset. TLCB stands for transfer learning, where the encoder from the model trained on the Combisolv dataset is frozen and only the feedforward network is tuned. $n$ is the size of the holdout set.}
     % \renewcommand{\arraystretch}{1.2}
     \label{tab:cosmo_rs_results}
     \begin{tabular}{llrrrr}
     \toprule
     Holdout Set & $n$ & Model Name &  $ln\gamma_1$ MAE &   $ln\gamma_2$ MAE \\
     \midrule
-    Test INDP & DG & 0.1453 & 0.1369 \\
-              & DG-TLCB & 0.1345 & 0.1355 \\
-    Test MIX & DG & 0.1077 & 0.1033 \\
-              & DG-TLCB & 0.0955 & 0.0979 \\
-    Valid CONT & DG & 0.0270 & 0.0267 \\
-              & DG-TLCB & 0.0291 & 0.0323 \\
-    Valid INDP & DG & 0.0747 & 0.0717 \\
-              & DG-TLCB & 0.1076 & 0.0930 \\
-    Valid MIX & DG & 0.0623 & 0.0575 \\
-              & DG-TLCB & 0.0826 & 0.0793 \\
+    Test INDP & 579 458 &  DG & 0.1453 & 0.1369 \\
+              & &  DG-TLCB & 0.1345 & 0.1355 \\
+    Test MIX & 5 985 078 & DG & 0.1077 & 0.1033 \\
+              & & DG-TLCB & 0.0955 & 0.0979 \\
+    Valid CONT & 111 426 &  DG & 0.0270 & 0.0267 \\
+              & &  DG-TLCB & 0.0291 & 0.0323 \\
+    Valid INDP & 595 243 &  DG & 0.0747 & 0.0717 \\
+              & &  DG-TLCB & 0.1076 & 0.0930 \\
+    Valid MIX & 920 139 & DG & 0.0623 & 0.0575 \\
+              & &  DG-TLCB & 0.0826 & 0.0793 \\
     \bottomrule
     \end{tabular}
 \end{table}
@@ -232,7 +232,7 @@ The training set size was 11M activity coefficients. Sizes of the holdout set ar
 
 % In all our tables, we report mean absolute error for each model and holdout set. We also report the time required for training, as this varies significantly between the full and pretrained models. Fitting the polynomial model required approximately 24 hours.
 
-Results of training on the COSMO-RS activity coefficient dataset are shown in Table \ref{tab:cosmo_rs_results}. The base \textit{DeepGamma} model  and model pretrained on COSMO-RS data achieve similar mean absolute errors. Similar mean absolute errors are achieved on the validation and test datasets for all models. As expected, the Valid CONT holdout set has the lowest MAE due to the same molecules being in the training set and holdout set.  For the best performing base model, the INDP and MIX datasets have similar error profiles, indication that model has learned a good encoder representation.  Note that even though the transfer learning model has approximately the performance as the base models, it takes ~50 \% less time to train. 
+Results of training on the COSMO-RS activity coefficient dataset are shown in Table \ref{tab:cosmo_rs_results}. The base \textit{DeepGamma} model  and model pretrained on COSMO-RS data achieve similar mean absolute errors. Similar mean absolute errors are achieved on the validation and test datasets for all models. As expected, the Valid CONT holdout set has the lowest MAE due to the same molecules being in the training set and holdout set.  For the best performing base model, the INDP and MIX datasets have similar error profiles, indication that model has learned a good encoder representation.  Note that even though the transfer learning model has approximately the performance as the base models, it takes ~75 \% less time to train (20 hours for base model vs 5 hours for pretrained model). 
 
 The accuracy of predictions varies as function of composition. As shown in Figure \ref{fig:absolute_error_composition}, there are higher errors approaching infinite dilution, which is a trend seen in other work published contemporaneously \cite{Winter2022}. This is likely due to the activity coefficient being larger approaching infinite dilution.
 
@@ -254,7 +254,7 @@ Figure \ref{fig:dg_test_indp_parity_plot} visualizes the predictions versus orig
 
 \subsection{Using \textit{DeepGamma} for VLE predictions}
 
-I used \textit{DeepGamma} to predict the activity coefficients of several mixtures in the test INDP set and used these activity coefficients to construct P-xy diagrams. I used Antoine equation with activity coefficients from the NIST database to calculate vapor pressures \cite{Muzny}. In Figure \ref{fig:low_error_dg_prediction} and \ref{fig:high_error_dg_prediction}, I show two mixtures with different levels of error  between the \textit{DeepGamma} and COSMO-RS predictions. Figure \ref{fig:low_error_dg_prediction} shows 2-methyl-2-butanol and 2-methylpentane at 333.15K, a mixture for which \textit{DeepGamma} accurately predicts activity coefficients and thus renders an accurate representation of the P-xy diagram.  However, in Figure \ref{fig:high_error_dg_prediction}, I show isopropylamine and trifluoroacetic acid, a mixture for which \textit{DeepGamma} has high erorr in the predictions liquid pressure and even gives non-physical results from vapor pressure. This again highlights that the lack of thermodynamic consistency in deep learning models represents a problem when using the predictions from models like \textit{DeepGamma} in downstream applications.
+I used \textit{DeepGamma} to predict the activity coefficients of several mixtures in the test INDP set and used these activity coefficients to construct P-xy diagrams. I used Antoine equation with activity coefficients from the NIST database to calculate vapor pressures \cite{Muzny}. In Figure \ref{fig:low_error_dg_prediction} and \ref{fig:high_error_dg_prediction}, I show two mixtures with different levels of error  between the \textit{DeepGamma} and COSMO-RS predictions. Figure \ref{fig:low_error_dg_prediction} shows 2-methyl-2-butanol and 2-methylpentane at 333.15K, a mixture for which \textit{DeepGamma} accurately predicts activity coefficients and thus renders an accurate representation of the P-xy diagram.  However, in Figure \ref{fig:high_error_dg_prediction}, I show isopropylamine and trifluoroacetic acid, a mixture for which \textit{DeepGamma} has high error in the predictions liquid pressure and even gives non-physical results from vapor pressure. This again highlights that the lack of thermodynamic consistency in deep learning models represents a problem when using the predictions from models like \textit{DeepGamma} in downstream applications.
 
 \begin{figure}
     \centering
@@ -274,9 +274,9 @@ I used \textit{DeepGamma} to predict the activity coefficients of several mixtur
 
 \section{Conclusions}
 
-In this chapter, I propose \textit{DeepGamma}, an approach to predicting activity coefficients directly from molecular structures using directed messasge passing neural networks. Furthermore, the model is accurate at predicting activity coefficients of unseen molecules. However, I found that transfer learning did not improve the accuracy of the model but did reduce training time. This lack of improved performance is likely due to the discrepancy between the pretraining task (Gibbs free energy of solvation) and the downstream task of activity coefficient prediction. In particular, the pretraining task only used data a 298K, while my dataset used variable temperature. Recent work \cite{Lansford2023} has shown that learning temperature dependent data can lead to different topology in the trained neural network and thus makes it difficult to transfer from a model trained at a single temperature to one at multiple temperatures.
+In this chapter, I propose \textit{DeepGamma}, an approach to predicting activity coefficients directly from molecular structures using directed messasge passing neural networks. Furthermore, the model is accurate at predicting activity coefficients of unseen molecules. However, I found that transfer learning did not improve the accuracy of the model but did reduce training time. This lack of improved performance is likely due to the discrepancy between the pretraining task (Gibbs free energy of solvation) and the downstream task of activity coefficient prediction. In particular, the pretraining task only used data a 298 K, while my dataset used variable temperature. Recent work \cite{Lansford2023} has shown that learning temperature dependent data can lead to different topology in the trained neural network and thus makes it difficult to transfer from a model trained at a single temperature to one at multiple temperatures.
 
-\textit{DeepGamma} has several limitations. First,  it relies solely on quantum simulation data, which are themselves not fully predictive of experimental results. This could be improved in the future by training on experimental data as is done in the next chapter. Second, the results are not Gibbs-Duheim  consistent. Since \textit{DeepGamma} was published, several works have proposed to overcome this challenge by incorporating more physical constraints into the neural network. For example, Sanchez Medina used  a Gibbs-Helmholtz-derived expression as the last layer of their readout feed forward network to ensure thermodynamic consistency \cite{SanchezMedina2023}. In a similar approach Winter et al developed a model for predicting activity coefficients using transformer models. Specifically, they predict the parameters of the NRTL model, for any mixture \cite{Winter2022}. An alternative strategy was proposed in a paper I recently coauthored with Jan Rittig. We used the Gibbs Duheim equation (shown below) as a constraint in the loss function and showed that doing so improved both consistency and accuracy of the predicted activity coefficients \cite{Rittig2023b}.
+\textit{DeepGamma} has several limitations. First,  it relies solely on quantum simulation data, which are themselves not fully predictive of experimental results. This could be improved in the future by training on experimental data as is done in the next chapter. Second, the results are not Gibbs-Duheim  consistent. Since \textit{DeepGamma} was published, several works have proposed to overcome this challenge by incorporating more physical constraints into the neural network. For example, Sanchez Medina used  a Gibbs-Helmholtz-derived expression as the last layer of their readout feed forward network to ensure thermodynamic consistency \cite{SanchezMedina2023b}. In a similar approach Winter et al developed a model for predicting activity coefficients using transformer models. Specifically, they predict the parameters of the NRTL model, for any mixture \cite{Winter2022}. An alternative strategy was proposed in a paper I recently coauthored with Jan Rittig. We used the Gibbs Duheim equation (shown below) as a constraint in the loss function and showed that doing so improved both consistency and accuracy of the predicted activity coefficients \cite{Rittig2023b}.
 
 \begin{equation}
     x_1 \biggl (\frac{\partial \ln \gamma_1}{\partial x_1}\biggr)_{T,p} + x_2 \biggl (\frac{\partial \ln \gamma_2}{\partial x_2}\biggr)_{T,p} = 0
