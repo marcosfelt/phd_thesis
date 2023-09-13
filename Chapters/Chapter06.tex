@@ -8,9 +8,9 @@ Laboratory unit operations such as reactors and distillation columns  are often 
 
 As noted in Chapter \ref{ch:rl_tuning}, there are a wide variety of existing tuning protocols ranging from heuristics such as Ziegler Nichols \cite{Ziegler1942} and its refinements \cite{Hang1991} to tuning using analytical equations from models via methods such as  Internal Model Control \cite{Copeland2010}. However, extending these to multi-input multi-output systems has been challenging, often requiring additional optimisation iterations \cite{Nandong2013, Nandong2015}. Optimisation-based methods have shown promise \cite{Pajares2019, Sumana2010, Rajapandiyan2012, Behroozsarand2012}, but these methods have been difficult to apply in practice due to the large number of iterations they require. Recently, Bayesian optimisation (BO) has shown promise for tuning controllers \cite{NeumannBrosig2020, Fiducioso2019, Khosravi2020, Konig2020, Fujimoto2022, Brunzema2022, Khosravi2022}, but this method still often requires tens to hundreds of iterations, making it too materially expensive for laboratory chemical processes.
 
-One approach to reduce the number of iterations required for BO is multifidelity Bayesian optimisation (MFBO). MFBO leverages data from an auxiliary simulation or data source that is faster or cheaper to evaluate. Early examples of this approach include Kennedy et al. who used low fidelity approximations of an oil rig simulation to reduce the number of calls to a slower simulator \cite{Kennedy2000}. More recently, multifidelity Bayesian optimisation approaches have developed to accelerate the tuning of hyperparameters for machine learning models \cite{pmlr-v70-kandasamy17a}, design of batteries \cite{Folch2023} and optimisation of airplane rotors \cite{Pan2017}. Readers should refer to Chapter \ref{ch:background} for review of multifidelity and transfer learning in Bayesian optimisation.
+One approach to reduce the number of iterations required for BO is multi-fidelity Bayesian optimisation (MFBO). MFBO leverages data from an auxiliary simulation or data source that is faster or cheaper to evaluate. Early examples of this approach include Kennedy et al. who used low fidelity approximations of an oil rig simulation to reduce the number of calls to a slower simulator \cite{Kennedy2000}. More recently, MFBO approaches have developed to accelerate the tuning of hyperparameters for machine learning models \cite{pmlr-v70-kandasamy17a}, design of batteries \cite{Folch2023} and optimisation of airplane rotors \cite{Pan2017}. Readers should refer to Chapter \ref{ch:background} for review of multi-fidelity and transfer learning in Bayesian optimisation.
 
-In this chapter, I use Bayesian optimisation to accelerate controller tuning. I introduce a novel BO strategy called ControlBO that I  designed specifically for tuning control systems and explore whether multifidelity BO can accelerate controller tuning. I then develop a dynamic simulation of a distillation column that I use to evaluate ControlBO \textit{in silico}. This overall workflow is shown in Figure \ref{fig:tuning_workflow}.
+In this chapter, I use Bayesian optimisation to accelerate controller tuning. I introduce a novel BO strategy called ControlBO that I  designed specifically for tuning control systems and explore whether multi-fidelity BO can accelerate controller tuning. I then develop a dynamic simulation of a distillation column that I use to evaluate ControlBO \textit{in silico}. This overall workflow is shown in Figure \ref{fig:tuning_workflow}.
 
 \begin{figure}
     \centering
@@ -50,18 +50,18 @@ where $y_{sp}$ is the setpoint,  $\hat y$  is the value of  the variable, T is t
 
 \subsection{ControlBO: Bayesian optimisation for controller tuning}
 
-ControlBO is a Bayesian optimisation algorithm that aims to identify robust controller parameters for MIMO systems in as few experiments as possible. I was inspired by a recent paper by Paulson et al. that uses a Gaussian Process to model both the uncertain variables as well as the controller parameters \cite{Paulson2022}. They then use a min-max formulation where the integral absolute error is minimized, while the uncertain variables are held at their maximum value. However, they sample from a high fidelity simulation and then assume that this simulation will always transfer to laboratory experiments. In contrast, I use both simulation and experimental data so that the optimization algorithm can find optimal tuning parameters even if the simulation is not accurate.
+ControlBO is a Bayesian optimisation algorithm that aims to identify robust controller parameters for MIMO systems in as few experiments as possible. I was inspired by a recent paper by Paulson et al. that uses a Gaussian Process to model both the uncertain variables as well as the controller parameters \cite{Paulson2022}. They then use a min-max formulation where the integral absolute error is minimized, while the uncertain variables are held at their maximum value. However, they sample from a high fidelity simulation and then assume that this simulation will always transfer to laboratory experiments. In contrast, I use both simulation and experimental data so that the optimisation algorithm can find optimal tuning parameters even if the simulation is not accurate.
 
-ControlBO is a multifidelity and multi-objective Bayesian optimisation algorithm that aims to solve the following problem:
+ControlBO is a multi-fidelity and multi-objective Bayesian optimisation algorithm that aims to solve the following problem:
 
 \begin{equation}
     \Omega^* = \min_{\Omega} \mathbf f(\Omega, \delta)
 \end{equation}
-where $\Omega$ are the controller parameters and $\mathbf f$ is the laboratory controller tuning problem. $\delta$ are disturbance variables that might be stepped by operators or changed by other external factors. Similar to Paulson et al. \cite{Paulson2022}, I use a min max formulation where a GP is trained on both controller parameters $\Omega$ and values of disturbance variables from past tuning experiments. During acquisition function optimisation, the disturbance variables are fixed at their maximum value, while the controllers parameters are varied to maximize the acquisition function. Fixing the disturbance variables ensures that robust controller parameters are chosen.
+where $\Omega$ are the controller parameters and $\mathbf f$ is the laboratory controller tuning problem. $\delta$ are disturbance variables that might be stepped by operators or changed by other external factors. Similar to Paulson et al. \cite{Paulson2022}, I use a min max formulation where a GP is trained on both controller parameters $\Omega$ and values of disturbance variables from past tuning experiments. During acquisition function optimisation, the disturbance variables are fixed at their maximum value, while the controllers parameters are varied to maximize the acquisition function (i.e., minimize IAE and CM). Fixing the disturbance variables ensures that robust controller parameters are chosen.
 
 The unique feature of ControlBO is that it trains an independent multitask GP to predict each controller objective (IAE) and controller movement (CM) given the relevant controller parameters. The multitask GP is trained on both auxiliary simulation data and tuning experiments. By using data from the auxiliary simulation, my hope is that the optimisation will proceed faster than when using only data from tuning experiments executed on the distillation column since the multi-task GP could learn the correlation between the simulation and the experimental data and thus make better predictions on the experiments with less data.
 
-Since our problem is multi-objective, I used a multi-objective acquisition function, namely the q Expected Hypervolume Improvement (qEHVI) \cite{Balandat2020}. This acquisition function has a balance of computational efficiency and fidelity resulting in an ability to find the Pareto front of trade-offs between objectives quickly. 
+Since the problem is multi-objective, I used a multi-objective acquisition function, namely the q Expected Hypervolume Improvement (qEHVI) \cite{Balandat2020}. This acquisition function has a balance of computational efficiency and fidelity resulting in an ability to find the Pareto front of trade-offs between objectives quickly. 
 
 Additionally, I found that tuning experiments often fail due to controller parameters being too aggressive. ControlBO therefore trains a GP classifier that predicts the probability of success of a tuning experiment using data from the auxiliary simulation. Success is defined as whether or not a simulation converged. During acquisition function optimisation, the probability of success of a tuning experiment, as predicted by the GP classifier, is multiplied by the acquisition function value to determine a final acquisition function value that is optimized to choose the next experiment:
 
@@ -69,8 +69,7 @@ Additionally, I found that tuning experiments often fail due to controller param
     \alpha_{c} = p_{success}(y_c \vert x, \mathcal D) \alpha_{qEHVI}(X)
 \end{equation}
 
-where $\alpha$ is the acquisition function.
- 
+where $\alpha$ is the acquisition function. By maximizing $\alpha_c$, the likelihood of finding controller parameters that both improve performance and are safe to execute should be improved. This is a similar concept to contemporaneous work on meta-learning safe priors for controller tuning \cite{Rothfuss2023}. 
 
 % Additionally, I found that the simulations often failed with certain controller parameters. Therefore, I trained a classifier to predict the likelihood of a successful simulation, which I expect to also correlate with reasonable experimental parameters. The probability of success predicted by the classifier was multiplied by the qNEHVI acquisition function value to form a chance constrained acquisition function:
 
@@ -157,7 +156,7 @@ Material balances are calculated for all stages as follows:
 \frac{dn_i}{dt} = L_{i+1}-L_i + V_{i-1}-V_i \;\; \forall i=1 \dots N_F-1, N_F+2 \dots N+1
 \end{equation}
 
-Note that the feed stage and the stage above the feed stage are treated separately:
+\noindent Note that the feed stage and the stage above the feed stage are treated separately:
 
 \begin{equation}
     \frac{dn_{N_F}}{dt} = L_{N_F+1}-L_{N_F} + V_{N_F-1}-V_{N_F} + q_{N_F}F   
@@ -166,18 +165,12 @@ Note that the feed stage and the stage above the feed stage are treated separate
 \begin{equation}
    \frac{dn_{N_F+1}}{dt} = L_{N_F+2}-L_{N_F+1} + V_{N_F}-V_{N_F+1} + (1-q_{N_F})F 
 \end{equation}
-
-where $q_i$ is the liquid fraction of the feed stream and $F$ is the molar feed flow.
-
-The reboiler and sump are lumped into into one stage. 
+where $q_i$ is the liquid fraction of the feed stream and $F$ is the molar feed flow. The reboiler and sump are lumped into into one stage. 
 
 \begin{equation}
     \frac{dn_1}{dt} =  L_1 - V_0 - B
 \end{equation}
-
-$B$ is the molar bottoms flow.
-
-The condenser and reflux drum are lumped and consider as one unit.
+$B$ is the molar bottoms flow. The condenser and reflux drum are lumped and consider as one unit.
 
 \begin{equation}
     \frac{dn_{N+1}}{dt} = V_{N+1}-(L_{N+1} + D)    
@@ -191,14 +184,13 @@ Component balances are calculated for all trays:
    \frac{d(x_{i} n_{i})}{dt}= L_{i+1} x_{i+1} - L_i x_{i} + V_{i-1} y_{i-1} -V_i y_i  \;\; \forall i=1 \dots N_F-1, N_F+2 \dots N+1
 \end{equation}
 
-The  feed stage and the stage above the feed stage are treated separately:
+\noindent The feed stage and the stage above the feed stage are treated separately:
 
 \begin{equation}
 \begin{split}
  \frac{d(x_{N_F} n_{N_F})}{dt} =  &  x_{N_F+1}L_{N_F+1}  - x_{N_F}L_{N_F} +  y_{N_F-1}V_{N_F-1} \\ & -y_{N_F}V_{N_F} + q_{N_F}z_FF   
 \end{split}
 \end{equation}
-
 where $z_F$ is the overall molar composition of the feed stream.
 
 \begin{equation}
@@ -207,30 +199,27 @@ where $z_F$ is the overall molar composition of the feed stream.
 \end{split}
 \end{equation}
 
-The component balance around the sump is as follows:
+\noindent The component balance around the sump is as follows:
 
 \begin{equation}
     \frac{d(x_{0} n_{0})}{dt} = L_1 x_1 - (B + V_0) x_0 
 \end{equation}
 
-The component balance around the condenser is as follows:
+\noindent The component balance around the condenser is as follows:
 \begin{equation}
     \frac{d(x_{N+1} n_{N+1})}{dt}  = V_{N+1} y_{N+1} - x_{N+1} (L_{N+1} + D)
 \end{equation}
 
 \subsubsection{Energy balances}\label{sec:energy_balances}
 
-In calculating energy balances, I assume that vapor holdup is negligible and therefore only consider the liquid holdup. Energy balances are calculated using the liquid and vapor enthalpy, as detailed subsequently. For the trays:
+In calculating energy balances, I assume that vapor holdup is negligible and, therefore, only consider the liquid holdup. Energy balances are calculated using the liquid and vapor enthalpy, as detailed subsequently. For the trays:
 
 \begin{equation}
 \begin{split}
     \frac{d(n_ih^L_i)}{dt} = h^L_{i+1}L_{i+1}-h^L_iL_i+h^V_{i-1}V_{i-1}-h^V_iV_i \\ \forall i=1 \dots N_F-1, N_F+2 \dots N+1
 \end{split}
 \end{equation}
-
-where $h^L_i$ and $h^V_i$ are the specific enthalpy of the liquid and vapor respectively on stage $i$.
-
-For the feed stage and the stage above the feed stage:
+where $h^L_i$ and $h^V_i$ are the specific enthalpy of the liquid and vapor respectively on stage $i$. For the feed stage and the stage above the feed stage:
 
 \begin{equation}
 \begin{split}
@@ -253,23 +242,17 @@ For the feed stage and the stage above the feed stage:
 
 where $Q_0$ is the reboiler heat duty.
 
-The energy balance for the condenser is as follows:
+\noindent The energy balance for the condenser is as follows:
 
 \begin{equation}
     \frac{d(n_{N+1}h^L_{N+1})}{dt} = h^V_{N+1} V_{N+1}-h^L_{N+1}(L_{N+1} + D) + Q_{N+1}
 \end{equation}
-
-wher $Q_{N+1}$ is the condenser duty.
-
-Additionally, a heat exchanger subcools the liquid from the condenser:
+where $Q_{N+1}$ is the condenser duty. Additionally, a heat exchanger subcools the liquid from the condenser:
 
 \begin{equation}
     n_{subcool}\frac{d h^L_{reflux}}{dt} = L_{N+1}(h^L_{N+1} - h^L_{reflux}) + Q_{subcool}
 \end{equation}
-
-where $Q_{subcool}$ is the heat exchanger duty.
-
-For liquid enthalpy $h^{L,c}$ of each component, a mole fraction weighted average of the specific enthalpies is calculated by integrating a constant heat capacity from a reference temperature $T_{ref}$ of normal boiling point of each component $c$. Data is taken from Table 2-72 of Perry’s Chemical Engineer's Handbook \cite{Perrys2018}.
+where $Q_{subcool}$ is the heat exchanger duty. For liquid enthalpy $h^{L,c}$ of each component, a mole fraction weighted average of the specific enthalpies is calculated by integrating a constant heat capacity from a reference temperature $T_{ref}$ of normal boiling point of each component $c$. Data is taken from Table 2-72 of Perry’s Chemical Engineer's Handbook \cite{Perrys2018}.
 
 \begin{equation}
     h^L(T_i, P_i, x_i) = x_ih^{L,0}(T_i,P_i) + (1-x_i)h^{L,1}(T_i,P_i)
@@ -283,7 +266,7 @@ For liquid enthalpy $h^{L,c}$ of each component, a mole fraction weighted averag
     C_p^c(T) = \sum_{k=0}^5 c^kT^k 
 \end{equation}
 
-The enthalpy of the liquid on stage $i$ is then:
+\noindent The enthalpy of the liquid on stage $i$ is then:
 \begin{equation}
     h^L_i := h^L(T_i, P_i,x_i) \;\; \forall i = 1 \dots N_F-1, N_F+1 \dots N+1
 \end{equation}
@@ -292,7 +275,7 @@ The enthalpy of the liquid on stage $i$ is then:
     h^L_{N_F} := h^L(T_{N_F}, P_{N_F},x_{N_F})
 \end{equation}
 
-For vapor enthalpy,  a similar approach is taken. Data for heat of vaporization, vapor enthalpy and heat capacity are taken from Table 2-169, Table 2-102, Table 2-27 respectively in Perry’s Chemical Engineer's Handbook \cite{Perrys2018}.
+\noindent For vapor enthalpy,  a similar approach is taken. Data for heat of vaporisation, vapor enthalpy and heat capacity are taken from Table 2-169, Table 2-102, Table 2-27 respectively in Perry’s Chemical Engineer's Handbook \cite{Perrys2018}.
 
 \begin{equation}
     h^V(T_i, P_i, x_i) = x_i h^{V,0}(T_i,P_i) + (1-x_i) h^{V,1}(T_i,P_i)
@@ -381,26 +364,19 @@ The Francis weir formula is used for dynamic simulations to calculate liquid flo
     h^{ow}_i = \frac{n^v_i-n^v_{ref}}{A}
 \end{equation}
 
-
-The Francis weir formula for calculating flow over the weir of width $w$ comes from the Bernoulli equation for the horizontal velocity $v$. The equation is integrated from the top of the liquid (y=0) to the weir ($y=h_i^{ow}$)
-
+\noindent The Francis weir formula for calculating flow over the weir of width $w$ comes from the Bernoulli equation for the horizontal velocity $v$. The equation is integrated from the top of the liquid (y=0) to the weir ($y=h_i^{ow}$)
 \begin{equation}
     \frac{1}{2} \rho v^2 = \rho g y \ \Longrightarrow v(y) = \sqrt{2gy}
 \end{equation}
-
 \begin{equation}
     L_i^{vol} = \int_0^{h_i^{ow}} v(h)wdh = w\sqrt{2g}\int_0^{h_i^{ow}} h^{1/2}dh = \frac{2}{3}w\sqrt{2g}(h_i^{ow})^{3/2} 
 \end{equation}
-
-
 Substituting for $h_i^{ow}$:
-
 \begin{equation}
    L_i^{vol} = \frac{2}{3} w\sqrt{2g}\biggl(\frac{n^v_i-n^v_{ref}}{A}\biggr)^{3/2}  
 \end{equation}
 
-All constants are then lumped into a a single parameter $W_{tray}$:
-
+\nonindent All constants are then lumped into a a single parameter $W_{tray}$:
 \begin{equation}
     L_i^{vol} = W_{tray}(n_i^v-n^v_{ref})^{3/2}
 \end{equation}
@@ -412,12 +388,9 @@ All constants are then lumped into a a single parameter $W_{tray}$:
 Based on measurements from BASF, I assume the diameter of the weir $w$ is 8 mm and the height of the weir $h$ is 10 mm. Additionally, these measurements give $h = 1\cdot10^{-2} m$ and $A=\pi w^2/4 = \pi(8 \cdot 10^{-3})^2/4 = 5.024 \cdot 10^{-5} m^2$. Therefore $W_{tray}^{init}=120149 \; m^{-3/2}s^{-1}$. $n^v_{ref}=Ah=5.024 \cdot 10^{-7} m^3$. 
 
 Since the simulation is in molar flowrates, volumetric flowrates should be converted to molar flowrates:
-
 \begin{equation}
     L_i = \rho(T_i, x_i)L^{vol}_i  
 \end{equation}
-
-
 where $\rho(T_i,x_i)$ is the volumetric density, calculated by a weighted average of the volumetric density of both components. Volumetric density come from Perry’s Chemical Engineer's Handbook \cite{Perrys2018}.
 
 \begin{equation}
@@ -427,32 +400,24 @@ where $\rho(T_i,x_i)$ is the volumetric density, calculated by a weighted averag
 \subsubsection{Feedback control}
 
 Three PI controllers are used to control the distillation column. The first two controllers are  level controllers:
-
 \begin{equation}
     D := PI(l_{condenser}, \Omega_{cond})
 \end{equation}
-
 \begin{equation}
     B := PI(l_{sump}, \Omega_{sump})
 \end{equation}
-
 where $l$ is the level in the respective vessel. The level (\%) is calculated using the following linear equation which is based on data from BASF:
-
 \begin{equation}
     l = c^1 n + c^2
 \end{equation}
-
-where $c^1=143.94 m^{-1}$ and $c^2=0.21$.
-
-A composition controller uses the temperature on stage 17 as the controlled variable and the reboiler heat as the manipulated variable.
-
+where $c^1=143.94 m^{-1}$ and $c^2=0.21$. A composition controller uses the temperature on stage 17 as the controlled variable and the reboiler heat as the manipulated variable.
 \begin{equation}
     Q_0 := PI(T_{17}, \Omega_{composition})
 \end{equation}
 
 \subsection{Solving and aligning model using GEKKO}
 
-I implemented the equations from the previous section in a simulation of a distillation column that can be aligned to experiments using a small amount of steady state data. The distillation simulation was built in Python using GEKKO \cite{Beal2018}, and the differential algebraic equation model used for the simulations is fully detailed in Section \ref{sec:distillation_model}. To align the simulation to experiments, a three step procedure, illustrated in Figure \ref{fig:simulation_workflow}, was followed: initialization, steady state solution with parameter estimation and dynamic simulation. All simulations were solved with the APOPT nonlinear programming solver to a tolerance $10^{-9}$ and relative tolerance $10^{-9}$.
+I implemented the equations from the previous section in a simulation of a distillation column that can be aligned to experiments using a small amount of steady state data. The distillation simulation was built in Python using GEKKO \cite{Beal2018}, and the differential algebraic equation model used for the simulations is fully detailed in Section \ref{sec:distillation_model}. To align the simulation to experiments, a three step procedure, illustrated in Figure \ref{fig:simulation_workflow}, was followed: initialisation, steady state solution with parameter estimation and dynamic simulation. All simulations were solved with the APOPT nonlinear programming solver to a tolerance $10^{-9}$ and relative tolerance $10^{-9}$.
 
 \begin{figure}
     \centering
@@ -461,9 +426,9 @@ I implemented the equations from the previous section in a simulation of a disti
     \label{fig:simulation_workflow}
 \end{figure}
 
-To initialise  the simulation, only the component material balances and pressure balances were solved using the steady-state solver in GEKKO \cite{Beal2018}. This solver turns off the derivatives in all equations and solves nonlinear simulataneous equation problem using a nonlinear solver. The constant molal overflow assumption was used, which states that there is constant liquid flow in the stripping and rectifying section respectively as well as constant vapor flow.  The values of the state variables are saved from the the constant molal overflow calculation, and estimates of reboiler and condenser duty are calculated using energy balances.
+To initialise  the simulation, only the component material balances and pressure balances were solved using the steady-state solver in GEKKO \cite{Beal2018}. This solver turns off the derivatives in all equations and solves a nonlinear simultaneous equation problem using a nonlinear solver. The constant molal overflow assumption was used, which states that there is constant liquid flow in the stripping and rectifying section respectively as well as constant vapor flow.  The values of the state variables are saved from the the constant molal overflow calculation, and estimates of reboiler and condenser duty are calculated using energy balances.
 
-The full steady state simulation was then solved using the state variables from the constant molal overflow simulation as initial guesses. Again the steady-state solver in  GEKKO was used. This results of the full steady state simulation was used to generate the nominal values for steady state parameter estimation to the experimental data. The full list of estimated parameters can be found in Table \ref{tab:param_estimation}. Note that, while the condenser duty during dynamic simulation was fixed at the value from steady state parameter estimation, the reboiler duty was a manipulated variable; therefore, the steady-state estimated value of the reboiler duty served as an initial condition. The objective of the parameter estimation was to minimize the $L_1$ error between the simulation and experimental temperatures on stages 1, 8, 11, 16, 17, 21, 23, 41, 47, 53, 61, 81, as these stages were shown to be sensitive to changes in the parameters. Therefore, the parameter estimation problem was formulated as:
+The full steady state simulation was then solved using the state variables from the constant molal overflow simulation as initial guesses. Again the steady-state solver in  GEKKO was used. The results of the full steady state simulation was used to generate the nominal values for steady state parameter estimation to the experimental data. The full list of estimated parameters can be found in Table \ref{tab:param_estimation}. Note that, while the condenser duty during dynamic simulation was fixed at the value from steady state parameter estimation, the reboiler duty was a manipulated variable; therefore, the steady-state estimated value of the reboiler duty served as an initial condition. The objective of the parameter estimation was to minimize the $L_2$ error between the simulation and experimental temperatures on stages 1, 8, 11, 16, 17, 21, 23, 41, 47, 53, 61, and 81, as these stages were shown to be sensitive to changes in the parameters. Therefore, the parameter estimation problem was formulated as:
 %  The $l_1$ norm was chosen due to its improved  handling of outliers \cite{Safdarnejad2016}.
 \begin{subequations}
     \begin{align}
@@ -514,7 +479,7 @@ I used the state variables after parameter estimation from steady state simulati
 
 \subsection{Distillation simulation correlates with experiments}
 
-In order to build a simulation that could be used for examining the effectiveness of multifidelity BO for controller tuning, I used parameter estimation to align the simulation to one steady state experimental condition collected at BASF. The resulting steady-state simulation after parameter estimation is shown in Figure \ref{fig:estimated}. I used an average of the experimental stage temperatures over nine hours of steady state experimental data for parameter estimation. The final estimated parameters are shown in Table \ref{tab:param_estimation}.
+In order to build a simulation that could be used for examining the effectiveness of multi-fidelity BO for controller tuning, I used parameter estimation to align the simulation to one steady state experimental condition collected at BASF. The resulting steady-state simulation after parameter estimation is shown in Figure \ref{fig:estimated}. I used an average of the experimental stage temperatures over nine hours of steady state experimental data for parameter estimation. The final estimated parameters are shown in Table \ref{tab:param_estimation}.
 
 The simulated steady state temperature profile aligns well with the experimentally measured temperatures (see Figure \ref{fig:estimated}). In particular, the simulation is able to capture the strong change in temperature between stage 10 and 20. However, the temperature of the middle section of the column is significantly lower than the experimentally measured values. This discrepancy could be due to a number of missing phenomena in the simulation including the heaters in the real column used to prevent heat loss from the column. These heaters could potentially increase the temperature of the internals of the column in a nonlinear fashion throughout the column. 
 
@@ -532,7 +497,7 @@ While the steady state simulation aligned well to experiments, I found that the 
 \begin{figure}
     \centering
     \includegraphics[width=\textwidth]{gfx/Chapter06/2021_11_17_closed_loop_dynamic.png}
-    \caption{Dynamic simulation after parameter estimation of a separation of 50/50 methanol-water separation in a distillation column with 80 bubble cap trays. \textbf{Top left}: Liquid composition over time. \textbf{Top right}: Temperature over time. \textbf{Bottom left}: Flow over time \textbf{Bottom right}: Holdups in condenser and reboiler.}
+    \caption{Dynamic simulation after parameter estimation of a separation of 50/50 methanol-water separation in a distillation column with 80 bubble cap trays. \textbf{Top left}: Liquid composition over time. \textbf{Top right}: Temperature over time. Thick lines represent experimental data. \textbf{Bottom left}: Flow over time \textbf{Bottom right}: Holdups in condenser and reboiler.}
     \label{fig:dynamic_nominal}
 \end{figure}
 
@@ -550,15 +515,19 @@ To evaluate the performance of ControlBO, I analyzed the performance of ControlB
 
 Figure \ref{fig:hypervolume_comparison} shows the hypervolume with respect to a fixed reference point during the tuning experiments. As noted in Chapter \ref{ch:summit}, hypervolume is a measure of the volume dominated by the Pareto front; larger hypervolumes correspond with more optimal solutions discovered (i.e., minimal IAE and CM). Note that the disturbance variables were the feed rate and reflux rate, which were stepped randomly during each tuning experiment. This reflects the actual use case where operators might perform steps on various streams and the tuning system needs to be able to accommodate these external changes.  All ControlBO variations were able to find better controller parameters over the course of 20 tuning experiments, improving their approximation of the Pareto front. Furthermore, the combination of a classifier and using auxiliary data from simulations via the multi-task model resulted in faster optimisation with optimal tuning parameters being found within 2-3 tuning experiments compared 5-10 with the single-task model.  Note that all tuning experiments were conducted in simulation, though the long-term intention is to use the algorithm directly on a laboratory distillation column.
 
-In Figure \ref{fig:comparison_controlbo}, I create a performance metric to compare the final tuning of each optimisation strategy. The metric is as follows:  
+In Figure \ref{fig:comparison_controlbo}, I create a performance objective to compare the final tuning of each optimisation strategy: 
 
 \begin{equation}
 \begin{split}
-    Objective = w_1 IAE_{sump} + w_2 IAE_{condenser} +  & \\ w_3 IAE_{composition} +  w_4 CM_{sump} + & \\  w_5 CM_{condenser} + w_6 CM_{composition}
+    \text{Overall Objective}= w_1 IAE_{sump} + w_2 IAE_{condenser} +  & \\ w_3 IAE_{composition} +  w_4 CM_{sump} + & \\  w_5 CM_{condenser} + w_6 CM_{composition}
 \end{split}
 \end{equation}
+where $w_i$ is a weighting which is the inverse of the maximum bound of each objective (IAE or CM). The weighting is determined as follows:
+\begin{equation}
+    \frac{1}{w} = s1.5 * Y^{sp} \frac{T}{\Delta t}
+\end{equation}
+where $Y^{sp}$ is the setpoint value for the related controller, $T$ is the total time of the tuning experiment and $\Delta t$ is the timestep. This performance objective represents the overall performance of all controllers. ControlBO with a multi-task model and classifier performs best for both steps in reflux rate and feed rate. The multi-task model alone does not improve performance over the single-task model always. Overall, ControlBO performs well in selecting robust tuning parameters quickly.
 
-where $w_i$ is a weighting which is the inverse of the maximum value of each objective. The maximum value for IAE ControlBO with a multi-task model and classifier performs best for both steps in reflux rate and feed rate. The multi-task model alone does not improve performance over the single-task model always. Overall, ControlBO performs well in selecting robust tuning parameters quickly.
 
 \begin{figure}
     \centering
@@ -639,7 +608,7 @@ Figure \ref{fig:dynamic_after_tuning} shows the performance of the distillation 
 
 \section{Conclusions}
 
-Here, I compared several approaches to optimizing control systems distillation columns using Bayesian optimisation. I developed a simulation of a distillation column, which I aligned to experiments conducted by BASF. Subsequently, I used this simulation to explore the use of ControlBO, a multifidelity, multiobjecitve Bayesian optimisation strategy designed for controller tuning. I found that ControlBO could find optimal tuning parameters within twenty experiments. Using ControlBO in multifidelity mode (i.e., with a multitask model) improved the speed of optimisation but did not result in better final tuning. However, when a classifier was used to filter out suggestions that might fail, ControlBO gave better solutions on average.
+Here, I compared several approaches to optimising control systems of distillation columns using Bayesian optimisation. I developed a simulation of a distillation column, which I aligned to experiments conducted by BASF. Subsequently, I used this simulation to explore the use of ControlBO, a multi-fidelity, multiobjecitve Bayesian optimisation strategy designed for controller tuning. I found that ControlBO could find optimal tuning parameters within twenty experiments. Using ControlBO in multi-fidelity mode (i.e., with a multi-task model) improved the speed of optimisation but did not result in better final tuning. However, when a classifier was used to filter out suggestions that might fail, ControlBO gave better solutions on average.
 
-This work is a first step in the direction of leveraging a combination of simulation and machine learning to accelerate controller tuning. However, there are significant challenges both in developing a robust dynamic simulation of a distillation column and applying Bayesian optimisation to controller tuning. My distillation simulation does not take into account dynamic pressure changes, which do occur in actual laboratory distillation columns. While our experimental data suggest that pressure drop changes are small in the specific case study due to the use of a vacuum pump for control, more general application of this approach would require taking into account these pressure dynamics to accurately represent dynamic behavior. Similarly, our Bayesian optimisation strategy only uses simple time-domain controller performance metrics, while frequency domain performance metrics might give more transferable results. Additionally, we test only on simulations here, but deployment on a real distillation column would be key to verifying the viability of our approach.
+This work is a first step in the direction of leveraging a combination of simulation and machine learning to accelerate controller tuning. However, there are significant challenges both in developing a robust dynamic simulation of a distillation column and applying Bayesian optimisation to controller tuning. My distillation simulation does not take into account dynamic pressure changes, which do occur in actual laboratory distillation columns. While the experimental data suggest that pressure drop changes are small in the specific case study due to the use of a vacuum pump for control, more general application of this approach would require taking into account these pressure dynamics to accurately represent dynamic behavior. Similarly, the Bayesian optimisation strategy only uses simple time-domain controller performance metrics, while frequency domain performance metrics might give more transferable results. Additionally, we test only on simulations here, but deployment on a real distillation column would be key to verifying the viability of this approach.
 
