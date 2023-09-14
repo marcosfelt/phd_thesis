@@ -362,7 +362,7 @@ In this chapter, I introduced the challenge of controller tuning for distillatio
 \begin{itemize}
     \item RL requires many iterations to find optimal policy. Even the simulation training can take hours to days on fast computer.
     \item RL trained on a specific configuration is not transferable. A new agent would need to be trained for each new configuration of the distillation column, which is unacceptable given the above training constraint.
-    \item Applying the trained policy to the laboratory might be impossible. At the time of writing, RL agents had not been deployed in chemical plants and, therefore, did have the same safety verification of other techniques such as model predictive control. 
+    \item Applying the trained policy to the laboratory might be impossible. At the time of writing, RL agents had not been deployed in chemical plants and, therefore, did not have the same safety verification of other techniques such as model predictive control. 
 \end{itemize}
 
  Overall, these conclusions led me to try a transfer learning approach based on rigorous dynamic simulation and Bayesian optimisation.
